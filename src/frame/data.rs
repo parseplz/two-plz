@@ -6,6 +6,25 @@ const END_STREAM: u8 = 0x1;
 const PADDED: u8 = 0x8;
 const ALL: u8 = END_STREAM | PADDED;
 
+/*
+   DATA Frame {
+     Length (24),
+     Type (8) = 0x00,
+
+     Unused Flags (4),      |
+     PADDED Flag (1),       | DataFlags
+     Unused Flags (2),      |
+     END_STREAM Flag (1),   |
+
+     Reserved (1),
+     Stream Identifier (31),
+
+     [Pad Length (8)],
+     Data (..),
+     Padding (..2040),
+   }
+*/
+
 #[derive(Copy, Clone, Default, Eq, PartialEq)]
 struct DataFlags(u8);
 
