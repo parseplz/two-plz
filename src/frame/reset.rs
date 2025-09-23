@@ -1,20 +1,6 @@
-use crate::frame::{self, Head, Kind, StreamId, error::Error, reason::Reason};
+use crate::frame::{self, Error, Head, Kind, Reason, StreamId};
 
 use bytes::BufMut;
-
-/*
-   RST_STREAM Frame {
-     Length (24) = 0x04,
-     Type (8) = 0x03,
-
-     Unused Flags (8),
-
-     Reserved (1),
-     Stream Identifier (31),
-
-     Error Code (32),
-   }
-*/
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Reset {
@@ -52,19 +38,19 @@ impl Reset {
     }
 
     pub fn encode<B: BufMut>(&self, dst: &mut B) {
-        //tracing::trace!(
-        //    "encoding RESET; id={:?} code={:?}",
-        //    self.stream_id,
-        //    self.error_code
-        //);
+        tracing::trace!(
+            "encoding RESET; id={:?} code={:?}",
+            self.stream_id,
+            self.error_code
+        );
         let head = Head::new(Kind::Reset, 0, self.stream_id);
         head.encode(4, dst);
         dst.put_u32(self.error_code.into());
     }
 }
 
-//impl<B> From<Reset> for frame::Frame<B> {
-//    fn from(src: Reset) -> Self {
-//        frame::Frame::Reset(src)
-//    }
-//}
+impl<B> From<Reset> for frame::Frame<B> {
+    fn from(src: Reset) -> Self {
+        frame::Frame::Reset(src)
+    }
+}

@@ -2,6 +2,13 @@ use super::StreamId;
 
 use bytes::BufMut;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Head {
+    kind: Kind,
+    flag: u8,
+    stream_id: StreamId,
+}
+
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Kind {
@@ -18,30 +25,7 @@ pub enum Kind {
     Unknown,
 }
 
-impl Kind {
-    pub fn new(byte: u8) -> Kind {
-        match byte {
-            0 => Kind::Data,
-            1 => Kind::Headers,
-            2 => Kind::Priority,
-            3 => Kind::Reset,
-            4 => Kind::Settings,
-            5 => Kind::PushPromise,
-            6 => Kind::Ping,
-            7 => Kind::GoAway,
-            8 => Kind::WindowUpdate,
-            9 => Kind::Continuation,
-            _ => Kind::Unknown,
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Head {
-    kind: Kind,
-    flag: u8,
-    stream_id: StreamId,
-}
+// ===== impl Head =====
 
 impl Head {
     pub fn new(kind: Kind, flag: u8, stream_id: StreamId) -> Head {
@@ -52,6 +36,7 @@ impl Head {
         }
     }
 
+    /// Parse an HTTP/2 frame header
     pub fn parse(header: &[u8]) -> Head {
         let (stream_id, _) = StreamId::parse(&header[5..]);
 
@@ -80,9 +65,30 @@ impl Head {
 
     pub fn encode<T: BufMut>(&self, payload_len: usize, dst: &mut T) {
         debug_assert!(self.encode_len() <= dst.remaining_mut());
+
         dst.put_uint(payload_len as u64, 3);
         dst.put_u8(self.kind as u8);
         dst.put_u8(self.flag);
         dst.put_u32(self.stream_id.into());
+    }
+}
+
+// ===== impl Kind =====
+
+impl Kind {
+    pub fn new(byte: u8) -> Kind {
+        match byte {
+            0 => Kind::Data,
+            1 => Kind::Headers,
+            2 => Kind::Priority,
+            3 => Kind::Reset,
+            4 => Kind::Settings,
+            5 => Kind::PushPromise,
+            6 => Kind::Ping,
+            7 => Kind::GoAway,
+            8 => Kind::WindowUpdate,
+            9 => Kind::Continuation,
+            _ => Kind::Unknown,
+        }
     }
 }

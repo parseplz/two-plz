@@ -1,20 +1,10 @@
-use crate::frame::{Head, StreamId, error::Error};
+use crate::frame::*;
 
-/*
-PRIORITY Frame {
-    Length (24) = 0x05,
-    Type (8) = 0x02,
-
-    Unused Flags (8),
-
-    Reserved (1),
-    Stream Identifier (31),
-
-    Exclusive (1),
-    Stream Dependency (31),
-    Weight (8),
+#[derive(Debug, Eq, PartialEq)]
+pub struct Priority {
+    stream_id: StreamId,
+    dependency: StreamDependency,
 }
-*/
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct StreamDependency {
@@ -30,12 +20,31 @@ pub struct StreamDependency {
     is_exclusive: bool,
 }
 
+impl Priority {
+    pub fn load(head: Head, payload: &[u8]) -> Result<Self, Error> {
+        let dependency = StreamDependency::load(payload)?;
+
+        if dependency.dependency_id() == head.stream_id() {
+            return Err(Error::InvalidDependencyId);
+        }
+
+        Ok(Priority {
+            stream_id: head.stream_id(),
+            dependency,
+        })
+    }
+}
+
+impl<B> From<Priority> for Frame<B> {
+    fn from(src: Priority) -> Self {
+        Frame::Priority(src)
+    }
+}
+
+// ===== impl StreamDependency =====
+
 impl StreamDependency {
-    pub fn new(
-        dependency_id: StreamId,
-        weight: u8,
-        is_exclusive: bool,
-    ) -> Self {
+    pub fn new(dependency_id: StreamId, weight: u8, is_exclusive: bool) -> Self {
         StreamDependency {
             dependency_id,
             weight,
@@ -61,30 +70,3 @@ impl StreamDependency {
         self.dependency_id
     }
 }
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct Priority {
-    stream_id: StreamId,
-    dependency: StreamDependency,
-}
-
-impl Priority {
-    pub fn load(head: Head, payload: &[u8]) -> Result<Self, Error> {
-        let dependency = StreamDependency::load(payload)?;
-
-        if dependency.dependency_id() == head.stream_id() {
-            return Err(Error::InvalidDependencyId);
-        }
-
-        Ok(Priority {
-            stream_id: head.stream_id(),
-            dependency,
-        })
-    }
-}
-
-//impl<B> From<Priority> for Frame<B> {
-//    fn from(src: Priority) -> Self {
-//        Frame::Priority(src)
-//    }
-//}

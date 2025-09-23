@@ -1,70 +1,13 @@
-use crate::frame::{Head, Kind, StreamId, error::Error, util};
+use crate::frame::{util, Error, Frame, Head, Kind, StreamId};
 use bytes::{Buf, BufMut, Bytes};
+
 use std::fmt;
 
-const END_STREAM: u8 = 0x1;
-const PADDED: u8 = 0x8;
-const ALL: u8 = END_STREAM | PADDED;
-
-/*
-   DATA Frame {
-     Length (24),
-     Type (8) = 0x00,
-
-     Unused Flags (4),      |
-     PADDED Flag (1),       | DataFlags
-     Unused Flags (2),      |
-     END_STREAM Flag (1),   |
-
-     Reserved (1),
-     Stream Identifier (31),
-
-     [Pad Length (8)],
-     Data (..),
-     Padding (..2040),
-   }
-*/
-
-#[derive(Copy, Clone, Default, Eq, PartialEq)]
-struct DataFlags(u8);
-
-impl DataFlags {
-    fn load(bits: u8) -> DataFlags {
-        DataFlags(bits & ALL)
-    }
-
-    fn is_empty(&self) -> bool {
-        self.0 == 0
-    }
-
-    fn is_end_stream(&self) -> bool {
-        self.0 & END_STREAM == END_STREAM
-    }
-
-    fn set_end_stream(&mut self) {
-        self.0 |= END_STREAM
-    }
-
-    fn unset_end_stream(&mut self) {
-        self.0 &= !END_STREAM
-    }
-
-    fn is_padded(&self) -> bool {
-        self.0 & PADDED == PADDED
-    }
-
-    #[cfg(feature = "unstable")]
-    fn set_padded(&mut self) {
-        self.0 |= PADDED
-    }
-}
-
-impl From<DataFlags> for u8 {
-    fn from(src: DataFlags) -> u8 {
-        src.0
-    }
-}
-
+/// Data frame
+///
+/// Data frames convey arbitrary, variable-length sequences of octets associated
+/// with a stream. One or more DATA frames are used, for instance, to carry HTTP
+/// request or response payloads.
 #[derive(Eq, PartialEq)]
 pub struct Data<T = Bytes> {
     stream_id: StreamId,
@@ -73,7 +16,15 @@ pub struct Data<T = Bytes> {
     pad_len: Option<u8>,
 }
 
+#[derive(Copy, Clone, Default, Eq, PartialEq)]
+struct DataFlags(u8);
+
+const END_STREAM: u8 = 0x1;
+const PADDED: u8 = 0x8;
+const ALL: u8 = END_STREAM | PADDED;
+
 impl<T> Data<T> {
+    /// Creates a new DATA frame.
     pub fn new(stream_id: StreamId, payload: T) -> Self {
         assert!(!stream_id.is_zero());
 
@@ -85,6 +36,9 @@ impl<T> Data<T> {
         }
     }
 
+    /// Returns the stream identifier that this frame is associated with.
+    ///
+    /// This cannot be a zero stream identifier.
     pub fn stream_id(&self) -> StreamId {
         self.stream_id
     }
@@ -100,6 +54,7 @@ impl<T> Data<T> {
         self.flags.is_end_stream()
     }
 
+    /// Sets the value for the `END_STREAM` flag on this frame.
     pub fn set_end_stream(&mut self, val: bool) {
         if val {
             self.flags.set_end_stream();
@@ -187,6 +142,11 @@ impl Data<Bytes> {
 }
 
 impl<T: Buf> Data<T> {
+    /// Encode the data frame into the `dst` buffer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `dst` cannot contain the data frame.
     pub(crate) fn encode_chunk<U: BufMut>(&mut self, dst: &mut U) {
         let len = self.data.remaining();
 
@@ -197,7 +157,6 @@ impl<T: Buf> Data<T> {
     }
 }
 
-/*
 impl<T> From<Data<T>> for Frame<T> {
     fn from(src: Data<T>) -> Self {
         Frame::Data(src)
@@ -221,7 +180,42 @@ impl<T> fmt::Debug for Data<T> {
 
 // ===== impl DataFlags =====
 
+impl DataFlags {
+    fn load(bits: u8) -> DataFlags {
+        DataFlags(bits & ALL)
+    }
 
+    fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.0 & END_STREAM == END_STREAM
+    }
+
+    fn set_end_stream(&mut self) {
+        self.0 |= END_STREAM
+    }
+
+    fn unset_end_stream(&mut self) {
+        self.0 &= !END_STREAM
+    }
+
+    fn is_padded(&self) -> bool {
+        self.0 & PADDED == PADDED
+    }
+
+    #[cfg(feature = "unstable")]
+    fn set_padded(&mut self) {
+        self.0 |= PADDED
+    }
+}
+
+impl From<DataFlags> for u8 {
+    fn from(src: DataFlags) -> u8 {
+        src.0
+    }
+}
 
 impl fmt::Debug for DataFlags {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -231,4 +225,3 @@ impl fmt::Debug for DataFlags {
             .finish()
     }
 }
-*/

@@ -1,21 +1,6 @@
-use crate::frame::{self, Head, Kind, StreamId, error::Error};
+use crate::frame::{self, Error, Head, Kind, StreamId};
 
 use bytes::BufMut;
-
-/*
-   WINDOW_UPDATE Frame {
-     Length (24) = 0x04,
-     Type (8) = 0x08,
-
-     Unused Flags (8),
-
-     Reserved (1),
-     Stream Identifier (31),
-
-     Reserved (1),
-     Window Size Increment (31),
-   }
-*/
 
 const SIZE_INCREMENT_MASK: u32 = 1 << 31;
 
@@ -50,8 +35,7 @@ impl WindowUpdate {
 
         // Clear the most significant bit, as that is reserved and MUST be ignored
         // when received.
-        let size_increment =
-            unpack_octets_4!(payload, 0, u32) & !SIZE_INCREMENT_MASK;
+        let size_increment = unpack_octets_4!(payload, 0, u32) & !SIZE_INCREMENT_MASK;
 
         if size_increment == 0 {
             return Err(Error::InvalidWindowUpdateValue);
@@ -64,15 +48,15 @@ impl WindowUpdate {
     }
 
     pub fn encode<B: BufMut>(&self, dst: &mut B) {
-        //tracing::trace!("encoding WINDOW_UPDATE; id={:?}", self.stream_id);
+        tracing::trace!("encoding WINDOW_UPDATE; id={:?}", self.stream_id);
         let head = Head::new(Kind::WindowUpdate, 0, self.stream_id);
         head.encode(4, dst);
         dst.put_u32(self.size_increment);
     }
 }
 
-//impl<B> From<WindowUpdate> for frame::Frame<B> {
-//    fn from(src: WindowUpdate) -> Self {
-//        frame::Frame::WindowUpdate(src)
-//    }
-//}
+impl<B> From<WindowUpdate> for frame::Frame<B> {
+    fn from(src: WindowUpdate) -> Self {
+        frame::Frame::WindowUpdate(src)
+    }
+}

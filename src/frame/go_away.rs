@@ -2,24 +2,7 @@ use std::fmt;
 
 use bytes::{BufMut, Bytes};
 
-use crate::frame::{self, Head, Kind, StreamId, error::Error, reason::Reason};
-
-/*
-   GOAWAY Frame {
-     Length (24),
-     Type (8) = 0x07,
-
-     Unused Flags (8),
-
-     Reserved (1),
-     Stream Identifier (31) = 0,
-
-     Reserved (1),
-     Last-Stream-ID (31),
-     Error Code (32),
-     Additional Debug Data (..),
-   }
-*/
+use crate::frame::{self, Error, Head, Kind, Reason, StreamId};
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct GoAway {
@@ -37,11 +20,7 @@ impl GoAway {
         }
     }
 
-    pub fn with_debug_data(
-        last_stream_id: StreamId,
-        reason: Reason,
-        debug_data: Bytes,
-    ) -> Self {
+    pub fn with_debug_data(last_stream_id: StreamId, reason: Reason, debug_data: Bytes) -> Self {
         Self {
             last_stream_id,
             error_code: reason,
@@ -78,7 +57,7 @@ impl GoAway {
     }
 
     pub fn encode<B: BufMut>(&self, dst: &mut B) {
-        //tracing::trace!("encoding GO_AWAY; code={:?}", self.error_code);
+        tracing::trace!("encoding GO_AWAY; code={:?}", self.error_code);
         let head = Head::new(Kind::GoAway, 0, StreamId::zero());
         head.encode(8 + self.debug_data.len(), dst);
         dst.put_u32(self.last_stream_id.into());
@@ -87,11 +66,11 @@ impl GoAway {
     }
 }
 
-//impl<B> From<GoAway> for frame::Frame<B> {
-//    fn from(src: GoAway) -> Self {
-//        frame::Frame::GoAway(src)
-//    }
-//}
+impl<B> From<GoAway> for frame::Frame<B> {
+    fn from(src: GoAway) -> Self {
+        frame::Frame::GoAway(src)
+    }
+}
 
 impl fmt::Debug for GoAway {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

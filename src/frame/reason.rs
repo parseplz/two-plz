@@ -113,12 +113,7 @@ impl fmt::Debug for Reason {
             11 => "ENHANCE_YOUR_CALM",
             12 => "INADEQUATE_SECURITY",
             13 => "HTTP_1_1_REQUIRED",
-            other => {
-                return f
-                    .debug_tuple("Reason")
-                    .field(&Hex(other))
-                    .finish();
-            }
+            other => return f.debug_tuple("Reason").field(&Hex(other)).finish(),
         };
         f.write_str(name)
     }
@@ -137,4 +132,3 @@ impl fmt::Display for Reason {
         write!(fmt, "{}", self.description())
     }
 }
-
