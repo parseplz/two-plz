@@ -52,7 +52,8 @@ pub use self::data::Data;
 pub use self::go_away::GoAway;
 pub use self::head::{Head, Kind};
 pub use self::headers::{
-    parse_u64, Continuation, Headers, Pseudo, PushPromise, PushPromiseHeaderError,
+    Continuation, Headers, Pseudo, PushPromise, PushPromiseHeaderError,
+    parse_u64,
 };
 pub use self::ping::Ping;
 pub use self::priority::{Priority, StreamDependency};
@@ -68,8 +69,8 @@ pub use crate::hpack::BytesStr;
 // Re-export some constants
 
 pub use self::settings::{
-    DEFAULT_INITIAL_WINDOW_SIZE, DEFAULT_MAX_FRAME_SIZE, DEFAULT_SETTINGS_HEADER_TABLE_SIZE,
-    MAX_MAX_FRAME_SIZE,
+    DEFAULT_INITIAL_WINDOW_SIZE, DEFAULT_MAX_FRAME_SIZE,
+    DEFAULT_SETTINGS_HEADER_TABLE_SIZE, MAX_MAX_FRAME_SIZE,
 };
 
 pub type FrameSize = u32;
