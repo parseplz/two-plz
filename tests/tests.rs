@@ -1,6 +1,7 @@
+#![allow(warnings, dead_code)]
 use bytes::BytesMut;
 use tokio::{io::AsyncReadExt, net::TcpListener};
-mod io;
+mod encrypt;
 
 const CONNECTION_ESTABLISHED: [u8; 39] =
     *b"HTTP/1.1 200 Connection Established\r\n\r\n";
