@@ -1,5 +1,5 @@
 use super::table::{Index, Table};
-use super::{huffman, Header};
+use super::{Header, huffman};
 
 use bytes::{BufMut, BytesMut};
 use http::header::{HeaderName, HeaderValue};
@@ -120,7 +120,12 @@ impl Encoder {
             Index::Name(idx, _) => {
                 let header = self.table.resolve(index);
 
-                encode_not_indexed(idx, header.value_slice(), header.is_sensitive(), dst);
+                encode_not_indexed(
+                    idx,
+                    header.value_slice(),
+                    header.is_sensitive(),
+                    dst,
+                );
             }
             Index::Inserted(_) => {
                 let header = self.table.resolve(index);
@@ -166,7 +171,12 @@ impl Encoder {
             | Index::InsertedValue(..) => {
                 let idx = self.table.resolve_idx(last);
 
-                encode_not_indexed(idx, value.as_ref(), value.is_sensitive(), dst);
+                encode_not_indexed(
+                    idx,
+                    value.as_ref(),
+                    value.is_sensitive(),
+                    dst,
+                );
             }
             Index::NotIndexed(_) => {
                 let last = self.table.resolve(last);
@@ -192,7 +202,12 @@ fn encode_size_update(val: usize, dst: &mut BytesMut) {
     encode_int(val, 5, 0b0010_0000, dst)
 }
 
-fn encode_not_indexed(name: usize, value: &[u8], sensitive: bool, dst: &mut BytesMut) {
+fn encode_not_indexed(
+    name: usize,
+    value: &[u8],
+    sensitive: bool,
+    dst: &mut BytesMut,
+) {
     if sensitive {
         encode_int(name, 4, 0b10000, dst);
     } else {
@@ -202,7 +217,12 @@ fn encode_not_indexed(name: usize, value: &[u8], sensitive: bool, dst: &mut Byte
     encode_str(value, dst);
 }
 
-fn encode_not_indexed2(name: &[u8], value: &[u8], sensitive: bool, dst: &mut BytesMut) {
+fn encode_not_indexed2(
+    name: &[u8],
+    value: &[u8],
+    sensitive: bool,
+    dst: &mut BytesMut,
+) {
     if sensitive {
         dst.put_u8(0b10000);
     } else {
@@ -337,7 +357,8 @@ mod test {
     #[test]
     fn test_encode_indexed_name_literal_value() {
         let mut encoder = Encoder::default();
-        let res = encode(&mut encoder, vec![header("content-language", "foo")]);
+        let res =
+            encode(&mut encoder, vec![header("content-language", "foo")]);
 
         assert_eq!(res[0], 0b01000000 | 27); // Indexed name
         assert_eq!(res[1], 0x80 | 2); // header value w/ huffman coding
@@ -345,7 +366,8 @@ mod test {
         assert_eq!("foo", huff_decode(&res[2..4]));
 
         // Same name, new value should still use incremental
-        let res = encode(&mut encoder, vec![header("content-language", "bar")]);
+        let res =
+            encode(&mut encoder, vec![header("content-language", "bar")]);
         assert_eq!(res[0], 0b01000000 | 27); // Indexed name
         assert_eq!(res[1], 0x80 | 3); // header value w/ huffman coding
         assert_eq!("bar", huff_decode(&res[2..5]));
@@ -570,7 +592,8 @@ mod test {
         assert_eq!(0, encoder.table.len());
 
         // Encode a custom value
-        let res = encode(&mut encoder, vec![header("transfer-encoding", "chunked")]);
+        let res =
+            encode(&mut encoder, vec![header("transfer-encoding", "chunked")]);
         assert_eq!(&[15, 42, 0x80 | 6], &res[..3]);
         assert_eq!("chunked", huff_decode(&res[3..]));
     }
@@ -693,7 +716,10 @@ mod test {
         // Not sure what the best way to do this is.
     }
 
-    fn encode(e: &mut Encoder, hdrs: Vec<Header<Option<HeaderName>>>) -> BytesMut {
+    fn encode(
+        e: &mut Encoder,
+        hdrs: Vec<Header<Option<HeaderName>>>,
+    ) -> BytesMut {
         let mut dst = BytesMut::with_capacity(1024);
         e.encode(hdrs, &mut dst);
         dst

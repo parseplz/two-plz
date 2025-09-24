@@ -9,7 +9,10 @@ use std::fmt;
 /// HTTP/2 Header
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Header<T = HeaderName> {
-    Field { name: T, value: HeaderValue },
+    Field {
+        name: T,
+        value: HeaderValue,
+    },
     // TODO: Change these types to `http::uri` types.
     Authority(BytesStr),
     Method(Method),
@@ -48,8 +51,14 @@ impl Header<Option<HeaderName>> {
             Field {
                 name: Some(n),
                 value,
-            } => Field { name: n, value },
-            Field { name: None, value } => return Err(value),
+            } => Field {
+                name: n,
+                value,
+            },
+            Field {
+                name: None,
+                value,
+            } => return Err(value),
             Authority(v) => Authority(v),
             Method(v) => Method(v),
             Scheme(v) => Scheme(v),
@@ -63,7 +72,9 @@ impl Header<Option<HeaderName>> {
 impl Header {
     pub fn new(name: Bytes, value: Bytes) -> Result<Header, DecoderError> {
         if name.is_empty() {
-            return Err(DecoderError::NeedMore(NeedMore::UnexpectedEndOfStream));
+            return Err(DecoderError::NeedMore(
+                NeedMore::UnexpectedEndOfStream,
+            ));
         }
         if name[0] == b':' {
             match &name[1..] {
@@ -98,7 +109,10 @@ impl Header {
             let name = HeaderName::from_lowercase(&name)?;
             let value = HeaderValue::from_bytes(&value)?;
 
-            Ok(Header::Field { name, value })
+            Ok(Header::Field {
+                name,
+                value,
+            })
         }
     }
 
@@ -120,7 +134,10 @@ impl Header {
     /// Returns the header name
     pub fn name(&self) -> Name<'_> {
         match *self {
-            Header::Field { ref name, .. } => Name::Field(name),
+            Header::Field {
+                ref name,
+                ..
+            } => Name::Field(name),
             Header::Authority(..) => Name::Authority,
             Header::Method(..) => Name::Method,
             Header::Scheme(..) => Name::Scheme,
@@ -132,7 +149,10 @@ impl Header {
 
     pub fn value_slice(&self) -> &[u8] {
         match *self {
-            Header::Field { ref value, .. } => value.as_ref(),
+            Header::Field {
+                ref value,
+                ..
+            } => value.as_ref(),
             Header::Authority(ref v) => v.as_ref(),
             Header::Method(ref v) => v.as_ref().as_ref(),
             Header::Scheme(ref v) => v.as_ref(),
@@ -144,10 +164,16 @@ impl Header {
 
     pub fn value_eq(&self, other: &Header) -> bool {
         match *self {
-            Header::Field { ref value, .. } => {
+            Header::Field {
+                ref value,
+                ..
+            } => {
                 let a = value;
                 match *other {
-                    Header::Field { ref value, .. } => a == value,
+                    Header::Field {
+                        ref value,
+                        ..
+                    } => a == value,
                     _ => false,
                 }
             }
@@ -180,7 +206,10 @@ impl Header {
 
     pub fn is_sensitive(&self) -> bool {
         match *self {
-            Header::Field { ref value, .. } => value.is_sensitive(),
+            Header::Field {
+                ref value,
+                ..
+            } => value.is_sensitive(),
             // TODO: Technically these other header values can be sensitive too.
             _ => false,
         }
@@ -190,7 +219,10 @@ impl Header {
         use http::header;
 
         match *self {
-            Header::Field { ref name, .. } => matches!(
+            Header::Field {
+                ref name,
+                ..
+            } => matches!(
                 *name,
                 header::AGE
                     | header::AUTHORIZATION
@@ -212,7 +244,10 @@ impl Header {
 impl From<Header> for Header<Option<HeaderName>> {
     fn from(src: Header) -> Self {
         match src {
-            Header::Field { name, value } => Header::Field {
+            Header::Field {
+                name,
+                value,
+            } => Header::Field {
                 name: Some(name),
                 value,
             },
@@ -233,7 +268,9 @@ impl<'a> Name<'a> {
                 name: name.clone(),
                 value: HeaderValue::from_bytes(&value)?,
             }),
-            Name::Authority => Ok(Header::Authority(BytesStr::try_from(value)?)),
+            Name::Authority => {
+                Ok(Header::Authority(BytesStr::try_from(value)?))
+            }
             Name::Method => Ok(Header::Method(Method::from_bytes(&value)?)),
             Name::Scheme => Ok(Header::Scheme(BytesStr::try_from(value)?)),
             Name::Path => Ok(Header::Path(BytesStr::try_from(value)?)),

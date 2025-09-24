@@ -44,7 +44,11 @@ impl<B> From<Priority> for Frame<B> {
 // ===== impl StreamDependency =====
 
 impl StreamDependency {
-    pub fn new(dependency_id: StreamId, weight: u8, is_exclusive: bool) -> Self {
+    pub fn new(
+        dependency_id: StreamId,
+        weight: u8,
+        is_exclusive: bool,
+    ) -> Self {
         StreamDependency {
             dependency_id,
             weight,

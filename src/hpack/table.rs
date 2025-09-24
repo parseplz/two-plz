@@ -83,7 +83,8 @@ impl Table {
                 max_size,
             }
         } else {
-            let capacity = cmp::max(to_raw_capacity(capacity).next_power_of_two(), 8);
+            let capacity =
+                cmp::max(to_raw_capacity(capacity).next_power_of_two(), 8);
 
             Table {
                 mask: capacity.wrapping_sub(1),
@@ -140,7 +141,10 @@ impl Table {
             // Right now, if this is true, the header name is always in the
             // static table. At some point in the future, this might not be true
             // and this logic will need to be updated.
-            debug_assert!(statik.is_some(), "skip_value_index requires a static name",);
+            debug_assert!(
+                statik.is_some(),
+                "skip_value_index requires a static name",
+            );
             return Index::new(statik, header);
         }
 
@@ -157,7 +161,11 @@ impl Table {
         self.index_dynamic(header, statik)
     }
 
-    fn index_dynamic(&mut self, header: Header, statik: Option<(usize, bool)>) -> Index {
+    fn index_dynamic(
+        &mut self,
+        header: Header,
+        statik: Option<(usize, bool)>,
+    ) -> Index {
         debug_assert!(self.assert_valid_state("one"));
 
         if header.len() + self.size < self.max_size || !header.is_sensitive() {
@@ -189,10 +197,18 @@ impl Table {
 
                 if their_dist < dist {
                     // Index robinhood
-                    return self.index_vacant(header, hash, dist, probe, statik);
-                } else if pos.hash == hash && self.slots[slot_idx].header.name() == header.name() {
+                    return self
+                        .index_vacant(header, hash, dist, probe, statik);
+                } else if pos.hash == hash
+                    && self.slots[slot_idx].header.name() == header.name()
+                {
                     // Matching name, check values
-                    return self.index_occupied(header, hash, pos.index, statik.map(|(n, _)| n));
+                    return self.index_occupied(
+                        header,
+                        hash,
+                        pos.index,
+                        statik.map(|(n, _)| n),
+                    );
                 }
             } else {
                 return self.index_vacant(header, hash, dist, probe, statik);
@@ -218,7 +234,10 @@ impl Table {
             // Compute the real index into the VecDeque
             let real_idx = index.wrapping_add(self.inserted);
 
-            if self.slots[real_idx].header.value_eq(&header) {
+            if self.slots[real_idx]
+                .header
+                .value_eq(&header)
+            {
                 // We have a full match!
                 return Index::Indexed(real_idx + DYN_OFFSET, header);
             }
@@ -276,7 +295,10 @@ impl Table {
         }
 
         debug_assert!(self.assert_valid_state("top"));
-        debug_assert!(dist == 0 || self.indices[probe.wrapping_sub(1) & self.mask].is_some());
+        debug_assert!(
+            dist == 0
+                || self.indices[probe.wrapping_sub(1) & self.mask].is_some()
+        );
 
         // Passing in `usize::MAX` for prev_idx since there is no previous
         // header in this case.
@@ -486,7 +508,8 @@ impl Table {
 
         // visit the entries in an order where we can simply reinsert them
         // into self.indices without any bucket stealing.
-        let old_indices = mem::replace(&mut self.indices, vec![None; new_raw_cap]);
+        let old_indices =
+            mem::replace(&mut self.indices, vec![None; new_raw_cap]);
         self.mask = new_raw_cap.wrapping_sub(1);
 
         for &pos in &old_indices[first_ideal..] {
@@ -514,8 +537,10 @@ impl Table {
 
                 debug_assert!({
                     let them = self.indices[probe].unwrap();
-                    let their_distance = probe_distance(self.mask, them.hash, probe);
-                    let our_distance = probe_distance(self.mask, pos.hash, probe);
+                    let their_distance =
+                        probe_distance(self.mask, them.hash, probe);
+                    let our_distance =
+                        probe_distance(self.mask, pos.hash, probe);
 
                     their_distance >= our_distance
                 });

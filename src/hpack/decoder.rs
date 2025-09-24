@@ -1,4 +1,4 @@
-use super::{header::BytesStr, huffman, Header};
+use super::{Header, header::BytesStr, huffman};
 use crate::frame;
 
 use bytes::{Buf, Bytes, BytesMut};
@@ -250,7 +250,10 @@ impl Decoder {
         Ok(())
     }
 
-    fn process_size_update(&mut self, buf: &mut Cursor<&mut BytesMut>) -> Result<(), DecoderError> {
+    fn process_size_update(
+        &mut self,
+        buf: &mut Cursor<&mut BytesMut>,
+    ) -> Result<(), DecoderError> {
         let new_size = decode_int(buf, 5)?;
 
         if new_size > self.last_max_update {
@@ -268,7 +271,10 @@ impl Decoder {
         Ok(())
     }
 
-    fn decode_indexed(&self, buf: &mut Cursor<&mut BytesMut>) -> Result<Header, DecoderError> {
+    fn decode_indexed(
+        &self,
+        buf: &mut Cursor<&mut BytesMut>,
+    ) -> Result<Header, DecoderError> {
         let index = decode_int(buf, 7)?;
         self.table.get(index)
     }
@@ -278,7 +284,11 @@ impl Decoder {
         buf: &mut Cursor<&mut BytesMut>,
         index: bool,
     ) -> Result<Header, DecoderError> {
-        let prefix = if index { 6 } else { 4 };
+        let prefix = if index {
+            6
+        } else {
+            4
+        };
 
         // Extract the table index for the name, or 0 if not indexed
         let table_idx = decode_int(buf, prefix)?;
@@ -311,14 +321,22 @@ impl Decoder {
         // The first bit in the first byte contains the huffman encoded flag.
         let huff = match peek_u8(buf) {
             Some(hdr) => (hdr & HUFF_FLAG) == HUFF_FLAG,
-            None => return Err(DecoderError::NeedMore(NeedMore::UnexpectedEndOfStream)),
+            None => {
+                return Err(DecoderError::NeedMore(
+                    NeedMore::UnexpectedEndOfStream,
+                ));
+            }
         };
 
         // Decode the string length using 7 bit prefix
         let len = decode_int(buf, 7)?;
 
         if len > buf.remaining() {
-            tracing::trace!(len, remaining = buf.remaining(), "decode_string underflow",);
+            tracing::trace!(
+                len,
+                remaining = buf.remaining(),
+                "decode_string underflow",
+            );
             return Err(DecoderError::NeedMore(NeedMore::StringUnderflow));
         }
 
@@ -326,10 +344,12 @@ impl Decoder {
         if huff {
             let ret = {
                 let raw = &buf.chunk()[..len];
-                huffman::decode(raw, &mut self.buffer).map(|buf| StringMarker {
-                    offset,
-                    len,
-                    string: Some(BytesMut::freeze(buf)),
+                huffman::decode(raw, &mut self.buffer).map(|buf| {
+                    StringMarker {
+                        offset,
+                        len,
+                        string: Some(BytesMut::freeze(buf)),
+                    }
                 })
             };
 
@@ -345,7 +365,10 @@ impl Decoder {
         }
     }
 
-    fn decode_string(&mut self, buf: &mut Cursor<&mut BytesMut>) -> Result<Bytes, DecoderError> {
+    fn decode_string(
+        &mut self,
+        buf: &mut Cursor<&mut BytesMut>,
+    ) -> Result<Bytes, DecoderError> {
         let old_pos = buf.position();
         let marker = self.try_decode_string(buf)?;
         buf.set_position(old_pos);
@@ -388,7 +411,10 @@ impl Representation {
     }
 }
 
-fn decode_int<B: Buf>(buf: &mut B, prefix_size: u8) -> Result<usize, DecoderError> {
+fn decode_int<B: Buf>(
+    buf: &mut B,
+    prefix_size: u8,
+) -> Result<usize, DecoderError> {
     // The octet limit is chosen such that the maximum allowed *value* can
     // never overflow an unsigned 32-bit integer. The maximum value of any
     // integer that can be encoded with 5 octets is ~2^28
@@ -843,15 +869,22 @@ mod test {
     fn test_decode_string_empty() {
         let mut de = Decoder::new(0);
         let mut buf = BytesMut::new();
-        let err = de.decode_string(&mut Cursor::new(&mut buf)).unwrap_err();
-        assert_eq!(err, DecoderError::NeedMore(NeedMore::UnexpectedEndOfStream));
+        let err = de
+            .decode_string(&mut Cursor::new(&mut buf))
+            .unwrap_err();
+        assert_eq!(
+            err,
+            DecoderError::NeedMore(NeedMore::UnexpectedEndOfStream)
+        );
     }
 
     #[test]
     fn test_decode_empty() {
         let mut de = Decoder::new(0);
         let mut buf = BytesMut::new();
-        let _: () = de.decode(&mut Cursor::new(&mut buf), |_| {}).unwrap();
+        let _: () = de
+            .decode(&mut Cursor::new(&mut buf), |_| {})
+            .unwrap();
     }
 
     #[test]

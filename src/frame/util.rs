@@ -74,6 +74,7 @@ impl<'a, 'f: 'a> DebugFlags<'a, 'f> {
     }
 
     pub(super) fn finish(&mut self) -> fmt::Result {
-        self.result.and_then(|()| write!(self.fmt, ")"))
+        self.result
+            .and_then(|()| write!(self.fmt, ")"))
     }
 }

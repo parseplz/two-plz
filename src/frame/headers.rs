@@ -1,10 +1,10 @@
-use super::{util, StreamDependency, StreamId};
+use super::{StreamDependency, StreamId, util};
 use crate::ext::Protocol;
 use crate::frame::{Error, Frame, Head, Kind};
 use crate::hpack::{self, BytesStr};
 
 use http::header::{self, HeaderName, HeaderValue};
-use http::{uri, HeaderMap, Method, Request, StatusCode, Uri};
+use http::{HeaderMap, Method, Request, StatusCode, Uri, uri};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -114,7 +114,11 @@ const ALL: u8 = END_STREAM | END_HEADERS | PADDED | PRIORITY;
 
 impl Headers {
     /// Create a new HEADERS frame
-    pub fn new(stream_id: StreamId, pseudo: Pseudo, fields: HeaderMap) -> Self {
+    pub fn new(
+        stream_id: StreamId,
+        pseudo: Pseudo,
+        fields: HeaderMap,
+    ) -> Self {
         Headers {
             stream_id,
             stream_dep: None,
@@ -148,7 +152,10 @@ impl Headers {
     /// Loads the header frame but doesn't actually do HPACK decoding.
     ///
     /// HPACK decoding is done in the `load_hpack` step.
-    pub fn load(head: Head, mut src: BytesMut) -> Result<(Self, BytesMut), Error> {
+    pub fn load(
+        head: Head,
+        mut src: BytesMut,
+    ) -> Result<(Self, BytesMut), Error> {
         let flags = HeadersFlag(head.flag());
         let mut pad = 0;
 
@@ -218,7 +225,8 @@ impl Headers {
         max_header_list_size: usize,
         decoder: &mut hpack::Decoder,
     ) -> Result<(), Error> {
-        self.header_block.load(src, max_header_list_size, decoder)
+        self.header_block
+            .load(src, max_header_list_size, decoder)
     }
 
     pub fn stream_id(&self) -> StreamId {
@@ -260,7 +268,9 @@ impl Headers {
 
     /// Whether it has status 1xx
     pub(crate) fn is_informational(&self) -> bool {
-        self.header_block.pseudo.is_informational()
+        self.header_block
+            .pseudo
+            .is_informational()
     }
 
     pub fn fields(&self) -> &HeaderMap {
@@ -371,14 +381,19 @@ impl PushPromise {
         }
     }
 
-    pub fn validate_request(req: &Request<()>) -> Result<(), PushPromiseHeaderError> {
+    pub fn validate_request(
+        req: &Request<()>,
+    ) -> Result<(), PushPromiseHeaderError> {
         use PushPromiseHeaderError::*;
         // The spec has some requirements for promised request headers
         // [https://httpwg.org/specs/rfc7540.html#PushRequests]
 
         // A promised request "that indicates the presence of a request body
         // MUST reset the promised stream with a stream error"
-        if let Some(content_length) = req.headers().get(header::CONTENT_LENGTH) {
+        if let Some(content_length) = req
+            .headers()
+            .get(header::CONTENT_LENGTH)
+        {
             let parsed_length = parse_u64(content_length.as_bytes());
             if parsed_length != Ok(0) {
                 return Err(InvalidContentLength(parsed_length));
@@ -411,7 +426,10 @@ impl PushPromise {
     /// Loads the push promise frame but doesn't actually do HPACK decoding.
     ///
     /// HPACK decoding is done in the `load_hpack` step.
-    pub fn load(head: Head, mut src: BytesMut) -> Result<(Self, BytesMut), Error> {
+    pub fn load(
+        head: Head,
+        mut src: BytesMut,
+    ) -> Result<(Self, BytesMut), Error> {
         let flags = PushPromiseFlag(head.flag());
         let mut pad = 0;
 
@@ -469,7 +487,8 @@ impl PushPromise {
         max_header_list_size: usize,
         decoder: &mut hpack::Decoder,
     ) -> Result<(), Error> {
-        self.header_block.load(src, max_header_list_size, decoder)
+        self.header_block
+            .load(src, max_header_list_size, decoder)
     }
 
     pub fn stream_id(&self) -> StreamId {
@@ -548,17 +567,23 @@ impl Continuation {
         // Get the CONTINUATION frame head
         let head = self.head();
 
-        self.header_block.encode(&head, dst, |_| {})
+        self.header_block
+            .encode(&head, dst, |_| {})
     }
 }
 
 // ===== impl Pseudo =====
 
 impl Pseudo {
-    pub fn request(method: Method, uri: Uri, protocol: Option<Protocol>) -> Self {
+    pub fn request(
+        method: Method,
+        uri: Uri,
+        protocol: Option<Protocol>,
+    ) -> Self {
         let parts = uri::Parts::from(uri);
 
-        let (scheme, path) = if method == Method::CONNECT && protocol.is_none() {
+        let (scheme, path) = if method == Method::CONNECT && protocol.is_none()
+        {
             (None, None)
         } else {
             let path = parts
@@ -644,7 +669,12 @@ impl Pseudo {
 // ===== impl EncodingHeaderBlock =====
 
 impl EncodingHeaderBlock {
-    fn encode<F>(mut self, head: &Head, dst: &mut EncodeBuf<'_>, f: F) -> Option<Continuation>
+    fn encode<F>(
+        mut self,
+        head: &Head,
+        dst: &mut EncodeBuf<'_>,
+        f: F,
+    ) -> Option<Continuation>
     where
         F: FnOnce(&mut EncodeBuf<'_>),
     {
@@ -678,13 +708,20 @@ impl EncodingHeaderBlock {
 
         // Write the frame length
         let payload_len_be = payload_len.to_be_bytes();
-        assert!(payload_len_be[0..5].iter().all(|b| *b == 0));
-        (dst.get_mut()[head_pos..head_pos + 3]).copy_from_slice(&payload_len_be[5..]);
+        assert!(
+            payload_len_be[0..5]
+                .iter()
+                .all(|b| *b == 0)
+        );
+        (dst.get_mut()[head_pos..head_pos + 3])
+            .copy_from_slice(&payload_len_be[5..]);
 
         if continuation.is_some() {
             // There will be continuation frames, so the `is_end_headers` flag
             // must be unset
-            debug_assert!(dst.get_ref()[head_pos + 4] & END_HEADERS == END_HEADERS);
+            debug_assert!(
+                dst.get_ref()[head_pos + 4] & END_HEADERS == END_HEADERS
+            );
 
             dst.get_mut()[head_pos + 4] -= END_HEADERS;
         }
@@ -731,7 +768,10 @@ impl Iterator for Iter {
 
         self.fields
             .next()
-            .map(|(name, value)| Field { name, value })
+            .map(|(name, value)| Field {
+                name,
+                value,
+            })
     }
 }
 
@@ -940,7 +980,10 @@ impl HeaderBlock {
         Ok(())
     }
 
-    fn into_encoding(self, encoder: &mut hpack::Encoder) -> EncodingHeaderBlock {
+    fn into_encoding(
+        self,
+        encoder: &mut hpack::Encoder,
+    ) -> EncodingHeaderBlock {
         let mut hpack = BytesMut::new();
         let headers = Iter {
             pseudo: Some(self.pseudo),
@@ -967,7 +1010,12 @@ impl HeaderBlock {
                 self.pseudo
                     .$name
                     .as_ref()
-                    .map(|m| decoded_header_size(stringify!($name).len() + 1, m.as_str().len()))
+                    .map(|m| {
+                        decoded_header_size(
+                            stringify!($name).len() + 1,
+                            m.as_str().len(),
+                        )
+                    })
                     .unwrap_or(0)
             }};
         }
@@ -983,7 +1031,9 @@ impl HeaderBlock {
 
 fn calculate_headermap_size(map: &HeaderMap) -> usize {
     map.iter()
-        .map(|(name, value)| decoded_header_size(name.as_str().len(), value.len()))
+        .map(|(name, value)| {
+            decoded_header_size(name.as_str().len(), value.len())
+        })
         .sum::<usize>()
 }
 
@@ -995,7 +1045,7 @@ fn decoded_header_size(name: usize, value: usize) -> usize {
 mod test {
     use super::*;
     use crate::frame;
-    use crate::hpack::{huffman, Encoder};
+    use crate::hpack::{Encoder, huffman};
 
     #[test]
     fn test_nameless_header_at_resume() {
@@ -1035,9 +1085,11 @@ mod test {
 
         dst.clear();
 
-        assert!(continuation
-            .encode(&mut (&mut dst).limit(frame::HEADER_LEN + 16))
-            .is_none());
+        assert!(
+            continuation
+                .encode(&mut (&mut dst).limit(frame::HEADER_LEN + 16))
+                .is_none()
+        );
 
         world.extend_from_slice(&dst[9..12]);
         assert_eq!("world", huff_decode(&world));
@@ -1089,7 +1141,11 @@ mod test {
         );
 
         assert_eq!(
-            Pseudo::request(Method::CONNECT, Uri::from_static("example.com:8443"), None),
+            Pseudo::request(
+                Method::CONNECT,
+                Uri::from_static("example.com:8443"),
+                None
+            ),
             Pseudo {
                 method: Method::CONNECT.into(),
                 authority: BytesStr::from_static("example.com:8443").into(),
@@ -1099,7 +1155,8 @@ mod test {
     }
 
     #[test]
-    fn test_extended_connect_request_pseudo_headers_includes_path_and_scheme() {
+    fn test_extended_connect_request_pseudo_headers_includes_path_and_scheme()
+    {
         // On requests that contain the :protocol pseudo-header field, the
         // :scheme and :path pseudo-header fields of the target URI (see
         // Section 5) MUST also be included.
@@ -1160,7 +1217,11 @@ mod test {
         // these MUST include a ":path" pseudo-header field with a value of '*' (see Section 7.1 of [HTTP]).
         // See: https://datatracker.ietf.org/doc/html/rfc9113#section-8.3.1
         assert_eq!(
-            Pseudo::request(Method::OPTIONS, Uri::from_static("example.com:8080"), None,),
+            Pseudo::request(
+                Method::OPTIONS,
+                Uri::from_static("example.com:8080"),
+                None,
+            ),
             Pseudo {
                 method: Method::OPTIONS.into(),
                 authority: BytesStr::from_static("example.com:8080").into(),
@@ -1191,7 +1252,8 @@ mod test {
                 ),
                 Pseudo {
                     method: method.clone().into(),
-                    authority: BytesStr::from_static("example.com:8080").into(),
+                    authority: BytesStr::from_static("example.com:8080")
+                        .into(),
                     scheme: BytesStr::from_static("http").into(),
                     path: BytesStr::from_static("/").into(),
                     ..Default::default()

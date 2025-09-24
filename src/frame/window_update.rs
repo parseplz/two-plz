@@ -35,7 +35,8 @@ impl WindowUpdate {
 
         // Clear the most significant bit, as that is reserved and MUST be ignored
         // when received.
-        let size_increment = unpack_octets_4!(payload, 0, u32) & !SIZE_INCREMENT_MASK;
+        let size_increment =
+            unpack_octets_4!(payload, 0, u32) & !SIZE_INCREMENT_MASK;
 
         if size_increment == 0 {
             return Err(Error::InvalidWindowUpdateValue);

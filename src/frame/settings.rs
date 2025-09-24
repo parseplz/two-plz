@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::frame::{util, Error, Frame, FrameSize, Head, Kind, StreamId};
+use crate::frame::{Error, Frame, FrameSize, Head, Kind, StreamId, util};
 use bytes::{BufMut, BytesMut};
 
 #[derive(Clone, Default, Eq, PartialEq)]
@@ -88,7 +88,9 @@ impl Settings {
 
     pub fn set_max_frame_size(&mut self, size: Option<u32>) {
         if let Some(val) = size {
-            assert!(DEFAULT_MAX_FRAME_SIZE <= val && val <= MAX_MAX_FRAME_SIZE);
+            assert!(
+                DEFAULT_MAX_FRAME_SIZE <= val && val <= MAX_MAX_FRAME_SIZE
+            );
         }
         self.max_frame_size = size;
     }
@@ -110,7 +112,8 @@ impl Settings {
     }
 
     pub fn is_extended_connect_protocol_enabled(&self) -> Option<bool> {
-        self.enable_connect_protocol.map(|val| val != 0)
+        self.enable_connect_protocol
+            .map(|val| val != 0)
     }
 
     pub fn set_enable_connect_protocol(&mut self, val: Option<u32>) {
@@ -149,7 +152,10 @@ impl Settings {
 
         // Ensure the payload length is correct, each setting is 6 bytes long.
         if payload.len() % 6 != 0 {
-            tracing::debug!("invalid settings payload length; len={:?}", payload.len());
+            tracing::debug!(
+                "invalid settings payload length; len={:?}",
+                payload.len()
+            );
             return Err(Error::InvalidPayloadAckSettings);
         }
 
@@ -180,7 +186,9 @@ impl Settings {
                     }
                 }
                 Some(MaxFrameSize(val)) => {
-                    if DEFAULT_MAX_FRAME_SIZE <= val && val <= MAX_MAX_FRAME_SIZE {
+                    if DEFAULT_MAX_FRAME_SIZE <= val
+                        && val <= MAX_MAX_FRAME_SIZE
+                    {
                         settings.max_frame_size = Some(val);
                     } else {
                         return Err(Error::InvalidSettingValue);
@@ -212,7 +220,8 @@ impl Settings {
 
     pub fn encode(&self, dst: &mut BytesMut) {
         // Create & encode an appropriate frame head
-        let head = Head::new(Kind::Settings, self.flags.into(), StreamId::zero());
+        let head =
+            Head::new(Kind::Settings, self.flags.into(), StreamId::zero());
         let payload_len = self.payload_len();
 
         tracing::trace!("encoding SETTINGS; len={}", payload_len);

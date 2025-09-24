@@ -17,7 +17,10 @@ const MAYBE_EOS: u8 = 1;
 const DECODED: u8 = 2;
 const ERROR: u8 = 4;
 
-pub fn decode(src: &[u8], buf: &mut BytesMut) -> Result<BytesMut, DecoderError> {
+pub fn decode(
+    src: &[u8],
+    buf: &mut BytesMut,
+) -> Result<BytesMut, DecoderError> {
     let mut decoder = Decoder::new();
 
     // Max compression ratio is >= 0.5
@@ -184,7 +187,8 @@ mod test {
 
     #[test]
     fn encode_decode_u8() {
-        const DATA: &[&[u8]] = &[b"\0", b"\0\0\0", b"\0\x01\x02\x03\x04\x05", b"\xFF\xF8"];
+        const DATA: &[&[u8]] =
+            &[b"\0", b"\0\0\0", b"\0\x01\x02\x03\x04\x05", b"\xFF\xF8"];
 
         for s in DATA {
             let mut dst = BytesMut::with_capacity(s.len());

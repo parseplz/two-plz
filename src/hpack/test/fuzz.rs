@@ -83,7 +83,9 @@ impl FuzzHpack {
                     frame.resizes.extend([low, high]);
                 }
                 1..=3 => {
-                    frame.resizes.push(rng.gen_range(128..MAX_CHUNK * 2));
+                    frame
+                        .resizes
+                        .push(rng.gen_range(128..MAX_CHUNK * 2));
                 }
                 _ => {}
             }
@@ -98,12 +100,17 @@ impl FuzzHpack {
 
                 let header = &source[i];
                 match header {
-                    Header::Field { name: None, .. } => {
+                    Header::Field {
+                        name: None,
+                        ..
+                    } => {
                         if is_name_required {
                             continue;
                         }
                     }
-                    Header::Field { .. } => {
+                    Header::Field {
+                        ..
+                    } => {
                         is_name_required = false;
                     }
                     _ => {
@@ -120,7 +127,9 @@ impl FuzzHpack {
             frames.push(frame);
         }
 
-        FuzzHpack { frames }
+        FuzzHpack {
+            frames,
+        }
     }
 
     fn run(self) {
@@ -138,14 +147,20 @@ impl FuzzHpack {
                 match header.clone().reify() {
                     Ok(h) => {
                         prev_name = match h {
-                            Header::Field { ref name, .. } => Some(name.clone()),
+                            Header::Field {
+                                ref name,
+                                ..
+                            } => Some(name.clone()),
                             _ => None,
                         };
                         expect.push(h);
                     }
                     Err(value) => {
                         expect.push(Header::Field {
-                            name: prev_name.as_ref().cloned().expect("previous header name"),
+                            name: prev_name
+                                .as_ref()
+                                .cloned()
+                                .expect("previous header name"),
                             value,
                         });
                     }
@@ -203,7 +218,12 @@ fn gen_header(g: &mut StdRng) -> Header<Option<HeaderName>> {
                     5 => {
                         let n: usize = g.gen_range(3..7);
                         let bytes: Vec<u8> = (0..n)
-                            .map(|_| *g.sample(Slice::new(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ").unwrap()))
+                            .map(|_| {
+                                *g.sample(
+                                    Slice::new(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                                        .unwrap(),
+                                )
+                            })
                             .collect();
 
                         Method::from_bytes(&bytes).unwrap()
@@ -250,7 +270,10 @@ fn gen_header(g: &mut StdRng) -> Header<Option<HeaderName>> {
             value.set_sensitive(true);
         }
 
-        Header::Field { name, value }
+        Header::Field {
+            name,
+            value,
+        }
     }
 }
 
@@ -353,7 +376,10 @@ fn gen_string(g: &mut StdRng, min: usize, max: usize) -> String {
     let bytes: Vec<_> = (min..max)
         .map(|_| {
             // Chars to pick from
-            *g.sample(Slice::new(b"ABCDEFGHIJKLMNOPQRSTUVabcdefghilpqrstuvwxyz----").unwrap())
+            *g.sample(
+                Slice::new(b"ABCDEFGHIJKLMNOPQRSTUVabcdefghilpqrstuvwxyz----")
+                    .unwrap(),
+            )
         })
         .collect();
 

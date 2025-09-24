@@ -20,7 +20,11 @@ impl GoAway {
         }
     }
 
-    pub fn with_debug_data(last_stream_id: StreamId, reason: Reason, debug_data: Bytes) -> Self {
+    pub fn with_debug_data(
+        last_stream_id: StreamId,
+        reason: Reason,
+        debug_data: Bytes,
+    ) -> Self {
         Self {
             last_stream_id,
             error_code: reason,
