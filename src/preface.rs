@@ -1,3 +1,4 @@
+use crate::frame::{self, HEADER_LEN, Head, Kind, Settings};
 use bytes::{BufMut, BytesMut};
 use std::{fmt, io::Error};
 use thiserror::Error;
@@ -7,30 +8,54 @@ use tokio_util::codec::{
 };
 use tracing::trace;
 
-use crate::{
-    frame::{self, HEADER_LEN, Settings},
-    io::{read_frame, write_and_flush},
-};
+use crate::io::{read_frame, write_and_flush};
 
 const PREFACE: [u8; 24] = *b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 type RawFramedReader<T> = TokioFramedRead<ReadHalf<T>, LengthDelimitedCodec>;
 
+#[derive(Debug)]
+pub enum PrefaceErrorState {
+    ReadPreface,
+    WritePreface,
+    ReadServerSettings,
+    SendServerSettings,
+    ReadClientSettings,
+    SendClientSettings,
+}
+
+trait IoStateExt<T> {
+    fn in_state(self, state: PrefaceErrorState) -> Result<T, PrefaceError>;
+}
+
+impl<T> IoStateExt<T> for Result<T, std::io::Error> {
+    #[inline]
+    fn in_state(self, state: PrefaceErrorState) -> Result<T, PrefaceError> {
+        self.map_err(|e| PrefaceError::Io(state, e))
+    }
+}
+
+impl fmt::Display for PrefaceErrorState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PrefaceErrorState::ReadPreface => write!(f, "read preface"),
+            _ => todo!(),
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum PrefaceError {
-    #[error("read preface| {0}")]
-    ReadPreface(Error),
+    #[error("io error| {0}| {1}")]
+    Io(PrefaceErrorState, Error),
     #[error("write preface received")]
     InvalidPreface,
-
-    #[error("write preface| {0}")]
-    WritePreface(Error),
     // TODO: include in display
     #[error("frame error")]
     Frame(frame::Error),
 }
 
-struct Preface<T, E>
+pub struct Preface<T, E>
 where
     T: AsyncRead + AsyncWrite + Unpin,
     E: AsyncRead + AsyncWrite + Unpin,
@@ -54,20 +79,23 @@ where
     }
 }
 
-pub struct Framed<T, E>
+pub struct PrefaceFramed<T, E>
 where
     T: AsyncRead + AsyncWrite + Unpin,
     E: AsyncRead + AsyncWrite + Unpin,
 {
-    pub cfrx: RawFramedReader<T>,
-    pub ctx: WriteHalf<T>,
+    pub client_framed_reader: RawFramedReader<T>,
+    pub client_writer: WriteHalf<T>,
     pub client_settings: Option<Settings>,
-    pub sfrx: RawFramedReader<E>,
-    pub stx: WriteHalf<E>,
+    pub is_client_settings_ack: bool,
+    pub client_frame: Option<BytesMut>,
+    pub server_framed_reader: RawFramedReader<E>,
+    pub server_writer: WriteHalf<E>,
     pub server_settings: Option<Settings>,
+    pub is_server_settings_ack: bool,
 }
 
-impl<T, E> Framed<T, E>
+impl<T, E> PrefaceFramed<T, E>
 where
     T: AsyncRead + AsyncWrite + Unpin,
     E: AsyncRead + AsyncWrite + Unpin,
@@ -87,7 +115,7 @@ where
     }
 }
 
-impl<T, E> From<Preface<T, E>> for Framed<T, E>
+impl<T, E> From<Preface<T, E>> for PrefaceFramed<T, E>
 where
     T: AsyncRead + AsyncWrite + Unpin,
     E: AsyncRead + AsyncWrite + Unpin,
@@ -100,13 +128,16 @@ where
         cfrx.read_buffer_mut()
             .put_slice(&preface.buf);
         let sfrx: RawFramedReader<E> = Self::build_frame_reader(srx);
-        Framed {
-            cfrx,
-            ctx,
+        PrefaceFramed {
+            client_framed_reader: cfrx,
+            client_writer: ctx,
             client_settings: None,
-            sfrx,
-            stx,
+            is_client_settings_ack: false,
+            client_frame: None,
+            server_framed_reader: sfrx,
+            server_writer: stx,
             server_settings: None,
+            is_server_settings_ack: false,
         }
     }
 }
@@ -126,22 +157,16 @@ where
     T: AsyncRead + AsyncWrite + Unpin,
     E: AsyncRead + AsyncWrite + Unpin,
 {
-    ReadClientPreface(Preface<T, E>),
-    SendPrefaceToServer(Preface<T, E>),
+    ReadPreface(Preface<T, E>),
+    SendPreface(Preface<T, E>),
     // server settings => client
     ReadServerSettings(Preface<T, E>),
-    SendServerSettingsToClient(Framed<T, E>, BytesMut),
+    SendServerSettings(PrefaceFramed<T, E>, BytesMut),
     // client settings => server
-    ReadClientSettings(Framed<T, E>),
-    SendClientSettingsToServer(Framed<T, E>, BytesMut),
-    // Client - server settings ack => server
-    ReadServerSettingsAckFromClient(Framed<T, E>),
-    SendServerSettingsAckToServer(Framed<T, E>, BytesMut),
-    // Server - client settings ack => client
-    ReadClientSettingsAckFromServer(Framed<T, E>),
-    SendClientSettingsAckToClient(Framed<T, E>, BytesMut),
-    End(Framed<T, E>),
-    EndedWithoutAck(Framed<T, E>),
+    ReadClientSettings(PrefaceFramed<T, E>),
+    SendClientSettings(PrefaceFramed<T, E>, BytesMut),
+    // End
+    End(PrefaceFramed<T, E>),
 }
 
 impl<T, E> HandshakeState<T, E>
@@ -149,113 +174,73 @@ where
     T: AsyncRead + AsyncWrite + Unpin,
     E: AsyncRead + AsyncWrite + Unpin,
 {
-    pub fn new(client: T, server: E) -> HandshakeState<T, E> {
-        HandshakeState::ReadClientPreface(Preface::new(client, server))
+    pub fn init(client: T, server: E) -> HandshakeState<T, E> {
+        HandshakeState::ReadPreface(Preface::new(client, server))
     }
 
-    pub async fn next(self) -> Result<Self, PrefaceError> {
+    pub async fn next(mut self) -> Result<Self, PrefaceError> {
         let next_state = match self {
-            HandshakeState::ReadClientPreface(mut conn) => {
+            HandshakeState::ReadPreface(mut conn) => {
                 trace!("[+] read client preface");
                 loop {
                     let _ = conn
                         .client
                         .read_buf(&mut conn.buf)
                         .await
-                        .map_err(PrefaceError::ReadPreface)?;
+                        .in_state(PrefaceErrorState::ReadPreface)?;
                     if conn.buf.len() > 23 {
                         if conn.buf.starts_with(&PREFACE) {
                             conn.buf.split_to(24);
-                            break HandshakeState::SendPrefaceToServer(conn);
+                            break HandshakeState::SendPreface(conn);
                         } else {
                             Err(PrefaceError::InvalidPreface)?
                         }
                     }
                 }
             }
-            HandshakeState::SendPrefaceToServer(mut conn) => {
+            HandshakeState::SendPreface(mut conn) => {
                 trace!("[+] send preface to server");
                 write_and_flush(&mut conn.server, &PREFACE)
                     .await
-                    .map_err(PrefaceError::WritePreface)?;
+                    .in_state(PrefaceErrorState::WritePreface)?;
                 HandshakeState::ReadServerSettings(conn)
             }
-            /*
-
-                HandshakeState::ReadServerSettings(conn) => {
-                    trace!("[+] read server settings");
-                    let mut framed_conn = Framed::from(conn);
-                    let frame =
-                        read_frame(&mut framed_conn.sfrx, Role::Server).await?;
-                    let settings = parse_settings_frame(frame.as_ref())
-                        .map_err(PrefaceError::Frame)?;
-                    framed_conn.server_settings = Some(settings);
-                    HandshakeState::SendServerSettingsToClient(framed_conn, frame)
-                }
-                HandshakeState::SendServerSettingsToClient(
-                    mut framed_conn,
-                    frame,
-                ) => {
-                    trace!("[+] send server settings to client");
-                    write_and_flush(&mut framed_conn.ctx, &frame, Role::Client)
-                        .await?;
-                    HandshakeState::ReadClientSettings(framed_conn)
-                }
-                HandshakeState::ReadClientSettings(mut framed_conn) => {
-                    trace!("[+] read client settings");
-                    let frame =
-                        read_frame(&mut framed_conn.cfrx, Role::Client).await?;
-                    let settings = parse_settings_frame(frame.as_ref())
-                        .map_err(PrefaceError::Frame)?;
-                    framed_conn.client_settings = Some(settings);
-                    HandshakeState::SendClientSettingsToServer(framed_conn, frame)
-                }
-                HandshakeState::SendClientSettingsToServer(
-                    mut framed_conn,
-                    frame,
-                ) => {
-                    trace!("[+] send client settings to server");
-                    write_and_flush(&mut framed_conn.stx, &frame, Role::Server)
-                        .await?;
-                    HandshakeState::ReadServerSettingsAckFromClient(framed_conn)
-                }
-                HandshakeState::ReadServerSettingsAckFromClient(
-                    mut framed_conn,
-                ) => {
-                    trace!("[+] read client settings ack");
-                    let frame =
-                        read_frame(&mut framed_conn.cfrx, Role::Client).await?;
-                    let head = frame::Head::parse(&frame[..HEADER_LEN]);
-                    if head.kind() == Kind::Settings {
-                        let settings = Settings::load(head, &frame[HEADER_LEN..])
-                            .map_err(PrefaceError::Frame)?;
-                        if settings.is_ack() {
-                            return Ok(
-                                HandshakeState::SendServerSettingsAckToServer(
-                                    framed_conn,
-                                    frame,
-                                ),
-                            );
-                        } else {
-                            // maybe client sends another settings frame ?
-                            // add frame to buffer
-                        }
-                    } else {
-                        // add frame to buffer
-                    }
-                    HandshakeState::EndedWithoutAck(framed_conn)
-                }
-                HandshakeState::SendServerSettingsAckToServer(
-                    mut framed_conn,
-                    frame,
-                ) => {
-                    trace!("[+] send client settings ack to server");
-                    write_and_flush(&mut framed_conn.stx, &frame, Role::Server)
-                        .await?;
-                    Self::End(framed_conn)
-                }
-            */
-            _ => self,
+            HandshakeState::ReadServerSettings(conn) => {
+                trace!("[+] read server settings");
+                let mut framed_conn = PrefaceFramed::from(conn);
+                let frame = read_frame(&mut framed_conn.server_framed_reader)
+                    .await
+                    .in_state(PrefaceErrorState::ReadServerSettings)?;
+                let settings = parse_settings_frame(frame.as_ref())
+                    .map_err(PrefaceError::Frame)?;
+                framed_conn.server_settings = Some(settings);
+                HandshakeState::SendServerSettings(framed_conn, frame)
+            }
+            HandshakeState::SendServerSettings(mut framed_conn, frame) => {
+                trace!("[+] send server settings to client");
+                write_and_flush(&mut framed_conn.client_writer, &frame)
+                    .await
+                    .in_state(PrefaceErrorState::SendServerSettings)?;
+                HandshakeState::ReadClientSettings(framed_conn)
+            }
+            HandshakeState::ReadClientSettings(mut framed_conn) => {
+                trace!("[+] read client settings");
+                let frame = read_frame(&mut framed_conn.server_framed_reader)
+                    .await
+                    .in_state(PrefaceErrorState::ReadClientSettings)?;
+                let settings = parse_settings_frame(frame.as_ref())
+                    .map_err(PrefaceError::Frame)?;
+                framed_conn.client_settings = Some(settings);
+                HandshakeState::SendClientSettings(framed_conn, frame)
+            }
+            HandshakeState::SendClientSettings(mut framed_conn, frame) => {
+                trace!("[+] send client settings to server");
+                write_and_flush(&mut framed_conn.server_writer, &frame)
+                    .await
+                    .in_state(PrefaceErrorState::SendClientSettings)?;
+                HandshakeState::End(framed_conn)
+            }
+            HandshakeState::End(_) => self,
         };
 
         Ok(next_state)
@@ -263,11 +248,10 @@ where
 
     pub fn ended(&self) -> bool {
         matches!(self, Self::End(_))
-            || matches!(self, Self::EndedWithoutAck(_))
     }
 }
 
-impl<T, E> TryFrom<HandshakeState<T, E>> for Framed<T, E>
+impl<T, E> TryFrom<HandshakeState<T, E>> for PrefaceFramed<T, E>
 where
     T: AsyncRead + AsyncWrite + Unpin,
     E: AsyncRead + AsyncWrite + Unpin,
@@ -276,14 +260,13 @@ where
 
     fn try_from(state: HandshakeState<T, E>) -> Result<Self, Self::Error> {
         match state {
-            HandshakeState::End(conn)
-            | HandshakeState::EndedWithoutAck(conn) => Ok(conn),
+            HandshakeState::End(conn) => Ok(conn),
             _ => Err(()),
         }
     }
 }
 
 pub fn parse_settings_frame(buf: &[u8]) -> Result<Settings, frame::Error> {
-    let head = frame::Head::parse(&buf[..HEADER_LEN]);
+    let head = Head::parse(&buf[..HEADER_LEN]);
     Settings::load(head, &buf[HEADER_LEN..])
 }
