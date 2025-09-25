@@ -7,7 +7,7 @@ use rustls::server::Acceptor;
 use rustls_pki_types::{CertificateDer, InvalidDnsNameError};
 use tokio::net::TcpStream;
 use tokio_rustls::{
-    LazyConfigAcceptor, StartHandshake, TlsConnector, client, server
+    LazyConfigAcceptor, StartHandshake, TlsConnector, client, server,
 };
 
 use crate::encrypt::captain_crypto::CaptainCrypto;
