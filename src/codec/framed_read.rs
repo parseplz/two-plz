@@ -481,12 +481,11 @@ fn decode_frame(
 }
 
 fn io_err_to_proto_err(err: io::Error) -> ProtoError {
-    if let io::ErrorKind::InvalidData = err.kind() {
-        if let Some(custom) = err.get_ref() {
-            if custom.is::<LengthDelimitedCodecError>() {
-                return ProtoError::library_go_away(Reason::FRAME_SIZE_ERROR);
-            }
-        }
+    if let io::ErrorKind::InvalidData = err.kind()
+        && let Some(custom) = err.get_ref()
+        && custom.is::<LengthDelimitedCodecError>()
+    {
+        return ProtoError::library_go_away(Reason::FRAME_SIZE_ERROR);
     }
     err.into()
 }

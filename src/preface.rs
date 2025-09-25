@@ -1,10 +1,13 @@
-use crate::frame::{self, HEADER_LEN, Head, Kind, Settings};
+use crate::proto::Error as ProtoError;
+use crate::{
+    codec::framed_read::build_raw_frame_reader,
+    frame::{self, HEADER_LEN, Head, Settings},
+};
 use bytes::{BufMut, BytesMut};
-use std::{fmt, io::Error};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadHalf, WriteHalf};
 use tokio_util::codec::{
-    FramedRead as TokioFramedRead, LengthDelimitedCodec, length_delimited,
+    FramedRead as TokioFramedRead, LengthDelimitedCodec,
 };
 use tracing::trace;
 
@@ -12,15 +15,19 @@ use crate::io::{read_frame, write_and_flush};
 
 const PREFACE: [u8; 24] = *b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
-type RawFramedReader<T> = TokioFramedRead<ReadHalf<T>, LengthDelimitedCodec>;
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum PrefaceErrorState {
+    #[error("read preface")]
     ReadPreface,
+    #[error("write preface")]
     WritePreface,
+    #[error("read server settings")]
     ReadServerSettings,
+    #[error("send server settings")]
     SendServerSettings,
+    #[error("read client settings")]
     ReadClientSettings,
+    #[error("send client settings")]
     SendClientSettings,
 }
 
@@ -31,23 +38,14 @@ trait IoStateExt<T> {
 impl<T> IoStateExt<T> for Result<T, std::io::Error> {
     #[inline]
     fn in_state(self, state: PrefaceErrorState) -> Result<T, PrefaceError> {
-        self.map_err(|e| PrefaceError::Io(state, e))
-    }
-}
-
-impl fmt::Display for PrefaceErrorState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PrefaceErrorState::ReadPreface => write!(f, "read preface"),
-            _ => todo!(),
-        }
+        self.map_err(|e| PrefaceError::Proto(state, e.into()))
     }
 }
 
 #[derive(Debug, Error)]
 pub enum PrefaceError {
     #[error("io error| {0}| {1}")]
-    Io(PrefaceErrorState, Error),
+    Proto(PrefaceErrorState, ProtoError),
     #[error("write preface received")]
     InvalidPreface,
     // TODO: include in display
@@ -55,21 +53,13 @@ pub enum PrefaceError {
     Frame(frame::Error),
 }
 
-pub struct Preface<T, E>
-where
-    T: AsyncRead + AsyncWrite + Unpin,
-    E: AsyncRead + AsyncWrite + Unpin,
-{
+pub struct Preface<T, E> {
     client: T,
     server: E,
     buf: BytesMut,
 }
 
-impl<T, E> Preface<T, E>
-where
-    T: AsyncRead + AsyncWrite + Unpin,
-    E: AsyncRead + AsyncWrite + Unpin,
-{
+impl<T, E> Preface<T, E> {
     fn new(client: T, server: E) -> Preface<T, E> {
         Preface {
             client,
@@ -79,40 +69,18 @@ where
     }
 }
 
-pub struct PrefaceFramed<T, E>
-where
-    T: AsyncRead + AsyncWrite + Unpin,
-    E: AsyncRead + AsyncWrite + Unpin,
-{
-    pub client_framed_reader: RawFramedReader<T>,
+type RawFrameReader<T> = TokioFramedRead<T, LengthDelimitedCodec>;
+
+pub struct PrefaceFramed<T, E> {
+    pub client_framed_reader: RawFrameReader<ReadHalf<T>>,
     pub client_writer: WriteHalf<T>,
     pub client_settings: Option<Settings>,
     pub is_client_settings_ack: bool,
     pub client_frame: Option<BytesMut>,
-    pub server_framed_reader: RawFramedReader<E>,
+    pub server_framed_reader: RawFrameReader<ReadHalf<E>>,
     pub server_writer: WriteHalf<E>,
     pub server_settings: Option<Settings>,
     pub is_server_settings_ack: bool,
-}
-
-impl<T, E> PrefaceFramed<T, E>
-where
-    T: AsyncRead + AsyncWrite + Unpin,
-    E: AsyncRead + AsyncWrite + Unpin,
-{
-    fn build_frame_reader<U>(
-        stream: U,
-    ) -> TokioFramedRead<U, LengthDelimitedCodec>
-    where
-        U: AsyncRead + Unpin,
-    {
-        length_delimited::Builder::new()
-            .big_endian()
-            .length_field_length(3)
-            .length_adjustment(9)
-            .num_skip(0) // Don't skip the header
-            .new_read(stream)
-    }
 }
 
 impl<T, E> From<Preface<T, E>> for PrefaceFramed<T, E>
@@ -122,20 +90,21 @@ where
 {
     fn from(preface: Preface<T, E>) -> Self {
         // read client => to server
-        let (crx, ctx) = tokio::io::split(preface.client);
-        let (srx, stx) = tokio::io::split(preface.server);
-        let mut cfrx: RawFramedReader<T> = Self::build_frame_reader(crx);
-        cfrx.read_buffer_mut()
+        let (client_rx, client_tx) = tokio::io::split(preface.client);
+        let (server_rx, server_tx) = tokio::io::split(preface.server);
+        let mut client_framed_reader = build_raw_frame_reader(client_rx);
+        client_framed_reader
+            .read_buffer_mut()
             .put_slice(&preface.buf);
-        let sfrx: RawFramedReader<E> = Self::build_frame_reader(srx);
+        let server_framed_reader = build_raw_frame_reader(server_rx);
         PrefaceFramed {
-            client_framed_reader: cfrx,
-            client_writer: ctx,
+            client_framed_reader,
+            client_writer: client_tx,
             client_settings: None,
             is_client_settings_ack: false,
             client_frame: None,
-            server_framed_reader: sfrx,
-            server_writer: stx,
+            server_framed_reader,
+            server_writer: server_tx,
             server_settings: None,
             is_server_settings_ack: false,
         }
@@ -178,7 +147,7 @@ where
         HandshakeState::ReadPreface(Preface::new(client, server))
     }
 
-    pub async fn next(mut self) -> Result<Self, PrefaceError> {
+    pub async fn next(self) -> Result<Self, PrefaceError> {
         let next_state = match self {
             HandshakeState::ReadPreface(mut conn) => {
                 trace!("[+] read client preface");
@@ -210,7 +179,7 @@ where
                 let mut framed_conn = PrefaceFramed::from(conn);
                 let frame = read_frame(&mut framed_conn.server_framed_reader)
                     .await
-                    .in_state(PrefaceErrorState::ReadServerSettings)?;
+                    .in_state(PrefaceErrorState::ReadClientSettings)?;
                 let settings = parse_settings_frame(frame.as_ref())
                     .map_err(PrefaceError::Frame)?;
                 framed_conn.server_settings = Some(settings);

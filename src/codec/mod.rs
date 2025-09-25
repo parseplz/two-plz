@@ -1,4 +1,4 @@
 mod error;
 pub mod framed_read;
 
-pub use self::error::{SendError, UserError};
+pub use self::error::SendError;

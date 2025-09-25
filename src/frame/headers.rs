@@ -342,7 +342,7 @@ pub fn parse_u64(src: &[u8]) -> Result<u64, ParseU64Error> {
     let mut ret = 0;
 
     for &d in src {
-        if d < b'0' || d > b'9' {
+        if !d.is_ascii_digit() {
             return Err(ParseU64Error);
         }
 
@@ -662,7 +662,7 @@ impl Pseudo {
     /// Whether it has status 1xx
     pub(crate) fn is_informational(&self) -> bool {
         self.status
-            .map_or(false, |status| status.is_informational())
+            .is_some_and(|status| status.is_informational())
     }
 }
 

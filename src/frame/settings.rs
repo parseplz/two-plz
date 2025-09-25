@@ -89,7 +89,7 @@ impl Settings {
     pub fn set_max_frame_size(&mut self, size: Option<u32>) {
         if let Some(val) = size {
             assert!(
-                DEFAULT_MAX_FRAME_SIZE <= val && val <= MAX_MAX_FRAME_SIZE
+                (DEFAULT_MAX_FRAME_SIZE..=MAX_MAX_FRAME_SIZE).contains(&val)
             );
         }
         self.max_frame_size = size;
@@ -151,7 +151,7 @@ impl Settings {
         }
 
         // Ensure the payload length is correct, each setting is 6 bytes long.
-        if payload.len() % 6 != 0 {
+        if !payload.len().is_multiple_of(6) {
             tracing::debug!(
                 "invalid settings payload length; len={:?}",
                 payload.len()
@@ -186,8 +186,7 @@ impl Settings {
                     }
                 }
                 Some(MaxFrameSize(val)) => {
-                    if DEFAULT_MAX_FRAME_SIZE <= val
-                        && val <= MAX_MAX_FRAME_SIZE
+                    if (DEFAULT_MAX_FRAME_SIZE..=MAX_MAX_FRAME_SIZE).contains(&val)
                     {
                         settings.max_frame_size = Some(val);
                     } else {

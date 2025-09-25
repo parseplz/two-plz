@@ -52,15 +52,14 @@ pub use self::data::Data;
 pub use self::go_away::GoAway;
 pub use self::head::{Head, Kind};
 pub use self::headers::{
-    Continuation, Headers, Pseudo, PushPromise, PushPromiseHeaderError,
-    parse_u64,
+    Headers, PushPromise,
 };
 pub use self::ping::Ping;
 pub use self::priority::{Priority, StreamDependency};
 pub use self::reason::Reason;
 pub use self::reset::Reset;
 pub use self::settings::Settings;
-pub use self::stream_id::{StreamId, StreamIdOverflow};
+pub use self::stream_id::StreamId;
 pub use self::window_update::WindowUpdate;
 
 #[cfg(feature = "unstable")]
@@ -69,7 +68,7 @@ pub use crate::hpack::BytesStr;
 // Re-export some constants
 
 pub use self::settings::{
-    DEFAULT_INITIAL_WINDOW_SIZE, DEFAULT_MAX_FRAME_SIZE,
+    DEFAULT_MAX_FRAME_SIZE,
     DEFAULT_SETTINGS_HEADER_TABLE_SIZE, MAX_MAX_FRAME_SIZE,
 };
 

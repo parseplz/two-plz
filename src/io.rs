@@ -1,8 +1,7 @@
-use std::{fmt, io::Error};
+use std::io::Error;
 
 use bytes::BytesMut;
 use futures::StreamExt;
-use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
