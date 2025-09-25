@@ -41,11 +41,7 @@ impl ConnSettings {
     }
 }
 
-impl<T, E> From<&mut PrefaceFramed<T, E>> for ConnSettings
-where
-    T: AsyncRead + AsyncWrite + Unpin,
-    E: AsyncRead + AsyncWrite + Unpin,
-{
+impl<T, E> From<&mut PrefaceFramed<T, E>> for ConnSettings {
     fn from(preface: &mut PrefaceFramed<T, E>) -> ConnSettings {
         let (client_curr_settings, client_settings_to_ack) =
             Self::extract_settings(
