@@ -1,6 +1,6 @@
 use crate::proto::Error as ProtoError;
 use tokio::io::AsyncRead;
-use tokio_util::codec::FramedRead as TokioFramedRead;
+use tokio_util::codec::{FramedRead as TokioFramedRead, length_delimited};
 use tokio_util::codec::{LengthDelimitedCodec, LengthDelimitedCodecError};
 
 use crate::frame::{self, Frame, Kind, Reason};
@@ -127,6 +127,16 @@ where
     #[inline]
     pub fn set_header_table_size(&mut self, val: usize) {
         self.hpack.queue_size_update(val);
+    }
+}
+
+impl<T> From<T> for HttpFramedRead<T>
+where
+    T: AsyncRead + Unpin,
+{
+    fn from(value: T) -> Self {
+        let raw_reader = build_raw_frame_reader(value);
+        HttpFramedRead::new(raw_reader)
     }
 }
 
@@ -479,4 +489,18 @@ fn io_err_to_proto_err(err: io::Error) -> ProtoError {
         }
     }
     err.into()
+}
+
+pub fn build_raw_frame_reader<T>(
+    stream: T,
+) -> TokioFramedRead<T, LengthDelimitedCodec>
+where
+    T: AsyncRead + Unpin,
+{
+    length_delimited::Builder::new()
+        .big_endian()
+        .length_field_length(3)
+        .length_adjustment(9)
+        .num_skip(0) // Don't skip the header
+        .new_read(stream)
 }
