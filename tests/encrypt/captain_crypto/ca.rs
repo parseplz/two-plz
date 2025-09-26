@@ -28,7 +28,7 @@ pub struct CA {
 impl CA {
     pub fn trusted(key_pair: &KeyPair) -> Result<CA, CryptoBuildError> {
         let mut cert_path = std::env::current_dir()?;
-        cert_path.push("ca/ca.crt");
+        cert_path.push("./tests/mock-ca/ca.crt");
         let cert_str = read_to_string(cert_path)?;
         let cert_params = CertificateParams::from_ca_cert_pem(&cert_str)?;
         let cert = cert_params.self_signed(key_pair)?;

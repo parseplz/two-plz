@@ -35,6 +35,6 @@ pub fn str_to_private(
 
 pub fn read_private() -> Result<String, CryptoBuildError> {
     let mut path = std::env::current_dir()?;
-    path.push("ca/private.key");
+    path.push("./tests/mock-ca/private.key");
     Ok(read_to_string(path)?)
 }
