@@ -51,9 +51,7 @@ mod window_update;
 pub use self::data::Data;
 pub use self::go_away::GoAway;
 pub use self::head::{Head, Kind};
-pub use self::headers::{
-    Headers, PushPromise,
-};
+pub use self::headers::{Headers, PushPromise};
 pub use self::ping::Ping;
 pub use self::priority::{Priority, StreamDependency};
 pub use self::reason::Reason;
@@ -68,8 +66,8 @@ pub use crate::hpack::BytesStr;
 // Re-export some constants
 
 pub use self::settings::{
-    DEFAULT_MAX_FRAME_SIZE,
-    DEFAULT_SETTINGS_HEADER_TABLE_SIZE, MAX_MAX_FRAME_SIZE,
+    DEFAULT_MAX_FRAME_SIZE, DEFAULT_SETTINGS_HEADER_TABLE_SIZE,
+    MAX_MAX_FRAME_SIZE,
 };
 
 pub type FrameSize = u32;
@@ -106,6 +104,20 @@ impl<T> Frame<T> {
             GoAway(frame) => frame.into(),
             WindowUpdate(frame) => frame.into(),
             Reset(frame) => frame.into(),
+        }
+    }
+
+    pub fn kind(&self) -> Kind {
+        match self {
+            Frame::Data(_) => Kind::Data,
+            Frame::Headers(_) => Kind::Headers,
+            Frame::Priority(_) => Kind::Priority,
+            Frame::PushPromise(_) => Kind::PushPromise,
+            Frame::Settings(_) => Kind::Settings,
+            Frame::Ping(_) => Kind::Ping,
+            Frame::GoAway(_) => Kind::GoAway,
+            Frame::WindowUpdate(_) => Kind::WindowUpdate,
+            Frame::Reset(_) => Kind::Reset,
         }
     }
 }
