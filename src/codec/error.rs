@@ -92,19 +92,11 @@ impl fmt::Display for UserError {
             ReleaseCapacityTooBig => "release capacity too big",
             OverflowedStreamId => "stream ID overflowed",
             MalformedHeaders => "malformed headers",
-            MissingUriSchemeAndAuthority => {
-                "request URI missing scheme and authority"
-            }
-            PollResetAfterSendResponse => {
-                "poll_reset after send_response is illegal"
-            }
+            MissingUriSchemeAndAuthority => "request URI missing scheme and authority",
+            PollResetAfterSendResponse => "poll_reset after send_response is illegal",
             SendPingWhilePending => "send_ping before received previous pong",
-            SendSettingsWhilePending => {
-                "sending SETTINGS before received previous ACK"
-            }
-            PeerDisabledServerPush => {
-                "sending PUSH_PROMISE to peer who disabled server push"
-            }
+            SendSettingsWhilePending => "sending SETTINGS before received previous ACK",
+            PeerDisabledServerPush => "sending PUSH_PROMISE to peer who disabled server push",
         })
     }
 }
