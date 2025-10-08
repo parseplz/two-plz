@@ -1,7 +1,87 @@
-use crate::{frame::StreamId, proto::buffer::Deque};
+use bytes::BytesMut;
+
+use crate::{
+    frame::StreamId,
+    proto::{
+        WindowSize,
+        buffer::Deque,
+        flow_control::FlowControl,
+        store::{self, Key, Next},
+    },
+};
+
+// ===== Queues =====
+// send
+#[derive(Debug)]
+pub(super) struct NextSend;
+
+#[derive(Debug)]
+pub(super) struct NextSendCapacity;
+
+#[derive(Debug)]
+pub(super) struct NextOpen;
+
+// TODO
+//#[derive(Debug)]
+//pub(super) struct NextResetExpire;
 
 #[derive(Debug)]
 pub struct Stream {
     pub(crate) id: StreamId,
-    queue: Deque,
+
+    // ===== Send =====
+    pub send_flow: FlowControl,
+    body: Option<BytesMut>,
+
+    /// Next Send
+    pub next_pending_send: Option<Key>,
+    pub is_pending_send: bool,
+    pub pending_send: Deque, // frames
+
+    /// Next capacity.
+    pub next_pending_send_capacity: Option<store::Key>,
+    pub is_pending_send_capacity: bool,
+
+    /// Next Open
+    pub next_open: Option<store::Key>,
+    pub is_pending_open: bool,
+
+    // ===== Recv =====
+    pub recv_flow: FlowControl,
+    pub pending_recv: Deque, // Events
+
+                             // TODO
+                             //state: State,
+                             //pub content_length: ContentLength,
+}
+
+impl Stream {
+    pub fn new(
+        id: StreamId,
+        init_send_window: WindowSize,
+        init_recv_window: WindowSize,
+    ) -> Stream {
+        let mut send_flow = FlowControl::new(init_send_window);
+        let mut recv_flow = FlowControl::new(init_recv_window);
+
+        Stream {
+            id,
+            // === send ===
+            send_flow,
+            body: None,
+            // next send
+            next_pending_send: None,
+            is_pending_send: false,
+            pending_send: Deque::new(),
+            // next capacity
+            next_pending_send_capacity: None,
+            is_pending_send_capacity: false,
+            // next open
+            next_open: None,
+            is_pending_open: false,
+            // === recv ===
+            recv_flow,
+            pending_recv: Deque::new(),
+        }
+    }
 }
