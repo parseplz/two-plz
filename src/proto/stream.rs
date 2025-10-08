@@ -39,11 +39,11 @@ pub struct Stream {
     pub pending_send: Deque, // frames
 
     /// Next capacity.
-    pub next_pending_send_capacity: Option<store::Key>,
+    pub next_pending_send_capacity: Option<Key>,
     pub is_pending_send_capacity: bool,
 
     /// Next Open
-    pub next_open: Option<store::Key>,
+    pub next_open: Option<Key>,
     pub is_pending_open: bool,
 
     // ===== Recv =====
@@ -83,5 +83,82 @@ impl Stream {
             recv_flow,
             pending_recv: Deque::new(),
         }
+    }
+}
+
+// ===== Queue =====
+impl Next for NextSend {
+    fn next(stream: &Stream) -> Option<store::Key> {
+        stream.next_pending_send
+    }
+
+    fn set_next(stream: &mut Stream, key: Option<store::Key>) {
+        stream.next_pending_send = key;
+    }
+
+    fn take_next(stream: &mut Stream) -> Option<store::Key> {
+        stream.next_pending_send.take()
+    }
+
+    fn is_queued(stream: &Stream) -> bool {
+        stream.is_pending_send
+    }
+
+    fn set_queued(stream: &mut Stream, val: bool) {
+        if val {
+            // ensure that stream is not queued for being opened
+            // if it's being put into queue for sending data
+            debug_assert!(!stream.is_pending_open);
+        }
+        stream.is_pending_send = val;
+    }
+}
+
+impl store::Next for NextSendCapacity {
+    fn next(stream: &Stream) -> Option<store::Key> {
+        stream.next_pending_send_capacity
+    }
+
+    fn set_next(stream: &mut Stream, key: Option<store::Key>) {
+        stream.next_pending_send_capacity = key;
+    }
+
+    fn take_next(stream: &mut Stream) -> Option<store::Key> {
+        stream.next_pending_send_capacity.take()
+    }
+
+    fn is_queued(stream: &Stream) -> bool {
+        stream.is_pending_send_capacity
+    }
+
+    fn set_queued(stream: &mut Stream, val: bool) {
+        stream.is_pending_send_capacity = val;
+    }
+}
+
+impl store::Next for NextOpen {
+    fn next(stream: &Stream) -> Option<store::Key> {
+        stream.next_open
+    }
+
+    fn set_next(stream: &mut Stream, key: Option<store::Key>) {
+        stream.next_open = key;
+    }
+
+    fn take_next(stream: &mut Stream) -> Option<store::Key> {
+        stream.next_open.take()
+    }
+
+    fn is_queued(stream: &Stream) -> bool {
+        stream.is_pending_open
+    }
+
+    fn set_queued(stream: &mut Stream, val: bool) {
+        if val {
+            // ensure that stream is not queued for being sent
+            // if it's being put into queue for opening the stream
+            debug_assert!(!stream.is_pending_send);
+        }
+        stream.is_pending_open = val;
     }
 }
