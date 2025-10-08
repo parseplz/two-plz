@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    codec::framed_read::HttpFramedRead,
+    codec::framed_read::FramedRead,
     frame::{self, Settings},
     preface::{Preface, PrefaceFramed},
     proto::{buffer::Buffer, store::Store},

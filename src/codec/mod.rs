@@ -10,7 +10,7 @@ use self::framed_write::FramedWrite;
 use crate::frame::{self, Data, Frame};
 use crate::proto::Error;
 
-use bytes::Buf;
+use bytes::{Buf, BytesMut};
 use futures_core::Stream;
 use futures_sink::Sink;
 use std::pin::Pin;
@@ -131,6 +131,10 @@ impl<T, B> Codec<T, B> {
 
     fn framed_write(&mut self) -> &mut FramedWrite<T, B> {
         self.inner.get_mut()
+    }
+
+    pub fn read_buf_mut(&mut self) -> &mut BytesMut {
+        self.inner.read_buffer_mut()
     }
 }
 

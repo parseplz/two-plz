@@ -186,7 +186,8 @@ impl Settings {
                     }
                 }
                 Some(MaxFrameSize(val)) => {
-                    if (DEFAULT_MAX_FRAME_SIZE..=MAX_MAX_FRAME_SIZE).contains(&val)
+                    if (DEFAULT_MAX_FRAME_SIZE..=MAX_MAX_FRAME_SIZE)
+                        .contains(&val)
                     {
                         settings.max_frame_size = Some(val);
                     } else {

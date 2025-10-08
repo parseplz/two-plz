@@ -7,7 +7,10 @@ use tokio::{
 mod encrypt;
 extern crate two_plz;
 use tracing::{Level, info};
-use two_plz::{io::write_and_flush, preface::HandshakeState};
+use two_plz::{
+    io::write_and_flush,
+    preface::{PrefaceFramed, Role, ServerPreface},
+};
 
 use crate::encrypt::{
     captain_crypto::CaptainCrypto, complete_handshake, encrypt_server,
@@ -66,14 +69,27 @@ async fn mock_server() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_default();
     info!("[+] client alpn| {}", String::from_utf8_lossy(alpn));
 
-    let mut state = HandshakeState::init(client_tls, server_tls);
+    let mut client_state = ServerPreface::new(client_tls, Role::Server);
     loop {
-        state = state.next().await?;
-        if state.ended() {
-            info!("[+] preface completed");
+        client_state = client_state.next().await?;
+        if client_state.is_ended() {
             break;
         }
     }
+    //let mut state = HandshakeState::init(client_tls, server_tls);
+    //
+    //let preface_conn = PrefaceFramed::try_from(state).unwrap();
+    //
+    //let (client, server) = preface_conn.into();
+    //
+    //let mut client_state = State::init(client);
+    //
+    //loop {
+    //    client_state = client_state.next().await.unwrap();
+    //    if client_state.is_ended() {
+    //        break;
+    //    }
+    //}
 
     Ok(())
 }

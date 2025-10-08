@@ -93,7 +93,9 @@ where
             final_flush_done: false,
             encoder: Encoder {
                 hpack: hpack::Encoder::default(),
-                buf: Cursor::new(BytesMut::with_capacity(DEFAULT_BUFFER_CAPACITY)),
+                buf: Cursor::new(BytesMut::with_capacity(
+                    DEFAULT_BUFFER_CAPACITY,
+                )),
                 next: None,
                 last_data_frame: None,
                 max_frame_size: frame::DEFAULT_MAX_FRAME_SIZE,
@@ -138,8 +140,13 @@ where
                 match self.encoder.next {
                     Some(Next::Data(ref mut frame)) => {
                         tracing::trace!(queued_data_frame = true);
-                        let mut buf = (&mut self.encoder.buf).chain(frame.payload_mut());
-                        ready!(poll_write_buf(Pin::new(&mut self.inner), cx, &mut buf))?
+                        let mut buf =
+                            (&mut self.encoder.buf).chain(frame.payload_mut());
+                        ready!(poll_write_buf(
+                            Pin::new(&mut self.inner),
+                            cx,
+                            &mut buf
+                        ))?
                     }
                     _ => {
                         tracing::trace!(queued_data_frame = false);
@@ -233,8 +240,11 @@ where
                     head.encode(len, self.buf.get_mut());
 
                     if self.buf.get_ref().remaining() < self.chain_threshold {
-                        let extra_bytes = self.chain_threshold - self.buf.remaining();
-                        self.buf.get_mut().put(v.payload_mut().take(extra_bytes));
+                        let extra_bytes =
+                            self.chain_threshold - self.buf.remaining();
+                        self.buf
+                            .get_mut()
+                            .put(v.payload_mut().take(extra_bytes));
                     }
 
                     // Save the data frame
@@ -244,7 +254,11 @@ where
 
                     // The chunk has been fully encoded, so there is no need to
                     // keep it around
-                    assert_eq!(v.payload().remaining(), 0, "chunk not fully encoded");
+                    assert_eq!(
+                        v.payload().remaining(),
+                        0,
+                        "chunk not fully encoded"
+                    );
 
                     // Save off the last frame...
                     self.last_data_frame = Some(v);
@@ -252,19 +266,24 @@ where
             }
             Frame::Headers(v) => {
                 let mut buf = limited_write_buf!(self);
-                if let Some(continuation) = v.encode(&mut self.hpack, &mut buf) {
+                if let Some(continuation) = v.encode(&mut self.hpack, &mut buf)
+                {
                     self.next = Some(Next::Continuation(continuation));
                 }
             }
             Frame::PushPromise(v) => {
                 let mut buf = limited_write_buf!(self);
-                if let Some(continuation) = v.encode(&mut self.hpack, &mut buf) {
+                if let Some(continuation) = v.encode(&mut self.hpack, &mut buf)
+                {
                     self.next = Some(Next::Continuation(continuation));
                 }
             }
             Frame::Settings(v) => {
                 v.encode(self.buf.get_mut());
-                tracing::trace!(rem = self.buf.remaining(), "encoded settings");
+                tracing::trace!(
+                    rem = self.buf.remaining(),
+                    "encoded settings"
+                );
             }
             Frame::GoAway(v) => {
                 v.encode(self.buf.get_mut());
@@ -276,7 +295,10 @@ where
             }
             Frame::WindowUpdate(v) => {
                 v.encode(self.buf.get_mut());
-                tracing::trace!(rem = self.buf.remaining(), "encoded window_update");
+                tracing::trace!(
+                    rem = self.buf.remaining(),
+                    "encoded window_update"
+                );
             }
 
             Frame::Priority(_) => {

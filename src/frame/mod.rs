@@ -51,6 +51,9 @@ mod window_update;
 pub use self::data::Data;
 pub use self::go_away::GoAway;
 pub use self::head::{Head, Kind};
+pub use self::headers::{
+    Continuation, Pseudo, PushPromiseHeaderError, parse_u64,
+};
 pub use self::headers::{Headers, PushPromise};
 pub use self::ping::Ping;
 pub use self::priority::{Priority, StreamDependency};
@@ -119,6 +122,11 @@ impl<T> Frame<T> {
             Frame::WindowUpdate(_) => Kind::WindowUpdate,
             Frame::Reset(_) => Kind::Reset,
         }
+    }
+
+    pub fn is_settings_frame(&self) -> bool {
+        matches!(self, Frame::Settings(_))
+            | matches!(self, Frame::WindowUpdate(_))
     }
 }
 

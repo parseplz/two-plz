@@ -9,10 +9,19 @@ macro_rules! proto_err {
     };
 }
 
+macro_rules! ready {
+    ($e:expr) => {
+        match $e {
+            ::std::task::Poll::Ready(r) => r,
+            ::std::task::Poll::Pending => return ::std::task::Poll::Pending,
+        }
+    };
+}
+
 mod codec;
 mod ext;
 mod frame;
 mod hpack;
-mod io;
-mod preface;
-mod proto;
+pub mod io;
+pub mod preface;
+pub mod proto;
