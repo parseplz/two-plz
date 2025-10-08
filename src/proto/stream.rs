@@ -49,10 +49,10 @@ pub struct Stream {
     // ===== Recv =====
     pub recv_flow: FlowControl,
     pub pending_recv: Deque, // Events
-
-                             // TODO
-                             //state: State,
-                             //pub content_length: ContentLength,
+    pub content_length: ContentLength,
+    // TODO
+    //state: State,
+    //pub content_length: ContentLength,
 }
 
 impl Stream {
@@ -82,6 +82,7 @@ impl Stream {
             // === recv ===
             recv_flow,
             pending_recv: Deque::new(),
+            content_length: ContentLength::Omitted,
         }
     }
 }
@@ -160,5 +161,18 @@ impl store::Next for NextOpen {
             debug_assert!(!stream.is_pending_send);
         }
         stream.is_pending_open = val;
+    }
+}
+
+#[derive(Debug)]
+pub enum ContentLength {
+    Omitted,
+    Head,
+    Remaining(u64),
+}
+
+impl ContentLength {
+    pub fn is_head(&self) -> bool {
+        matches!(*self, Self::Head)
     }
 }
