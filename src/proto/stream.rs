@@ -1,4 +1,5 @@
 use bytes::BytesMut;
+use std::time::Instant;
 
 use crate::{
     frame::StreamId,
@@ -22,8 +23,8 @@ pub(super) struct NextSendCapacity;
 pub(super) struct NextOpen;
 
 // TODO
-//#[derive(Debug)]
-//pub(super) struct NextResetExpire;
+#[derive(Debug)]
+pub(super) struct NextResetExpire;
 
 #[derive(Debug)]
 pub struct Stream {
@@ -50,6 +51,13 @@ pub struct Stream {
     pub recv_flow: FlowControl,
     pub pending_recv: Deque, // Events
     pub content_length: ContentLength,
+
+    // ===== Reset =====
+    /// The time when this stream may have been locally reset.
+    pub reset_at: Option<Instant>,
+
+    /// Next node in list of reset streams that should expire eventually
+    pub next_reset_expire: Option<store::Key>,
     // TODO
     //state: State,
     //pub content_length: ContentLength,
@@ -83,6 +91,9 @@ impl Stream {
             recv_flow,
             pending_recv: Deque::new(),
             content_length: ContentLength::Omitted,
+            // === reset ===
+            reset_at: None,
+            next_reset_expire: None,
         }
     }
 }
@@ -161,6 +172,32 @@ impl store::Next for NextOpen {
             debug_assert!(!stream.is_pending_send);
         }
         stream.is_pending_open = val;
+    }
+}
+
+impl store::Next for NextResetExpire {
+    fn next(stream: &Stream) -> Option<store::Key> {
+        stream.next_reset_expire
+    }
+
+    fn set_next(stream: &mut Stream, key: Option<store::Key>) {
+        stream.next_reset_expire = key;
+    }
+
+    fn take_next(stream: &mut Stream) -> Option<store::Key> {
+        stream.next_reset_expire.take()
+    }
+
+    fn is_queued(stream: &Stream) -> bool {
+        stream.reset_at.is_some()
+    }
+
+    fn set_queued(stream: &mut Stream, val: bool) {
+        if val {
+            stream.reset_at = Some(Instant::now());
+        } else {
+            stream.reset_at = None;
+        }
     }
 }
 
