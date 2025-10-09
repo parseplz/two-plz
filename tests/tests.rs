@@ -9,7 +9,7 @@ extern crate two_plz;
 use tracing::{Level, info};
 use two_plz::{
     io::write_and_flush,
-    preface::{PrefaceFramed, Role, ServerPreface},
+    preface::{Role, ServerPreface},
 };
 
 use crate::encrypt::{

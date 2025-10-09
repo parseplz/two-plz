@@ -5,18 +5,18 @@ use std::ops::{Deref, DerefMut};
 use crate::frame::StreamId;
 use crate::proto::store::{Resolve, SlabIndex, Store, Stream};
 
-/// "Pointer" to an entry in the store
-pub(super) struct Ptr<'a> {
-    pub(crate) key: Key,
-    pub(crate) store: &'a mut Store,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Key {
     pub(crate) index: SlabIndex,
     /// Keep the stream ID in the key as an ABA guard, since slab indices
     /// could be re-used with a new stream.
     pub(crate) stream_id: StreamId,
+}
+
+/// "Pointer" to an entry in the store
+pub(crate) struct Ptr<'a> {
+    pub(crate) key: Key,
+    pub(crate) store: &'a mut Store,
 }
 
 impl<'a> Ptr<'a> {

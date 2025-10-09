@@ -5,7 +5,7 @@
 //      spec - 2 * GOAWAY
 //      hyper - 1 * GOAWAY + PING + 1 * GOAWAY
 
-use crate::frame::{self, Ping};
+use crate::frame::Ping;
 
 #[derive(Debug, Default)]
 pub struct PingPong {

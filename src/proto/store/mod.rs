@@ -3,11 +3,13 @@ use std::ops::{Index, IndexMut};
 use indexmap::{self, IndexMap};
 
 use crate::frame::StreamId;
-use crate::proto::store::ptr::{Key, Ptr};
 use crate::proto::stream::Stream;
 mod entry;
 mod ptr;
+mod queue;
 use entry::*;
+pub(crate) use ptr::{Key, Ptr};
+pub(crate) use queue::{Next, Queue};
 
 pub(super) trait Resolve {
     fn resolve(&mut self, key: Key) -> Ptr<'_>;
@@ -98,6 +100,12 @@ impl Resolve for Store {
             store: self,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Indices {
+    pub head: Key,
+    pub tail: Key,
 }
 
 #[cfg(test)]

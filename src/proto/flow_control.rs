@@ -1,6 +1,5 @@
 use crate::frame::Reason;
 use crate::proto::{MAX_WINDOW_SIZE, WindowSize};
-use std::fmt;
 
 const UNCLAIMED_NUMERATOR: i32 = 1;
 const UNCLAIMED_DENOMINATOR: i32 = 2;

@@ -22,7 +22,6 @@ pub(super) struct NextSendCapacity;
 #[derive(Debug)]
 pub(super) struct NextOpen;
 
-// TODO
 #[derive(Debug)]
 pub(super) struct NextResetExpire;
 
@@ -55,9 +54,7 @@ pub struct Stream {
     // ===== Reset =====
     /// The time when this stream may have been locally reset.
     pub reset_at: Option<Instant>,
-
-    /// Next node in list of reset streams that should expire eventually
-    pub next_reset_expire: Option<store::Key>,
+    pub next_reset_expire: Option<Key>,
     // TODO
     //state: State,
     //pub content_length: ContentLength,
@@ -69,8 +66,8 @@ impl Stream {
         init_send_window: WindowSize,
         init_recv_window: WindowSize,
     ) -> Stream {
-        let mut send_flow = FlowControl::new(init_send_window);
-        let mut recv_flow = FlowControl::new(init_recv_window);
+        let send_flow = FlowControl::new(init_send_window);
+        let recv_flow = FlowControl::new(init_recv_window);
 
         Stream {
             id,
@@ -95,6 +92,12 @@ impl Stream {
             reset_at: None,
             next_reset_expire: None,
         }
+    }
+
+    fn is_closed(&self) -> bool {
+        // TODO
+        //self.state.is_closed() &&
+        self.pending_send.is_empty()
     }
 }
 

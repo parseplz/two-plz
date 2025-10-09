@@ -43,7 +43,7 @@ mod ping;
 mod priority;
 mod reason;
 mod reset;
-mod settings;
+pub mod settings;
 mod stream_id;
 mod util;
 mod window_update;
@@ -51,9 +51,7 @@ mod window_update;
 pub use self::data::Data;
 pub use self::go_away::GoAway;
 pub use self::head::{Head, Kind};
-pub use self::headers::{
-    Continuation, Pseudo, PushPromiseHeaderError, parse_u64,
-};
+pub use self::headers::Continuation;
 pub use self::headers::{Headers, PushPromise};
 pub use self::ping::Ping;
 pub use self::priority::{Priority, StreamDependency};
@@ -63,15 +61,14 @@ pub use self::settings::Settings;
 pub use self::stream_id::StreamId;
 pub use self::window_update::WindowUpdate;
 
+// Re-export some constants
+pub use self::settings::{
+    DEFAULT_INITIAL_WINDOW_SIZE, DEFAULT_MAX_FRAME_SIZE,
+    DEFAULT_SETTINGS_HEADER_TABLE_SIZE, MAX_MAX_FRAME_SIZE,
+};
+
 #[cfg(feature = "unstable")]
 pub use crate::hpack::BytesStr;
-
-// Re-export some constants
-
-pub use self::settings::{
-    DEFAULT_MAX_FRAME_SIZE, DEFAULT_SETTINGS_HEADER_TABLE_SIZE,
-    MAX_MAX_FRAME_SIZE,
-};
 
 pub type FrameSize = u32;
 

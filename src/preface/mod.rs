@@ -1,13 +1,11 @@
 use crate::codec::{Codec, UserError};
-use crate::frame::{self, Frame, HEADER_LEN, Head, Kind, Settings};
+use crate::frame::{Frame, Settings};
 use crate::proto::Error as ProtoError;
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::BytesMut;
 use futures::StreamExt;
 use futures::future::poll_fn;
-use thiserror::Error;
 use tokio::io::AsyncWriteExt;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadHalf, WriteHalf};
-use tokio_util::codec::{FramedRead as TokioFramedRead, LengthDelimitedCodec};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 use tracing::info;
 mod error;
 use error::*;
