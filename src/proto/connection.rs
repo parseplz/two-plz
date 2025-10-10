@@ -7,13 +7,19 @@ use tokio::{
     sync::mpsc,
 };
 
-use crate::{codec::Codec, frame::Settings, preface::Role};
+use crate::{
+    codec::Codec,
+    frame::{Ping, Settings},
+    preface::Role,
+    proto::ping_pong::{PingPong, ReceivedPing},
+};
 
 pub struct Connection<T, E, U> {
     role: Role,
     config: ConnectionConfig,
     pub stream: Codec<T, BytesMut>,
     pub handler: Handler<E, U>,
+    ping_pong: PingPong,
 }
 
 impl<T, E, U> Connection<T, E, U> {
@@ -23,6 +29,10 @@ impl<T, E, U> Connection<T, E, U> {
         stream: Codec<T, BytesMut>,
     ) -> Self {
         todo!()
+    }
+
+    pub fn handle_ping(&mut self, frame: Ping) -> ReceivedPing {
+        self.ping_pong.handle(frame)
     }
 }
 
