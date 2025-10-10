@@ -1,71 +1,84 @@
-use crate::{frame::Frame, proto::Error as ProtoError};
-use std::sync::Arc;
+use futures::StreamExt;
+use std::time::Duration;
 
 use bytes::BytesMut;
 use tokio::{
-    io::{AsyncRead, AsyncWrite, ReadHalf, WriteHalf},
-    sync::Mutex,
+    io::{AsyncRead, AsyncWrite},
+    sync::mpsc,
 };
 
-use crate::{
-    codec::framed_read::FramedRead,
-    frame::{self, Settings},
-    preface::PrefaceFramed,
-    proto::{buffer::Buffer, conn_settings::ConnSettings, store::Store},
-};
+use crate::{codec::Codec, frame::Settings, preface::Role};
 
-pub struct Connection<T, E> {
-    reader: FramedRead<ReadHalf<T>>,
-    writer: WriteHalf<E>,
-    curr_frame: Option<Frame>,
-    settings: Arc<Mutex<ConnSettings>>,
-    store: Store,
-    recv_buf: Buffer<BytesMut>,
-    to_send: Buffer<Frame>,
+pub struct Connection<T, E, U> {
+    role: Role,
+    config: ConnectionConfig,
+    pub stream: Codec<T, BytesMut>,
+    pub handler: Handler<E, U>,
 }
 
-impl<T, E> Connection<T, E>
-where
-    T: AsyncRead + Unpin,
-{
-    pub async fn read_frame(&mut self) -> Result<Frame, ProtoError> {
-        self.reader.read_frame().await
-    }
-
-    pub fn set_curr_frame(&mut self, frame: Frame) {
-        self.curr_frame = Some(frame)
-    }
-
-    pub fn curr_frame(&self) -> &Frame {
-        self.curr_frame.as_ref().unwrap()
+impl<T, E, U> Connection<T, E, U> {
+    fn new(
+        role: Role,
+        config: ConnectionConfig,
+        stream: Codec<T, BytesMut>,
+    ) -> Self {
+        todo!()
     }
 }
 
-impl<T, E> From<PrefaceFramed<T, E>> for (Connection<T, E>, Connection<E, T>)
-where
-    T: AsyncRead + Unpin,
-    E: AsyncRead + Unpin,
-{
-    fn from(mut framed: PrefaceFramed<T, E>) -> Self {
-        let settings = Arc::new(Mutex::new(ConnSettings::from(&mut framed)));
-        let client = Connection {
-            reader: FramedRead::new(framed.client_framed_reader),
-            curr_frame: None,
-            writer: framed.server_writer,
-            store: Store::new(),
-            recv_buf: Buffer::new(),
-            settings: settings.clone(),
-            to_send: Buffer::new(),
-        };
-        let server = Connection {
-            reader: FramedRead::new(framed.server_framed_reader),
-            curr_frame: None,
-            writer: framed.client_writer,
-            store: Store::new(),
-            recv_buf: Buffer::new(),
-            settings,
-            to_send: Buffer::new(),
-        };
-        (client, server)
+struct ConnectionConfig {
+    /// Time to keep locally reset streams around before reaping.
+    reset_stream_duration: Duration,
+
+    local_settings: Settings,
+
+    peer_settings: Settings,
+
+    /// Initial target window size for new connections.
+    initial_target_connection_window_size: Option<u32>,
+
+    /// Maximum number of locally reset streams to keep at a time.
+    reset_stream_max: usize,
+
+    /// Maximum number of locally reset streams due to protocol error across
+    /// the lifetime of the connection.
+    ///
+    /// When this gets exceeded, we issue GOAWAYs.
+    local_max_error_reset_streams: Option<usize>,
+
+    /// Initial maximum number of locally initiated (send) streams.
+    /// After receiving a SETTINGS frame from the remote peer,
+    /// the connection will overwrite this value with the
+    /// MAX_CONCURRENT_STREAMS specified in the frame.
+    /// If no value is advertised by the remote peer in the initial SETTINGS
+    /// frame, it will be set to usize::MAX.
+    max_concurrent_streams: usize,
+}
+
+enum ServerToUser {} // Request
+enum UserToServer {} // Response
+
+enum ClientToUser {} // Response
+enum UserToClient {} // Request
+
+pub struct Handler<T, E> {
+    sender: mpsc::Sender<T>,
+    pub receiver: mpsc::Receiver<E>,
+}
+
+impl<T, E> Handler<T, E> {
+    fn build() -> (Handler<T, E>, Handler<E, T>) {
+        let (ftx, frx) = mpsc::channel(1);
+        let (stx, srx) = mpsc::channel(1);
+        (
+            Handler {
+                sender: ftx,
+                receiver: srx,
+            },
+            Handler {
+                sender: stx,
+                receiver: frx,
+            },
+        )
     }
 }
