@@ -2,17 +2,52 @@ use crate::{
     frame::{Frame, Kind},
     proto::connection::Connection,
 };
+use futures::StreamExt;
 use thiserror::Error;
-use tokio::io::AsyncRead;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{debug, info};
 
 use crate::proto::Error as ProtoError;
 
-pub enum State<T, E> {
-    ReadFrame(Connection<T, E>),
-    ParseFrame(Connection<T, E>),
-    ApplySettings(Connection<T, E>),
-    Send(Connection<T, E>),
+// E => Sent
+// U => Received
+async fn runner<T, E, U>(mut conn: Connection<T, E, U>)
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    tokio::select! {
+        frame = conn.stream.next() => {
+            match frame {
+                Some(Ok(frame)) => {
+                    let state_result = state_poller(&mut conn, frame);
+                    todo!()
+                }
+                Some(Err(_)) => todo!(),
+                None => todo!(),
+            }
+        }
+        msg = conn.handler.receiver.recv() => {
+            todo!()
+        }
+    }
+}
+
+fn state_poller<T, E, U>(
+    conn: &mut Connection<T, E, U>,
+    frame: Frame,
+) -> Result<ReadState<T, E, U>, StateError> {
+    let mut state = ReadState::init(conn, frame);
+    loop {
+        state = state.next()?;
+        if state.is_ended() {
+            break Ok(state);
+        }
+    }
+}
+
+pub enum ReadState<'a, T, E, U> {
+    HandleFrame(&'a mut Connection<T, E, U>, Frame),
+    HandlePing(&'a mut Connection<T, E, U>),
     End,
 }
 
@@ -22,42 +57,27 @@ pub enum StateError {
     Proto(ProtoError),
 }
 
-impl<T, E> State<T, E>
-where
-    T: AsyncRead + Unpin,
-{
-    pub fn init(conn: Connection<T, E>) -> Self {
-        State::ReadFrame(conn)
+impl<'a, T, E, U> ReadState<'a, T, E, U> {
+    pub fn init(conn: &'a mut Connection<T, E, U>, frame: Frame) -> Self {
+        ReadState::HandleFrame(conn, frame)
     }
 
-    pub async fn next(mut self) -> Result<Self, StateError> {
+    pub fn next(mut self) -> Result<Self, StateError> {
         let next_state = match self {
-            Self::ReadFrame(mut conn) => {
-                let frame = conn
-                    .read_frame()
-                    .await
-                    .map_err(StateError::Proto)?;
-                debug!("[+] read frame| {:?}", frame.kind());
-                conn.set_curr_frame(frame);
-                Self::ParseFrame(conn)
-            }
-            Self::ParseFrame(mut conn) => {
-                let frame = conn.curr_frame();
-                match frame.kind() {
-                    Kind::Data => todo!(),
-                    Kind::Headers => todo!(),
-                    Kind::Priority => todo!(),
-                    Kind::Reset => todo!(),
-                    Kind::Settings => todo!(),
-                    Kind::PushPromise => todo!(),
-                    Kind::Ping => todo!(),
-                    Kind::GoAway => todo!(),
-                    Kind::WindowUpdate => Self::ApplySettings(conn),
-                    Kind::Continuation => todo!(),
-                    Kind::Unknown => todo!(),
-                }
-            }
-            Self::ApplySettings(mut conn) => {
+            Self::HandleFrame(mut conn, frame) => match frame.kind() {
+                Kind::Data => todo!(),
+                Kind::Headers => todo!(),
+                Kind::Priority => todo!(),
+                Kind::Reset => todo!(),
+                Kind::Settings => todo!(),
+                Kind::PushPromise => todo!(),
+                Kind::Ping => todo!(),
+                Kind::GoAway => todo!(),
+                Kind::WindowUpdate => Self::HandlePing(conn),
+                Kind::Continuation => todo!(),
+                Kind::Unknown => todo!(),
+            },
+            Self::HandlePing(mut conn) => {
                 todo!()
             }
             _ => todo!(),
