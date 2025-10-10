@@ -1,5 +1,5 @@
 use crate::{
-    frame::{Frame, Kind},
+    frame::{Frame, Kind, Ping},
     proto::connection::Connection,
 };
 use futures::StreamExt;
@@ -47,7 +47,7 @@ fn state_poller<T, E, U>(
 
 pub enum ReadState<'a, T, E, U> {
     HandleFrame(&'a mut Connection<T, E, U>, Frame),
-    HandlePing(&'a mut Connection<T, E, U>),
+    HandlePing(&'a mut Connection<T, E, U>, Ping),
     End,
 }
 
@@ -64,20 +64,18 @@ impl<'a, T, E, U> ReadState<'a, T, E, U> {
 
     pub fn next(mut self) -> Result<Self, StateError> {
         let next_state = match self {
-            Self::HandleFrame(mut conn, frame) => match frame.kind() {
-                Kind::Data => todo!(),
-                Kind::Headers => todo!(),
-                Kind::Priority => todo!(),
-                Kind::Reset => todo!(),
-                Kind::Settings => todo!(),
-                Kind::PushPromise => todo!(),
-                Kind::Ping => todo!(),
-                Kind::GoAway => todo!(),
-                Kind::WindowUpdate => Self::HandlePing(conn),
-                Kind::Continuation => todo!(),
-                Kind::Unknown => todo!(),
+            Self::HandleFrame(conn, frame) => match frame {
+                Frame::Data(data) => todo!(),
+                Frame::Headers(headers) => todo!(),
+                Frame::Priority(priority) => todo!(),
+                Frame::PushPromise(push_promise) => todo!(),
+                Frame::Settings(settings) => todo!(),
+                Frame::Ping(ping) => Self::HandlePing(conn, ping),
+                Frame::GoAway(go_away) => todo!(),
+                Frame::WindowUpdate(window_update) => todo!(),
+                Frame::Reset(reset) => todo!(),
             },
-            Self::HandlePing(mut conn) => {
+            Self::HandlePing(mut conn, ping) => {
                 todo!()
             }
             _ => todo!(),
