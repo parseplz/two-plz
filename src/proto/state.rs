@@ -9,9 +9,9 @@ use tracing::{debug, info};
 
 use crate::proto::Error as ProtoError;
 
-// E => Sent
-// U => Received
-async fn runner<T, E, U>(mut conn: Connection<T, E, U>)
+// E => Sent to user
+// U => Received from user
+async fn connection_runner<T, E, U>(mut conn: Connection<T, E, U>)
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -19,7 +19,7 @@ where
         frame = conn.stream.next() => {
             match frame {
                 Some(Ok(frame)) => {
-                    let state_result = state_poller(&mut conn, frame);
+                    let state_result = state_runner(&mut conn, frame);
                     todo!()
                 }
                 Some(Err(_)) => todo!(),
@@ -32,7 +32,7 @@ where
     }
 }
 
-fn state_poller<T, E, U>(
+fn state_runner<T, E, U>(
     conn: &mut Connection<T, E, U>,
     frame: Frame,
 ) -> Result<ReadState<T, E, U>, StateError> {
