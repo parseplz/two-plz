@@ -1,11 +1,11 @@
 use crate::{
     frame::{Frame, Kind, Ping},
-    proto::connection::Connection,
+    proto::{connection::Connection, ping_pong::PingAction},
 };
 use futures::StreamExt;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 use crate::proto::Error as ProtoError;
 
@@ -37,7 +37,10 @@ where
 fn state_runner<T, E, U>(
     conn: &mut Connection<T, E, U>,
     frame: Frame,
-) -> Result<ReadState<T, E, U>, StateError> {
+) -> Result<ReadState<T, E, U>, StateError>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
     let mut state = ReadState::init(conn, frame);
     loop {
         state = state.next()?;
@@ -50,6 +53,7 @@ fn state_runner<T, E, U>(
 pub enum ReadState<'a, T, E, U> {
     HandleFrame(&'a mut Connection<T, E, U>, Frame),
     HandlePing(&'a mut Connection<T, E, U>, Ping),
+    Write(&'a mut Connection<T, E, U>),
     End,
 }
 
@@ -59,7 +63,10 @@ pub enum StateError {
     Proto(ProtoError),
 }
 
-impl<'a, T, E, U> ReadState<'a, T, E, U> {
+impl<'a, T, E, U> ReadState<'a, T, E, U>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
     pub fn init(conn: &'a mut Connection<T, E, U>, frame: Frame) -> Self {
         ReadState::HandleFrame(conn, frame)
     }
@@ -78,7 +85,21 @@ impl<'a, T, E, U> ReadState<'a, T, E, U> {
                 Frame::Reset(reset) => todo!(),
             },
             Self::HandlePing(mut conn, ping) => {
-                todo!()
+                match conn.handle_ping(ping) {
+                    PingAction::Ok => {
+                        todo!()
+                    }
+                    PingAction::MustAck => {
+                        if let Some(pong) = conn.ping_pong.pending_pong() {
+                            todo!()
+                        }
+                    }
+                    PingAction::Unknown => {
+                        error!("unknown ping");
+                    }
+                    PingAction::Shutdown => todo!(),
+                };
+                Self::End
             }
             _ => todo!(),
         };
