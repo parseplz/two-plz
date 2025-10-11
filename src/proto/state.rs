@@ -9,6 +9,7 @@ use tracing::{debug, info};
 
 use crate::proto::Error as ProtoError;
 
+// Run the entire client/server connection loop
 // E => Sent to user
 // U => Received from user
 async fn connection_runner<T, E, U>(mut conn: Connection<T, E, U>)
@@ -32,6 +33,7 @@ where
     }
 }
 
+// Run the state machine once a frame is received
 fn state_runner<T, E, U>(
     conn: &mut Connection<T, E, U>,
     frame: Frame,
