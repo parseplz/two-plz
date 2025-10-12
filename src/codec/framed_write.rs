@@ -335,6 +335,11 @@ impl<B> Encoder<B> {
     fn max_frame_size(&self) -> usize {
         self.max_frame_size as usize
     }
+
+    // for testing
+    fn buf_mut(&mut self) -> &mut BytesMut {
+        self.buf.get_mut()
+    }
 }
 
 impl<T, B> FramedWrite<T, B> {
@@ -361,6 +366,11 @@ impl<T, B> FramedWrite<T, B> {
 
     pub fn get_mut(&mut self) -> &mut T {
         &mut self.inner
+    }
+
+    // for testing
+    pub fn buf_mut(&mut self) -> &mut BytesMut {
+        self.encoder.buf_mut()
     }
 }
 

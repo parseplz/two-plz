@@ -136,6 +136,11 @@ impl<T, B> Codec<T, B> {
     pub fn read_buf_mut(&mut self) -> &mut BytesMut {
         self.inner.read_buffer_mut()
     }
+
+    // for testing
+    fn write_buf_mut(&mut self) -> &mut BytesMut {
+        self.inner.get_mut().buf_mut()
+    }
 }
 
 impl<T, B> Codec<T, B>
