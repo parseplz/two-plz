@@ -1,7 +1,9 @@
+use std::io::Error;
+
 use bytes::BytesMut;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
-    sync::mpsc,
+    sync::mpsc::{self, error::SendError},
 };
 
 #[cfg(feature = "test-util")]
@@ -126,5 +128,13 @@ impl<T, E> Handler<T, E> {
                 receiver: frx,
             },
         )
+    }
+
+    async fn recv(&mut self) -> Option<E> {
+        self.receiver.recv().await
+    }
+
+    async fn send(&mut self, item: T) -> Result<(), SendError<T>> {
+        self.sender.send(item).await
     }
 }
