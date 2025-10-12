@@ -76,5 +76,8 @@ where
 
     pub fn is_ended(&self) -> bool {
         matches!(self, Self::End)
+        matches!(self, Self::End) || matches!(self, Self::NeedsFlush)
+    }
+}
     }
 }
