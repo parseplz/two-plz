@@ -1,6 +1,12 @@
 use crate::{
-    frame::{DEFAULT_INITIAL_WINDOW_SIZE, StreamId},
-    proto::{WindowSize, flow_control::FlowControl, store::Queue, stream},
+    frame::{DEFAULT_INITIAL_WINDOW_SIZE, Frame, StreamId},
+    proto::{
+        WindowSize,
+        buffer::Buffer,
+        flow_control::FlowControl,
+        store::{Ptr, Queue, Store},
+        stream,
+    },
 };
 
 struct Send {
@@ -40,6 +46,29 @@ impl Send {
             flow: FlowControl::new(DEFAULT_INITIAL_WINDOW_SIZE),
             last_opened_id: StreamId::ZERO,
             init_window_sz: DEFAULT_INITIAL_WINDOW_SIZE,
+        }
+    }
+
+    /// Queue a frame to be sent to the remote
+    pub fn queue_frame<B>(
+        &mut self,
+        frame: Frame<B>,
+        buffer: &mut Buffer<Frame<B>>,
+        stream: &mut Ptr,
+    ) {
+        // Queue the frame in the buffer
+        stream
+            .pending_send
+            .push_back(buffer, frame);
+        self.schedule_send(stream);
+    }
+
+    pub fn schedule_send(&mut self, stream: &mut Ptr) {
+        // If the stream is waiting to be opened, nothing more to do.
+        if stream.is_send_ready() {
+            tracing::trace!(?stream.id, "schedule_send");
+            // Queue the stream
+            self.pending_send.push(stream);
         }
     }
 }
