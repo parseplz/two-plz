@@ -1,7 +1,5 @@
-use futures::StreamExt;
-use std::time::Duration;
 
-use bytes::{Buf, BytesMut};
+use bytes::BytesMut;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::mpsc,
@@ -9,8 +7,7 @@ use tokio::{
 
 use crate::{
     codec::{Codec, UserError},
-    frame::{Frame, Ping, Settings, StreamId},
-    preface::Role,
+    frame::{Frame, Ping, StreamId},
     proto::{
         config::{ConnectionConfig, PeerRole},
         ping_pong::{PingAction, PingPong},

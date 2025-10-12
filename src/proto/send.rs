@@ -4,7 +4,7 @@ use crate::{
         WindowSize,
         buffer::Buffer,
         flow_control::FlowControl,
-        store::{Ptr, Queue, Store},
+        store::{Ptr, Queue},
         stream,
     },
 };

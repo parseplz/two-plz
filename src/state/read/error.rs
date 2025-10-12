@@ -1,7 +1,7 @@
 use crate::proto::Error as ProtoError;
 use thiserror::Error;
 
-use crate::{codec::UserError, proto::Error};
+use crate::codec::UserError;
 
 #[derive(Debug, Error)]
 pub enum StateError {

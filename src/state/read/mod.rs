@@ -2,16 +2,12 @@ mod error;
 use error::StateError;
 
 use crate::{
-    codec::UserError,
-    frame::{Frame, Kind, Ping},
+    frame::{Frame, Ping},
     proto::{connection::Connection, ping_pong::PingAction},
 };
 use futures::StreamExt;
-use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tracing::{debug, error, info};
 
-use crate::proto::Error as ProtoError;
 
 // Run the state machine once a frame is received
 pub fn read_runner<T, E, U>(
@@ -45,7 +41,7 @@ where
         ReadState::HandleFrame(conn, frame)
     }
 
-    pub fn next(mut self) -> Result<Self, StateError> {
+    pub fn next(self) -> Result<Self, StateError> {
         let next_state = match self {
             Self::HandleFrame(conn, frame) => match frame {
                 Frame::Data(data) => todo!(),
@@ -58,7 +54,7 @@ where
                 Frame::WindowUpdate(window_update) => todo!(),
                 Frame::Reset(reset) => todo!(),
             },
-            Self::HandlePing(mut conn, ping) => match conn.handle_ping(ping) {
+            Self::HandlePing(conn, ping) => match conn.handle_ping(ping) {
                 PingAction::Ok => Self::End,
                 PingAction::MustAck => {
                     if let Some(pong) = conn.ping_pong.pending_pong() {

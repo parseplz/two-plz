@@ -1,9 +1,10 @@
-//mod connection;
-//mod state;
+pub mod connection;
+
 mod buffer;
+pub mod config;
 mod error;
 mod flow_control;
-mod ping_pong;
+pub mod ping_pong;
 mod rst_stream;
 mod send;
 mod settings;

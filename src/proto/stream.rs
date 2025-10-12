@@ -1,5 +1,5 @@
 use bytes::BytesMut;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::{
     frame::StreamId,

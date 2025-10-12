@@ -1,4 +1,4 @@
-#![allow(warnings, dead_code)]
+//#![allow(warnings, dead_code)]
 
 macro_rules! proto_err {
     (conn: $($msg:tt)+) => {
@@ -18,10 +18,15 @@ macro_rules! ready {
     };
 }
 
-mod codec;
+pub mod codec;
 mod ext;
 mod frame;
 mod hpack;
 pub mod io;
 pub mod preface;
 pub mod proto;
+pub mod state;
+
+// tests
+pub use crate::proto::connection::Connection;
+pub use codec::Codec;
