@@ -8,7 +8,6 @@ use crate::{
 use futures::StreamExt;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-
 // Run the state machine once a frame is received
 pub fn read_runner<T, E, U>(
     conn: &mut Connection<T, E, U>,
@@ -75,10 +74,10 @@ where
     }
 
     pub fn is_ended(&self) -> bool {
-        matches!(self, Self::End)
         matches!(self, Self::End) || matches!(self, Self::NeedsFlush)
     }
 }
+
 impl<'a, T, E, U> std::fmt::Debug for ReadState<'a, T, E, U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -89,5 +88,10 @@ impl<'a, T, E, U> std::fmt::Debug for ReadState<'a, T, E, U> {
         }
     }
 }
+
+#[cfg(feature = "test-util")]
+impl<'a, T, E, U> PartialEq for ReadState<'a, T, E, U> {
+    fn eq(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
     }
 }
