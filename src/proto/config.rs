@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use tracing::error;
 
-use crate::frame::{Settings, StreamId};
+use crate::{
+    frame::{Settings, StreamId},
+    proto::DEFAULT_LOCAL_RESET_COUNT_MAX,
+};
 
 #[derive(Clone, Debug)]
 pub enum PeerRole {
@@ -75,4 +78,18 @@ pub struct ConnectionConfig {
     /// TODO: may be store in send and recv settings ?
     pub settings: Settings,
     pub peer_settings: Settings,
+}
+
+impl Default for ConnectionConfig {
+    fn default() -> Self {
+        ConnectionConfig {
+            initial_target_connection_window_size: None,
+            local_max_error_reset_streams: None,
+            reset_stream_duration: Duration::from_secs(30),
+            reset_stream_max: DEFAULT_LOCAL_RESET_COUNT_MAX,
+            role: PeerRole::server(),
+            settings: Settings::default(),
+            peer_settings: Settings::default(),
+        }
+    }
 }
