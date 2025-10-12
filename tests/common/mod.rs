@@ -1,3 +1,4 @@
+#![allow(warnings, dead_code)]
 use tokio::io::{Empty, empty};
 use two_plz::{
     Codec, Connection,
@@ -6,6 +7,29 @@ use two_plz::{
         connection::{ClientToUser, ServerToUser, UserToClient, UserToServer},
     },
 };
+
+//
+#[macro_export]
+macro_rules! poll_frame {
+    ($type: ident, $transport:expr) => {{
+        use futures::StreamExt;
+
+        match $transport.next().await {
+            Some(Ok(Frame::$type(frame))) => frame,
+            frame => panic!("unexpected frame; actual={:?}", frame),
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! assert_ping {
+    ($frame:expr) => {{
+        match $frame {
+            Frame::Ping(v) => v,
+            f => panic!("expected PING; actual={:?}", f),
+        }
+    }};
+}
 
 pub fn build_server() -> Connection<Empty, ServerToUser, UserToServer> {
     let (conn, _) =
