@@ -1,5 +1,5 @@
 use bytes::BytesMut;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::{
     frame::StreamId,
@@ -98,6 +98,10 @@ impl Stream {
         // TODO
         //self.state.is_closed() &&
         self.pending_send.is_empty()
+    }
+
+    pub fn is_send_ready(&self) -> bool {
+        !self.is_pending_open
     }
 }
 
