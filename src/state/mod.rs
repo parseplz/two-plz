@@ -2,7 +2,7 @@ use crate::{Connection, state::read::read_runner};
 use futures::StreamExt;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-mod read;
+pub mod read;
 mod write;
 
 // Run the entire client/server connection loop
