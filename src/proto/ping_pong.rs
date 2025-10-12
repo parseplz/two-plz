@@ -16,7 +16,7 @@ pub struct PingPong {
 }
 
 #[derive(Debug)]
-pub(crate) enum ReceivedPing {
+pub(crate) enum PingAction {
     Ok,
     MustAck,
     Unknown,
@@ -28,26 +28,26 @@ impl PingPong {
         PingPong::default()
     }
 
-    fn handle(&mut self, frame: Ping) -> ReceivedPing {
+    pub fn handle(&mut self, frame: Ping) -> PingAction {
         // ping frames (must respond with PONG)
         if !frame.is_ack() {
             self.pending_pong = Some(Ping::pong(frame.into_payload()));
-            return ReceivedPing::MustAck;
+            return PingAction::MustAck;
         }
 
         if let Some(pending) = self.pending_ping.take() {
             if pending.payload() == frame.payload() {
                 if self.awaiting_shutdown {
-                    return ReceivedPing::Shutdown;
+                    return PingAction::Shutdown;
                 } else {
-                    return ReceivedPing::Ok;
+                    return PingAction::Ok;
                 }
             }
 
             self.pending_ping = Some(pending);
         }
 
-        ReceivedPing::Unknown
+        PingAction::Unknown
     }
 
     pub(crate) fn ping_shutdown(&mut self) {
