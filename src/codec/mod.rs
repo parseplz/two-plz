@@ -138,7 +138,8 @@ impl<T, B> Codec<T, B> {
     }
 
     // for testing
-    fn write_buf_mut(&mut self) -> &mut BytesMut {
+    #[cfg(feature = "test-meth")]
+    pub fn write_buf_mut(&mut self) -> &mut BytesMut {
         self.inner.get_mut().buf_mut()
     }
 }

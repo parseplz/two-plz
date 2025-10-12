@@ -455,9 +455,10 @@ where
 fn map_err(err: io::Error) -> Error {
     if let io::ErrorKind::InvalidData = err.kind()
         && let Some(custom) = err.get_ref()
-            && custom.is::<LengthDelimitedCodecError>() {
-                return Error::library_go_away(Reason::FRAME_SIZE_ERROR);
-            }
+        && custom.is::<LengthDelimitedCodecError>()
+    {
+        return Error::library_go_away(Reason::FRAME_SIZE_ERROR);
+    }
     err.into()
 }
 
