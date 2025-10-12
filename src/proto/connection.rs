@@ -1,10 +1,11 @@
-
 use bytes::BytesMut;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::mpsc,
 };
 
+#[cfg(feature = "test-util")]
+use crate::proto;
 use crate::{
     codec::{Codec, UserError},
     frame::{Frame, Ping, StreamId},
@@ -52,6 +53,11 @@ where
     // ===== Ping =====
     pub fn handle_ping(&mut self, frame: Ping) -> PingAction {
         self.ping_pong.handle(frame)
+    }
+
+    #[cfg(feature = "test-util")]
+    pub fn read_frame(&mut self) -> Result<Frame, proto::Error> {
+        self.stream.read_frame()
     }
 }
 

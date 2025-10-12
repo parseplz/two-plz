@@ -8,7 +8,7 @@ use self::framed_read::FramedRead;
 use self::framed_write::FramedWrite;
 
 use crate::frame::{self, Data, Frame};
-use crate::proto::Error;
+use crate::proto::{self, Error};
 
 use bytes::{Buf, BytesMut};
 use futures_core::Stream;
@@ -129,6 +129,10 @@ impl<T, B> Codec<T, B> {
             .take_last_data_frame()
     }
 
+    pub fn framed_read(&mut self) -> &mut FramedRead<FramedWrite<T, B>> {
+        &mut self.inner
+    }
+
     fn framed_write(&mut self) -> &mut FramedWrite<T, B> {
         self.inner.get_mut()
     }
@@ -138,9 +142,14 @@ impl<T, B> Codec<T, B> {
     }
 
     // for testing
-    #[cfg(feature = "test-meth")]
+    #[cfg(feature = "test-util")]
     pub fn write_buf_mut(&mut self) -> &mut BytesMut {
         self.inner.get_mut().buf_mut()
+    }
+
+    #[cfg(feature = "test-util")]
+    pub fn read_frame(&mut self) -> Result<Frame, proto::Error> {
+        self.inner.read_frame()
     }
 }
 

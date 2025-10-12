@@ -10,7 +10,6 @@ use crate::hpack;
 use futures_core::Stream;
 
 use bytes::{Buf, BytesMut};
-
 use std::io;
 
 use std::pin::Pin;
@@ -448,6 +447,32 @@ where
                 tracing::debug!(?frame, "received");
                 return Poll::Ready(Some(Ok(frame)));
             }
+        }
+    }
+}
+
+// ===== Test =====
+#[cfg(feature = "test-util")]
+impl<T> FramedRead<T> {
+    pub fn read_frame(&mut self) -> Result<Frame, Error> {
+        let bytes = self.inner.read_buffer_mut().split();
+        let Self {
+            ref mut hpack,
+            max_header_list_size,
+            ref mut partial,
+            max_continuation_frames,
+            ..
+        } = *self;
+        if let Some(frame) = decode_frame(
+            hpack,
+            max_header_list_size,
+            max_continuation_frames,
+            partial,
+            bytes,
+        )? {
+            Ok(frame)
+        } else {
+            panic!()
         }
     }
 }
