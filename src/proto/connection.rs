@@ -15,8 +15,8 @@ use crate::{
     },
 };
 
-// E = reader = to user
-// U = writer = from user
+// E = sender = to user
+// U = receiver = from user
 pub struct Connection<T, E, U> {
     config: ConnectionConfig,
     pub ping_pong: PingPong,
@@ -61,7 +61,7 @@ where
     }
 }
 
-impl<T> Connection<T, UserToServer, ServerToUser>
+impl<T> ServerConnection<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -76,7 +76,7 @@ where
     }
 }
 
-impl<T> Connection<T, UserToClient, ClientToUser>
+impl<T> ClientConnection<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -97,6 +97,9 @@ where
         )
     }
 }
+
+type ServerConnection<T> = Connection<T, ServerToUser, UserToServer>;
+type ClientConnection<T> = Connection<T, ClientToUser, UserToClient>;
 
 pub enum ServerToUser {} // Request
 pub enum UserToServer {} // Response
