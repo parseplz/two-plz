@@ -79,5 +79,15 @@ where
         matches!(self, Self::End) || matches!(self, Self::NeedsFlush)
     }
 }
+impl<'a, T, E, U> std::fmt::Debug for ReadState<'a, T, E, U> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::HandleFrame(_, _) => write!(f, "HandleFrame"),
+            Self::HandlePing(_, _) => write!(f, "HandlePing"),
+            Self::NeedsFlush => write!(f, "NeedsFlush"),
+            Self::End => write!(f, "End"),
+        }
+    }
+}
     }
 }
