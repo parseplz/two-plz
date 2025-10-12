@@ -17,8 +17,8 @@ use crate::{
     },
 };
 
-// E = to user
-// U = from user
+// E = reader = to user
+// U = writer = from user
 pub struct Connection<T, E, U> {
     config: ConnectionConfig,
     pub ping_pong: PingPong,
@@ -35,29 +35,16 @@ where
         role: PeerRole,
         config: ConnectionConfig,
         stream: Codec<T, BytesMut>,
-    ) -> Self {
-        todo!()
-    }
-
-    pub fn server(
-        config: ConnectionConfig,
-        stream: Codec<T, BytesMut>,
-    ) -> Self {
-        Connection::new(PeerRole::Server, config, stream)
-    }
-
-    pub fn client(
-        config: ConnectionConfig,
-        stream: Codec<T, BytesMut>,
-    ) -> Self {
-        Connection::new(
-            PeerRole::Client {
-                initial_max_send_streams: 1,
-                stream_id: StreamId::from(1),
-            },
+    ) -> (Self, Handler<U, E>) {
+        let (handler, user_handle) = Handler::build();
+        let conn = Connection {
             config,
+            ping_pong: PingPong::new(),
+            handler,
             stream,
-        )
+            role,
+        };
+        (conn, user_handle)
     }
 
     // ===== Codec =====
@@ -68,6 +55,43 @@ where
     // ===== Ping =====
     pub fn handle_ping(&mut self, frame: Ping) -> PingAction {
         self.ping_pong.handle(frame)
+    }
+}
+
+impl<T> Connection<T, UserToServer, ServerToUser>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn server(
+        config: ConnectionConfig,
+        stream: Codec<T, BytesMut>,
+    ) -> (
+        Connection<T, ServerToUser, UserToServer>,
+        Handler<UserToServer, ServerToUser>,
+    ) {
+        Connection::new(PeerRole::Server, config, stream)
+    }
+}
+
+impl<T> Connection<T, UserToClient, ClientToUser>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn client(
+        config: ConnectionConfig,
+        stream: Codec<T, BytesMut>,
+    ) -> (
+        Connection<T, ClientToUser, UserToClient>,
+        Handler<UserToClient, ClientToUser>,
+    ) {
+        Connection::new(
+            PeerRole::Client {
+                initial_max_send_streams: 1,
+                stream_id: StreamId::from(1),
+            },
+            config,
+            stream,
+        )
     }
 }
 
