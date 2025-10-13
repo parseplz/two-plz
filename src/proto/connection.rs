@@ -2,20 +2,20 @@ use crate::proto::recv::Recv;
 use crate::proto::send::Send;
 use std::io::Error;
 
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
+use futures::StreamExt;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::mpsc::{self, error::SendError},
 };
 
-#[cfg(feature = "test-util")]
 use crate::proto;
 use crate::{
     codec::{Codec, UserError},
     frame::{Frame, Ping, StreamId},
     proto::{
         config::{ConnectionConfig, PeerRole},
-        ping_pong::{PingAction, PingPong},
+        ping_pong::{PingAction, PingHandler},
     },
 };
 
@@ -23,7 +23,7 @@ use crate::{
 // U = receiver = from user
 pub struct Connection<T, E, U> {
     config: ConnectionConfig,
-    ping_pong: PingPong,
+    ping_handler: PingHandler,
     pub handler: Handler<E, U>,
     pub stream: Codec<T, BytesMut>,
     role: PeerRole,
@@ -43,7 +43,7 @@ where
         let (handler, user_handle) = Handler::build();
         let conn = Connection {
             config,
-            ping_pong: PingPong::new(),
+            ping_handler: PingHandler::new(),
             handler,
             stream,
             role,
@@ -60,11 +60,11 @@ where
 
     // ===== Ping =====
     pub fn handle_ping(&mut self, frame: Ping) -> PingAction {
-        self.ping_pong.handle(frame)
+        self.ping_handler.handle(frame)
     }
 
     pub fn pending_pong(&mut self) -> Option<Ping> {
-        self.ping_pong.pending_pong()
+        self.ping_handler.pending_pong()
     }
 
     #[cfg(feature = "test-util")]
@@ -140,7 +140,7 @@ impl<T, E> Handler<T, E> {
         )
     }
 
-    async fn recv(&mut self) -> Option<E> {
+    pub async fn recv(&mut self) -> Option<E> {
         self.receiver.recv().await
     }
 

@@ -8,7 +8,7 @@
 use crate::frame::Ping;
 
 #[derive(Debug, Default)]
-pub struct PingPong {
+pub struct PingHandler {
     pending_ping: Option<Ping>,
     awaiting_pong: bool,
     pending_pong: Option<Ping>,
@@ -23,9 +23,9 @@ pub(crate) enum PingAction {
     Shutdown,
 }
 
-impl PingPong {
-    pub fn new() -> PingPong {
-        PingPong::default()
+impl PingHandler {
+    pub fn new() -> PingHandler {
+        PingHandler::default()
     }
 
     pub fn handle(&mut self, frame: Ping) -> PingAction {
