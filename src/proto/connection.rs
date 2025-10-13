@@ -1,3 +1,5 @@
+use crate::proto::recv::Recv;
+use crate::proto::send::Send;
 use std::io::Error;
 
 use bytes::BytesMut;
@@ -25,6 +27,8 @@ pub struct Connection<T, E, U> {
     pub handler: Handler<E, U>,
     pub stream: Codec<T, BytesMut>,
     role: PeerRole,
+    send: Send,
+    recv: Recv,
 }
 
 impl<T, E, U> Connection<T, E, U>
@@ -43,6 +47,8 @@ where
             handler,
             stream,
             role,
+            send: Send::new(),
+            recv: Recv::new(),
         };
         (conn, user_handle)
     }
