@@ -79,10 +79,14 @@ where
                 match conn.handle_settings(settings) {
                     Ok(SettingsAction::SendAck) => {
                         conn.buffer(Settings::ack().into())?;
+                        let remote = conn.take_remote_settings();
+                        // TODO: lead to further writes ?
+                        conn.apply_remote_settings(remote);
                         Self::NeedsFlush
                     }
                     Ok(SettingsAction::ApplyLocal(settings)) => {
                         conn.apply_local_settings(settings);
+                        // TODO: lead to further writes ?
                         Self::End
                     }
                     Err(e) => return Err(StateError::Proto(e)),
