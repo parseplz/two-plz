@@ -1,5 +1,10 @@
 use crate::{Reason, frame::Settings, proto};
 
+pub enum SettingsAction {
+    SendAck,
+    ApplyLocal(Settings),
+}
+
 #[derive(Debug)]
 pub(crate) struct SettingsHandler {
     /// Our local SETTINGS sync state with the remote.
@@ -58,9 +63,8 @@ impl SettingsHandler {
             Ok(SettingsAction::SendAck)
         }
     }
-}
 
-enum SettingsAction {
-    ApplyLocal(Settings),
-    SendAck,
+    pub fn add_pending_ack(&mut self, frame: Settings) {
+        self.local = Local::WaitingAck(frame);
+    }
 }
