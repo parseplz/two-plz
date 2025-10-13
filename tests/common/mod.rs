@@ -36,7 +36,6 @@ pub fn build_server() -> Connection<Empty, ServerToUser, UserToServer> {
         ConnectionConfig::default(),
         Codec::new(empty()),
         Settings::default(),
-        Settings::default(),
     );
     conn
 }
@@ -45,7 +44,6 @@ pub fn build_client() -> Connection<Empty, ClientToUser, UserToClient> {
     let (conn, _) = Connection::client(
         ConnectionConfig::default(),
         Codec::new(empty()),
-        Settings::default(),
         Settings::default(),
     );
     conn

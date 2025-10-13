@@ -41,16 +41,12 @@ where
         config: ConnectionConfig,
         stream: Codec<T, BytesMut>,
         local_settings: Settings,
-        peer_settings: Settings,
     ) -> (Self, Handler<U, E>) {
         let (handler, user_handle) = Handler::build();
         let conn = Connection {
             config,
             ping_handler: PingHandler::new(),
-            settings_handler: SettingsHandler::new(
-                local_settings,
-                peer_settings,
-            ),
+            settings_handler: SettingsHandler::new(local_settings),
             handler,
             stream,
             role,
@@ -88,18 +84,11 @@ where
         config: ConnectionConfig,
         stream: Codec<T, BytesMut>,
         local_settings: Settings,
-        peer_settings: Settings,
     ) -> (
         Connection<T, ServerToUser, UserToServer>,
         Handler<UserToServer, ServerToUser>,
     ) {
-        Connection::new(
-            PeerRole::Server,
-            config,
-            stream,
-            local_settings,
-            peer_settings,
-        )
+        Connection::new(PeerRole::Server, config, stream, local_settings)
     }
 }
 
@@ -111,7 +100,6 @@ where
         config: ConnectionConfig,
         stream: Codec<T, BytesMut>,
         local_settings: Settings,
-        peer_settings: Settings,
     ) -> (
         Connection<T, ClientToUser, UserToClient>,
         Handler<UserToClient, ClientToUser>,
@@ -124,7 +112,6 @@ where
             config,
             stream,
             local_settings,
-            peer_settings,
         )
     }
 }

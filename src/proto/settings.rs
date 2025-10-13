@@ -1,84 +1,66 @@
-use crate::frame::Settings;
+use crate::{Reason, frame::Settings, proto};
 
-pub struct SettingsHandler {
-    local: Settings,
-    peer: Settings,
-
-    /// local settings to be ack by peer
-    /// Some means we have to wait for ack
-    local_to_ack: Option<Settings>,
-
-    /// if true, frame is waiting to send
-    /// after send, set to false
-    awaiting_local_send: bool,
-
-    /// peer settings to be ack by local
-    /// Some means we have to send settings ack
-    peer_to_ack: Option<Settings>,
-
-    /// preface settings acknowledged by peer
-    initial_acked: bool,
+#[derive(Debug)]
+pub(crate) struct SettingsHandler {
+    /// Our local SETTINGS sync state with the remote.
+    local: Local,
+    /// Received SETTINGS frame pending processing. The ACK must be written to
+    /// the socket first then the settings applied **before** receiving any
+    /// further frames.
+    remote: Option<Settings>,
+    /// Whether the connection has received the initial SETTINGS frame from the
+    /// remote peer.
+    has_received_remote_initial_settings: bool,
 }
 
-/*
-We cannot expect the peer to acknowledge our settings during the preface state.
-The peer may send other frames before acking our settings.
-We have already ack the peer settings during preface state.
-so, we expect local settings to be ack by peer and peer settings is already acked
-*/
-
-enum SettingsAction {
-    ApplyLocal,
-    SendAck,
-    Unknown,
-    InitialAck,
+#[derive(Debug)]
+enum Local {
+    /// We want to send these SETTINGS to the remote when the socket is ready.
+    ToSend(Settings),
+    /// We have sent these SETTINGS and are waiting for the remote to ACK
+    /// before we apply them.
+    WaitingAck(Settings),
+    /// Our local settings are in sync with the remote.
+    Synced,
 }
 
 impl SettingsHandler {
-    pub fn new(local_to_ack: Settings, peer: Settings) -> Self {
-        Self {
-            local: Settings::default(),
-            peer,
-            awaiting_local_send: false,
-            local_to_ack: Some(local_to_ack),
-            peer_to_ack: None,
-            initial_acked: false,
+    pub(crate) fn new(local: Settings) -> Self {
+        SettingsHandler {
+            // We assume the initial local SETTINGS were flushed during
+            // the handshake process.
+            local: Local::WaitingAck(local),
+            remote: None,
+            has_received_remote_initial_settings: false,
         }
     }
 
-    // read
-    pub fn recv_settings(&mut self, frame: Settings) -> SettingsAction {
+    pub fn recv(
+        &mut self,
+        frame: Settings,
+    ) -> Result<SettingsAction, proto::Error> {
         if frame.is_ack() {
-            match self.local_to_ack.take() {
-                Some(local_to_ack) => {
-                    if self.initial_acked {
-                        self.local = local_to_ack;
-                        SettingsAction::ApplyLocal
-                    } else {
-                        self.initial_acked = true;
-                        SettingsAction::InitialAck
-                    }
+            match &self.local {
+                Local::WaitingAck(settings) => {
+                    let ret = SettingsAction::ApplyLocal(settings.clone());
+                    self.local = Local::Synced;
+                    Ok(ret)
                 }
-                None => SettingsAction::Unknown,
+                Local::ToSend(..) | Local::Synced => {
+                    // We haven't sent any SETTINGS frames to be ACKed, so
+                    // this is very bizarre! Remote is either buggy or malicious.
+                    proto_err!(conn: "received unexpected settings ack");
+                    Err(proto::Error::library_go_away(Reason::PROTOCOL_ERROR))
+                }
             }
         } else {
-            self.peer = frame;
-            self.peer_to_ack = Some(Settings::ack());
-            SettingsAction::SendAck
+            self.remote = Some(frame);
+            Ok(SettingsAction::SendAck)
         }
     }
+}
 
-    // write
-    pub fn send(&mut self, frame: Settings) {
-        self.local_to_ack = Some(frame);
-        self.awaiting_local_send = true;
-    }
-
-    pub fn local(&self) -> &Settings {
-        &self.local
-    }
-
-    pub fn peer(&self) -> &Settings {
-        &self.peer
-    }
+enum SettingsAction {
+    ApplyLocal(Settings),
+    SendAck,
 }
