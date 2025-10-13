@@ -23,7 +23,7 @@ where
                 None => todo!(),
             }
         }
-        msg = conn.handler.receiver.recv() => {
+        msg = conn.handler.recv() => {
             todo!()
         }
     }

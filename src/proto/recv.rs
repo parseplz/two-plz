@@ -59,3 +59,9 @@ pub(super) enum Event {
     Body,
     Trailer,
 }
+
+impl Recv {
+    pub fn new() -> Recv {
+        todo!()
+    }
+}

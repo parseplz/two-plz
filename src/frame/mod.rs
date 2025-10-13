@@ -44,7 +44,7 @@ mod priority;
 mod reason;
 mod reset;
 pub mod settings;
-mod stream_id;
+pub mod stream_id;
 mod util;
 mod window_update;
 

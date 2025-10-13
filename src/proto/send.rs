@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-struct Send {
+pub struct Send {
     /// Queue of streams waiting for socket capacity to send a frame.
     pending_send: Queue<stream::NextSend>,
 

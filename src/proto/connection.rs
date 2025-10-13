@@ -1,5 +1,5 @@
-use crate::proto::recv::Recv;
 use crate::proto::send::Send;
+use crate::proto::{recv::Recv, settings::SettingsHandler};
 use std::io::Error;
 
 use bytes::{Bytes, BytesMut};
@@ -9,7 +9,7 @@ use tokio::{
     sync::mpsc::{self, error::SendError},
 };
 
-use crate::proto;
+use crate::{Settings, proto};
 use crate::{
     codec::{Codec, UserError},
     frame::{Frame, Ping, StreamId},
@@ -24,6 +24,7 @@ use crate::{
 pub struct Connection<T, E, U> {
     config: ConnectionConfig,
     ping_handler: PingHandler,
+    settings_handler: SettingsHandler,
     pub handler: Handler<E, U>,
     pub stream: Codec<T, BytesMut>,
     role: PeerRole,
@@ -39,11 +40,17 @@ where
         role: PeerRole,
         config: ConnectionConfig,
         stream: Codec<T, BytesMut>,
+        local_settings: Settings,
+        peer_settings: Settings,
     ) -> (Self, Handler<U, E>) {
         let (handler, user_handle) = Handler::build();
         let conn = Connection {
             config,
             ping_handler: PingHandler::new(),
+            settings_handler: SettingsHandler::new(
+                local_settings,
+                peer_settings,
+            ),
             handler,
             stream,
             role,
@@ -80,11 +87,19 @@ where
     pub fn server(
         config: ConnectionConfig,
         stream: Codec<T, BytesMut>,
+        local_settings: Settings,
+        peer_settings: Settings,
     ) -> (
         Connection<T, ServerToUser, UserToServer>,
         Handler<UserToServer, ServerToUser>,
     ) {
-        Connection::new(PeerRole::Server, config, stream)
+        Connection::new(
+            PeerRole::Server,
+            config,
+            stream,
+            local_settings,
+            peer_settings,
+        )
     }
 }
 
@@ -95,6 +110,8 @@ where
     pub fn client(
         config: ConnectionConfig,
         stream: Codec<T, BytesMut>,
+        local_settings: Settings,
+        peer_settings: Settings,
     ) -> (
         Connection<T, ClientToUser, UserToClient>,
         Handler<UserToClient, ClientToUser>,
@@ -106,6 +123,8 @@ where
             },
             config,
             stream,
+            local_settings,
+            peer_settings,
         )
     }
 }

@@ -1,5 +1,3 @@
-
-
 use crate::frame::Settings;
 
 pub struct SettingsHandler {
