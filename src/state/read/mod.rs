@@ -2,8 +2,7 @@ mod error;
 use error::StateError;
 
 use crate::{
-    Settings,
-    frame::{Frame, Ping},
+    frame::*,
     proto::{
         connection::Connection, ping_pong::PingAction,
         settings::SettingsAction,
@@ -31,8 +30,15 @@ where
 
 pub enum ReadState<'a, T, E, U> {
     HandleFrame(&'a mut Connection<T, E, U>, Frame),
-    HandlePing(&'a mut Connection<T, E, U>, Ping),
+    HandleData(&'a mut Connection<T, E, U>, Data),
+    HandleHeaders(&'a mut Connection<T, E, U>, Headers),
+    HandlePriority(&'a mut Connection<T, E, U>, Priority),
+    HandleReset(&'a mut Connection<T, E, U>, Reset),
     HandleSettings(&'a mut Connection<T, E, U>, Settings),
+    HandlePushPromise(&'a mut Connection<T, E, U>, PushPromise),
+    HandlePing(&'a mut Connection<T, E, U>, Ping),
+    HandleGoAway(&'a mut Connection<T, E, U>, GoAway),
+    HandleWindowUpdate(&'a mut Connection<T, E, U>, WindowUpdate),
     NeedsFlush,
     End,
 }
@@ -48,17 +54,17 @@ where
     pub fn next(self) -> Result<Self, StateError> {
         let next_state = match self {
             Self::HandleFrame(conn, frame) => match frame {
-                Frame::Data(data) => todo!(),
+                Frame::Data(data) => Self::HandleData(conn, data),
                 Frame::Headers(headers) => todo!(),
                 Frame::Priority(priority) => todo!(),
-                Frame::PushPromise(push_promise) => todo!(),
+                Frame::Reset(reset) => todo!(),
                 Frame::Settings(settings) => {
                     Self::HandleSettings(conn, settings)
                 }
+                Frame::PushPromise(push_promise) => todo!(),
                 Frame::Ping(ping) => Self::HandlePing(conn, ping),
                 Frame::GoAway(go_away) => todo!(),
                 Frame::WindowUpdate(window_update) => todo!(),
-                Frame::Reset(reset) => todo!(),
             },
             Self::HandlePing(conn, ping) => match conn.handle_ping(ping) {
                 PingAction::Ok => Self::End,
@@ -105,9 +111,16 @@ where
 impl<'a, T, E, U> std::fmt::Debug for ReadState<'a, T, E, U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::HandleFrame(_, _) => write!(f, "HandleFrame"),
-            Self::HandleSettings(_, _) => write!(f, "HandleSettings"),
-            Self::HandlePing(_, _) => write!(f, "HandlePing"),
+            Self::HandleFrame(..) => write!(f, "HandleFrame"),
+            Self::HandleData(..) => write!(f, "HandleData"),
+            Self::HandleHeaders(..) => write!(f, "HandleHeaders"),
+            Self::HandlePriority(..) => write!(f, "HandlePriority"),
+            Self::HandleReset(..) => write!(f, "HandleReset"),
+            Self::HandleSettings(..) => write!(f, "HandleSettings"),
+            Self::HandlePushPromise(..) => write!(f, "HandlePushPromise"),
+            Self::HandlePing(..) => write!(f, "HandlePing"),
+            Self::HandleGoAway(..) => write!(f, "HandleGoAway"),
+            Self::HandleWindowUpdate(..) => write!(f, "HandleWindowUpdate"),
             Self::NeedsFlush => write!(f, "NeedsFlush"),
             Self::End => write!(f, "End"),
         }
