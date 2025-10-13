@@ -5,6 +5,7 @@ pub mod config;
 mod error;
 mod flow_control;
 pub mod ping_pong;
+mod recv;
 mod rst_stream;
 mod send;
 mod settings;
