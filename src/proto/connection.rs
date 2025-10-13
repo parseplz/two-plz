@@ -1,4 +1,5 @@
 use crate::proto::send::Send;
+use crate::proto::settings::SettingsAction;
 use crate::proto::{recv::Recv, settings::SettingsHandler};
 use std::io::Error;
 
@@ -70,9 +71,21 @@ where
         self.ping_handler.pending_pong()
     }
 
+    // ===== Settings =====
+    pub fn handle_settings(
+        &mut self,
+        frame: Settings,
+    ) -> Result<SettingsAction, proto::Error> {
+        self.settings_handler.recv(frame)
+    }
+
     #[cfg(feature = "test-util")]
     pub fn read_frame(&mut self) -> Result<Frame, proto::Error> {
         self.stream.read_frame()
+    }
+
+    pub fn apply_local_settings(&self, settings: Settings) {
+        todo!()
     }
 }
 

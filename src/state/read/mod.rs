@@ -2,8 +2,12 @@ mod error;
 use error::StateError;
 
 use crate::{
+    Settings,
     frame::{Frame, Ping},
-    proto::{connection::Connection, ping_pong::PingAction},
+    proto::{
+        connection::Connection, ping_pong::PingAction,
+        settings::SettingsAction,
+    },
 };
 use futures::StreamExt;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -28,6 +32,7 @@ where
 pub enum ReadState<'a, T, E, U> {
     HandleFrame(&'a mut Connection<T, E, U>, Frame),
     HandlePing(&'a mut Connection<T, E, U>, Ping),
+    HandleSettings(&'a mut Connection<T, E, U>, Settings),
     NeedsFlush,
     End,
 }
@@ -47,7 +52,9 @@ where
                 Frame::Headers(headers) => todo!(),
                 Frame::Priority(priority) => todo!(),
                 Frame::PushPromise(push_promise) => todo!(),
-                Frame::Settings(settings) => todo!(),
+                Frame::Settings(settings) => {
+                    Self::HandleSettings(conn, settings)
+                }
                 Frame::Ping(ping) => Self::HandlePing(conn, ping),
                 Frame::GoAway(go_away) => todo!(),
                 Frame::WindowUpdate(window_update) => todo!(),
@@ -68,6 +75,19 @@ where
                 }
                 PingAction::Shutdown => todo!(),
             },
+            Self::HandleSettings(conn, settings) => {
+                match conn.handle_settings(settings) {
+                    Ok(SettingsAction::SendAck) => {
+                        conn.buffer(Settings::ack().into())?;
+                        Self::NeedsFlush
+                    }
+                    Ok(SettingsAction::ApplyLocal(settings)) => {
+                        conn.apply_local_settings(settings);
+                        Self::End
+                    }
+                    Err(e) => return Err(StateError::Proto(e)),
+                }
+            }
             _ => todo!(),
         };
         Ok(next_state)
@@ -82,6 +102,7 @@ impl<'a, T, E, U> std::fmt::Debug for ReadState<'a, T, E, U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::HandleFrame(_, _) => write!(f, "HandleFrame"),
+            Self::HandleSettings(_, _) => write!(f, "HandleSettings"),
             Self::HandlePing(_, _) => write!(f, "HandlePing"),
             Self::NeedsFlush => write!(f, "NeedsFlush"),
             Self::End => write!(f, "End"),
