@@ -56,7 +56,7 @@ where
             Self::HandlePing(conn, ping) => match conn.handle_ping(ping) {
                 PingAction::Ok => Self::End,
                 PingAction::MustAck => {
-                    if let Some(pong) = conn.ping_pong.pending_pong() {
+                    if let Some(pong) = conn.pending_pong() {
                         conn.buffer(pong.into())?;
                         Self::NeedsFlush
                     } else {

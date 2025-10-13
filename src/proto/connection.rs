@@ -23,7 +23,7 @@ use crate::{
 // U = receiver = from user
 pub struct Connection<T, E, U> {
     config: ConnectionConfig,
-    pub ping_pong: PingPong,
+    ping_pong: PingPong,
     pub handler: Handler<E, U>,
     pub stream: Codec<T, BytesMut>,
     role: PeerRole,
@@ -61,6 +61,10 @@ where
     // ===== Ping =====
     pub fn handle_ping(&mut self, frame: Ping) -> PingAction {
         self.ping_pong.handle(frame)
+    }
+
+    pub fn pending_pong(&mut self) -> Option<Ping> {
+        self.ping_pong.pending_pong()
     }
 
     #[cfg(feature = "test-util")]
