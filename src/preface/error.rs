@@ -41,6 +41,10 @@ pub enum PrefaceErrorKind {
     Eof,
     #[error("wrong frame")]
     WrongFrame(frame::Kind),
+
+    // TryFrom
+    #[error("wrong state")]
+    WrongState,
 }
 
 #[derive(Debug, Error)]
@@ -66,6 +70,10 @@ pub enum PrefaceErrorState {
     ReadServerSettings,
     #[error("send client settings")]
     SendClientSettings,
+
+    // TryFrom
+    #[error("wrong state")]
+    WrongState,
 }
 
 pub trait IoStateExt<T> {
