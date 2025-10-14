@@ -64,6 +64,11 @@ impl SettingsHandler {
         }
     }
 
+    pub fn take_remote_settings(&mut self) -> Settings {
+        // safe to unwrap
+        self.remote.take().unwrap()
+    }
+
     pub fn add_pending_ack(&mut self, frame: Settings) {
         self.local = Local::WaitingAck(frame);
     }
