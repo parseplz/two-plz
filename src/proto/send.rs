@@ -1,15 +1,41 @@
 use crate::{
+    builder::Role,
     frame::{DEFAULT_INITIAL_WINDOW_SIZE, Frame, StreamId},
     proto::{
         WindowSize,
         buffer::Buffer,
+        config::ConnectionConfig,
         flow_control::FlowControl,
         store::{Ptr, Queue},
         stream,
     },
+    stream_id::StreamIdOverflow,
 };
 
 pub struct Send {
+    /// Initial window size of locally initiated streams
+    init_window_sz: WindowSize,
+
+    /// connection level
+    flow: FlowControl,
+
+    /// Stream ID of the last stream opened.
+    last_opened_id: StreamId,
+
+    /// Any streams with a higher ID are ignored.
+    ///
+    /// This starts as MAX, but is lowered when a GOAWAY is received.
+    ///
+    /// > After sending a GOAWAY frame, the sender can discard frames for
+    /// > streams initiated by the receiver with identifiers higher than
+    /// > the identified last stream.
+    max_stream_id: StreamId,
+
+    // TODO: make this configurable
+    // hyper Builder::StreamId
+    /// Stream identifier to use for next initialized stream.
+    next_stream_id: Result<StreamId, StreamIdOverflow>,
+
     /// Queue of streams waiting for socket capacity to send a frame.
     pending_send: Queue<stream::NextSend>,
 
@@ -21,18 +47,8 @@ pub struct Send {
 
     /// Queue of streams waiting to be reset
     pending_reset: Queue<stream::NextResetExpire>,
-
-    /// connection level
-    flow: FlowControl,
-
-    /// Stream ID of the last stream opened.
-    last_opened_id: StreamId,
-
-    /// Initial window size of locally initiated streams
-    init_window_sz: WindowSize,
     // TODO
     //is_push_enabled: bool,
-    //
     //is_extended_connect_protocol_enabled: bool,
 }
 
