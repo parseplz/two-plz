@@ -16,7 +16,7 @@ pub struct FlowControl {
 }
 
 impl FlowControl {
-    pub fn new(init_window_sz: WindowSize) -> FlowControl {
+    pub fn new(init_window_sz: u32) -> FlowControl {
         FlowControl {
             window: Window(init_window_sz as i32),
             capacity: Window(init_window_sz as i32),
