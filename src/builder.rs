@@ -242,4 +242,23 @@ impl Builder {
     //    assert!(self.stream_id.is_client_initiated(), "stream id must be odd");
     //    self
     //}
+    pub async fn handshake<T>(
+        mut self,
+        io: T,
+    ) -> Result<(Builder, PrefaceState<T>), PrefaceError>
+    where
+        T: AsyncRead + AsyncWrite + Unpin,
+    {
+        let mut state =
+            PrefaceState::new(io, self.role.clone(), self.settings.clone());
+        // TODO: Generic state runner
+        loop {
+            state = state.next().await?;
+            if state.is_ended() {
+                break;
+            }
+        }
+        Ok((self, state))
+    }
+}
 }
