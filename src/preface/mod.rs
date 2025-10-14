@@ -37,8 +37,8 @@ server state
 const PREFACE: [u8; 24] = *b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 pub struct PrefaceConn<T> {
-    stream: Codec<T, BytesMut>,
-    role: Role,
+    pub stream: Codec<T, BytesMut>,
+    pub role: Role,
     local_settings: Settings,
     remote_settings: Option<Settings>,
 }
@@ -111,6 +111,11 @@ where
                 PrefaceErrorKind::Eof,
             ))?
             .in_state(PrefaceErrorState::ReadClientSettings)
+    }
+
+    pub fn take_remote_settings(&mut self) -> Settings {
+        // safe to unwrap
+        self.remote_settings.take().unwrap()
     }
 }
 
