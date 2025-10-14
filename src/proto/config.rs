@@ -10,8 +10,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct ConnectionConfig {
     /// Initial target window size for new connections.
-    pub initial_target_connection_window_size: Option<u32>,
-
+    pub initial_connection_window_size: Option<u32>,
     /// Maximum number of locally reset streams due to protocol error across
     /// the lifetime of the connection.
     ///
@@ -22,8 +21,8 @@ pub struct ConnectionConfig {
     /// Maximum number of locally reset streams to keep at a time.
     pub reset_stream_max: usize,
 
-    /// TODO: may be store in send and recv settings ?
-    pub settings: Settings,
+    /// settings
+    pub local_settings: Settings,
     pub peer_settings: Settings,
 }
 
