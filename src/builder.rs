@@ -27,7 +27,7 @@ impl Role {
 
 pub struct Builder {
     /// connection level flow control window size.
-    pub initial_target_connection_window_size: Option<u32>,
+    pub initial_connection_window_size: Option<u32>,
 
     /// Maximum number of locally reset streams due to protocol error across
     /// the lifetime of the connection.
@@ -53,7 +53,7 @@ impl Builder {
         settings.set_enable_push(false);
         Builder {
             role,
-            initial_target_connection_window_size: None,
+            initial_connection_window_size: None,
             local_max_error_reset_streams: None,
             reset_stream_duration: Duration::from_secs(
                 proto::DEFAULT_RESET_STREAM_SECS,
@@ -75,7 +75,7 @@ impl Builder {
 
     // connection level
     pub fn initial_connection_window_size(&mut self, size: u32) -> &mut Self {
-        self.initial_target_connection_window_size = Some(size);
+        self.initial_connection_window_size = Some(size);
         self
     }
 
