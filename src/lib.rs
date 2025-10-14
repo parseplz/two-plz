@@ -18,6 +18,7 @@ macro_rules! ready {
     };
 }
 
+pub mod builder;
 pub mod codec;
 mod ext;
 mod frame;

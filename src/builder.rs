@@ -1,4 +1,15 @@
-use crate::{Settings, StreamId, proto};
+use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncRead, AsyncWrite};
+
+use crate::Connection;
+use crate::preface::PrefaceErrorState;
+use crate::proto::config::ConnectionConfig;
+use crate::proto::connection::{ClientConnection, ClientHandler};
+use crate::{
+    Settings, StreamId,
+    preface::{PrefaceConn, PrefaceError, PrefaceState},
+    proto,
+};
 use std::time::Duration;
 
 #[derive(PartialEq, Clone)]
@@ -242,6 +253,8 @@ impl Builder {
     //    assert!(self.stream_id.is_client_initiated(), "stream id must be odd");
     //    self
     //}
+    //
+
     pub async fn handshake<T>(
         mut self,
         io: T,
@@ -261,6 +274,7 @@ impl Builder {
         Ok((self, state))
     }
 }
+
 pub struct ClientBuilder {
     builder: Builder,
 }
@@ -286,6 +300,7 @@ impl ClientBuilder {
         Ok(Connection::new(preface.role, config, preface.stream))
     }
 }
+
 pub struct ServerBuilder {
     builder: Builder,
 }
