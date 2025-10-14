@@ -53,15 +53,20 @@ pub struct Send {
 }
 
 impl Send {
-    pub fn new() -> Send {
+    pub fn new(config: &ConnectionConfig, role: &Role) -> Send {
         Send {
-            pending_send: Queue::new(),
+            flow: FlowControl::new(DEFAULT_INITIAL_WINDOW_SIZE),
+            init_window_sz: config
+                .peer_settings
+                .initial_window_size()
+                .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
+            last_opened_id: StreamId::ZERO,
+            max_stream_id: StreamId::MAX,
+            next_stream_id: Ok(role.init_stream_id()),
             pending_capacity: Queue::new(),
             pending_open: Queue::new(),
             pending_reset: Queue::new(),
-            flow: FlowControl::new(DEFAULT_INITIAL_WINDOW_SIZE),
-            last_opened_id: StreamId::ZERO,
-            init_window_sz: DEFAULT_INITIAL_WINDOW_SIZE,
+            pending_send: Queue::new(),
         }
     }
 
