@@ -119,6 +119,10 @@ where
         Handler<UserToClient, ClientToUser>,
     ) {
         Connection::new(Role::Client, config, stream, local_settings)
+    // ===== Test =====
+    #[cfg(feature = "test-util")]
+    pub fn read_frame(&mut self) -> Result<Frame, proto::Error> {
+        self.stream.read_frame()
     }
 }
 
