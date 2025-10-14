@@ -261,4 +261,29 @@ impl Builder {
         Ok((self, state))
     }
 }
+pub struct ClientBuilder {
+    builder: Builder,
+}
+
+impl ClientBuilder {
+    pub fn new() -> Self {
+        ClientBuilder {
+            builder: Builder::new(Role::Client),
+        }
+    }
+
+    pub async fn handshake<T>(
+        self,
+        io: T,
+    ) -> Result<(ClientConnection<T>, ClientHandler), PrefaceError>
+    where
+        T: AsyncRead + AsyncWrite + Unpin,
+    {
+        let (builder, state) = self.builder.handshake(io).await?;
+        let mut preface = PrefaceConn::try_from(state)?;
+        let remote_settings = preface.take_remote_settings();
+        let config = ConnectionConfig::from((builder, remote_settings));
+        Ok(Connection::new(preface.role, config, preface.stream))
+    }
+}
 }
