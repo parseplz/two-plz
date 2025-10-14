@@ -3,6 +3,7 @@ use std::time::Duration;
 use tracing::error;
 
 use crate::{
+    builder::Builder,
     frame::{Settings, StreamId},
     proto::DEFAULT_LOCAL_RESET_COUNT_MAX,
 };
@@ -26,15 +27,17 @@ pub struct ConnectionConfig {
     pub peer_settings: Settings,
 }
 
-impl Default for ConnectionConfig {
-    fn default() -> Self {
-        ConnectionConfig {
-            initial_target_connection_window_size: None,
-            local_max_error_reset_streams: None,
-            reset_stream_duration: Duration::from_secs(30),
-            reset_stream_max: DEFAULT_LOCAL_RESET_COUNT_MAX,
-            settings: Settings::default(),
-            peer_settings: Settings::default(),
+impl From<(Builder, Settings)> for ConnectionConfig {
+    fn from((builder, peer_settings): (Builder, Settings)) -> Self {
+        Self {
+            initial_connection_window_size: builder
+                .initial_connection_window_size,
+            local_max_error_reset_streams: builder
+                .local_max_error_reset_streams,
+            reset_stream_duration: builder.reset_stream_duration,
+            reset_stream_max: builder.reset_stream_max,
+            local_settings: builder.settings,
+            peer_settings,
         }
     }
 }
