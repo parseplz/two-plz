@@ -124,6 +124,11 @@ where
 
 type ServerConnection<T> = Connection<T, ServerToUser, UserToServer>;
 type ClientConnection<T> = Connection<T, ClientToUser, UserToClient>;
+pub type ServerConnection<T> = Connection<T, ServerToUser, UserToServer>;
+pub type ClientConnection<T> = Connection<T, ClientToUser, UserToClient>;
+
+pub type ServerHandler = Handler<UserToServer, ServerToUser>;
+pub type ClientHandler = Handler<UserToClient, ClientToUser>;
 
 pub enum ServerToUser {} // Request
 pub enum UserToServer {} // Response
