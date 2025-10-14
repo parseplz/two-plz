@@ -72,7 +72,7 @@ where
     }
 }
 
-pub enum ServerPreface<T> {
+pub enum PrefaceState<T> {
     PrefaceExchange(PrefaceConn<T>),
     PollLocalSettings(PrefaceConn<T>),
     ReadPeerSettings(PrefaceConn<T>),
@@ -81,17 +81,17 @@ pub enum ServerPreface<T> {
     End(PrefaceConn<T>),
 }
 
-impl<T> ServerPreface<T>
+impl<T> PrefaceState<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
     pub fn new(stream: T, role: Role) -> Self {
-        ServerPreface::PrefaceExchange(PrefaceConn::new(stream, role))
+        PrefaceState::PrefaceExchange(PrefaceConn::new(stream, role))
     }
 
-    pub async fn next(self) -> Result<ServerPreface<T>, PrefaceError> {
+    pub async fn next(self) -> Result<PrefaceState<T>, PrefaceError> {
         let next_state = match self {
-            ServerPreface::PrefaceExchange(mut conn) => {
+            PrefaceState::PrefaceExchange(mut conn) => {
                 info!("[+] read client preface");
                 match conn.role {
                     Role::Server => {
@@ -129,7 +129,7 @@ where
                 }
                 Self::PollLocalSettings(conn)
             }
-            ServerPreface::PollLocalSettings(mut conn) => {
+            PrefaceState::PollLocalSettings(mut conn) => {
                 info!("[+] send server settings to client");
                 conn.poll_local_settings()
                     .in_state(PrefaceErrorState::PollServerSettings)?;

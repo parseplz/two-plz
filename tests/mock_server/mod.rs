@@ -5,7 +5,7 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 use tracing::{Level, info};
-use two_plz::{builder::Role, io::write_and_flush, preface::ServerPreface};
+use two_plz::{builder::Role, io::write_and_flush, preface::PrefaceState};
 
 mod encrypt;
 use encrypt::{
@@ -65,7 +65,7 @@ async fn mock_server() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_default();
     info!("[+] client alpn| {}", String::from_utf8_lossy(alpn));
 
-    let mut client_state = ServerPreface::new(client_tls, Role::Server);
+    let mut client_state = PrefaceState::new(client_tls, Role::Server);
     loop {
         client_state = client_state.next().await?;
         if client_state.is_ended() {
