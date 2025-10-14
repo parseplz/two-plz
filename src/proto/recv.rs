@@ -57,7 +57,19 @@ pub(super) enum Event {
 }
 
 impl Recv {
-    pub fn new() -> Recv {
-        todo!()
+    pub fn new(config: &ConnectionConfig, role: &Role) -> Recv {
+        Recv {
+            buffer: Buffer::new(),
+            flow: FlowControl::new(
+                config
+                    .initial_connection_window_size
+                    .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
+            ),
+            last_processed_id: StreamId::ZERO,
+            max_stream_id: StreamId::MAX,
+            next_stream_id: Ok(role.init_stream_id()),
+            pending_reset_expired: Queue::new(),
+            reset_duration: config.reset_stream_duration,
+        }
     }
 }
