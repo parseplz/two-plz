@@ -1,3 +1,4 @@
+use crate::builder::Role;
 use crate::proto::send::Send;
 use crate::proto::settings::SettingsAction;
 use crate::proto::{recv::Recv, settings::SettingsHandler};
@@ -15,7 +16,7 @@ use crate::{
     codec::{Codec, UserError},
     frame::{Frame, Ping, StreamId},
     proto::{
-        config::{ConnectionConfig, PeerRole},
+        config::ConnectionConfig,
         ping_pong::{PingAction, PingHandler},
     },
 };
@@ -28,7 +29,7 @@ pub struct Connection<T, E, U> {
     settings_handler: SettingsHandler,
     pub handler: Handler<E, U>,
     pub stream: Codec<T, BytesMut>,
-    role: PeerRole,
+    role: Role,
     send: Send,
     recv: Recv,
 }
@@ -38,7 +39,7 @@ where
     T: AsyncRead + AsyncWrite + Unpin,
 {
     pub fn new(
-        role: PeerRole,
+        role: Role,
         config: ConnectionConfig,
         stream: Codec<T, BytesMut>,
         local_settings: Settings,
@@ -101,7 +102,7 @@ where
         Connection<T, ServerToUser, UserToServer>,
         Handler<UserToServer, ServerToUser>,
     ) {
-        Connection::new(PeerRole::Server, config, stream, local_settings)
+        Connection::new(Role::Server, config, stream, local_settings)
     }
 }
 
@@ -117,15 +118,7 @@ where
         Connection<T, ClientToUser, UserToClient>,
         Handler<UserToClient, ClientToUser>,
     ) {
-        Connection::new(
-            PeerRole::Client {
-                initial_max_send_streams: 1,
-                stream_id: StreamId::from(1),
-            },
-            config,
-            stream,
-            local_settings,
-        )
+        Connection::new(Role::Client, config, stream, local_settings)
     }
 }
 
