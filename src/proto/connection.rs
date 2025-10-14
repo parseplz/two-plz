@@ -42,18 +42,21 @@ where
         role: Role,
         config: ConnectionConfig,
         stream: Codec<T, BytesMut>,
-        local_settings: Settings,
     ) -> (Self, Handler<U, E>) {
         let (handler, user_handle) = Handler::build();
+        let send = Send::new(&config, &role);
+        let recv = Recv::new(&config, &role);
         let conn = Connection {
-            config,
             ping_handler: PingHandler::new(),
-            settings_handler: SettingsHandler::new(local_settings),
+            settings_handler: SettingsHandler::new(
+                config.local_settings.clone(),
+            ),
             handler,
             stream,
             role,
-            send: Send::new(),
-            recv: Recv::new(),
+            config,
+            send,
+            recv,
         };
         (conn, user_handle)
     }
