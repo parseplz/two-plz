@@ -37,8 +37,8 @@ server state
 const PREFACE: [u8; 24] = *b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 pub struct PrefaceConn<T> {
-    role: Role,
     stream: Codec<T, BytesMut>,
+    role: Role,
     local_settings: Settings,
     remote_settings: Option<Settings>,
 }
@@ -203,5 +203,20 @@ where
 
     pub fn is_ended(&self) -> bool {
         matches!(self, Self::End(_))
+    }
+}
+
+impl<T> TryFrom<PrefaceState<T>> for PrefaceConn<T> {
+    type Error = PrefaceError;
+
+    fn try_from(value: PrefaceState<T>) -> Result<Self, Self::Error> {
+        if let PrefaceState::End(conn) = value {
+            Ok(conn)
+        } else {
+            Err(PrefaceError::new(
+                PrefaceErrorState::WrongState,
+                PrefaceErrorKind::WrongState,
+            ))
+        }
     }
 }
