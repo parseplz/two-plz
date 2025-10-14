@@ -5,10 +5,7 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 use tracing::{Level, info};
-use two_plz::{
-    io::write_and_flush,
-    preface::{Role, ServerPreface},
-};
+use two_plz::{builder::Role, io::write_and_flush, preface::ServerPreface};
 
 mod encrypt;
 use encrypt::{

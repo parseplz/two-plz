@@ -1,3 +1,4 @@
+use crate::builder::Role;
 use crate::codec::{Codec, UserError};
 use crate::frame::{Frame, Settings};
 use crate::proto::Error as ProtoError;
@@ -20,11 +21,6 @@ use error::*;
 */
 
 const PREFACE: [u8; 24] = *b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
-
-pub enum Role {
-    Client,
-    Server,
-}
 
 pub struct PrefaceConn<T> {
     role: Role,
