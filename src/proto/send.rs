@@ -14,7 +14,7 @@ use crate::{
 
 pub struct Send {
     /// Initial window size of locally initiated streams
-    init_window_sz: WindowSize,
+    init_stream_window_sz: WindowSize,
 
     /// connection level
     flow: FlowControl,
@@ -56,7 +56,7 @@ impl Send {
     pub fn new(config: &ConnectionConfig, role: &Role) -> Send {
         Send {
             flow: FlowControl::new(DEFAULT_INITIAL_WINDOW_SIZE),
-            init_window_sz: config
+            init_stream_window_sz: config
                 .peer_settings
                 .initial_window_size()
                 .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
