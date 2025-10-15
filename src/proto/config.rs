@@ -12,15 +12,21 @@ use crate::{
 pub struct ConnectionConfig {
     /// Initial target window size for new connections.
     pub initial_connection_window_size: Option<u32>,
+
     /// Maximum number of locally reset streams due to protocol error across
     /// the lifetime of the connection.
     ///
     /// When this gets exceeded, we issue GOAWAYs.
     pub local_max_error_reset_streams: Option<usize>,
+
+    /// Maximum number of locally reset streams to keep at a time.
+    pub local_reset_stream_max: usize,
+
+    /// Maximum number of remote reset streams to keep at a time.
+    pub remote_reset_stream_max: usize,
+
     /// Time to keep locally reset streams around before reaping.
     pub reset_stream_duration: Duration,
-    /// Maximum number of locally reset streams to keep at a time.
-    pub reset_stream_max: usize,
 
     /// settings
     pub local_settings: Settings,
@@ -35,7 +41,8 @@ impl From<(Builder, Settings)> for ConnectionConfig {
             local_max_error_reset_streams: builder
                 .local_max_error_reset_streams,
             reset_stream_duration: builder.reset_stream_duration,
-            reset_stream_max: builder.reset_stream_max,
+            local_reset_stream_max: builder.local_reset_stream_max,
+            remote_reset_stream_max: builder.remote_reset_stream_max,
             local_settings: builder.settings,
             peer_settings,
         }
