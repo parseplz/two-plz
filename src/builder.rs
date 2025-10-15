@@ -1,46 +1,110 @@
+use bytes::BytesMut;
 use tokio::io::AsyncWriteExt;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::Connection;
 use crate::preface::PrefaceErrorState;
 use crate::proto::config::ConnectionConfig;
-use crate::proto::connection::{ClientConnection, ClientHandler};
+use crate::proto::connection::{
+    ClientConnection, ClientHandler, ServerConnection, ServerHandler,
+};
 use crate::proto::{
     DEFAULT_LOCAL_RESET_COUNT_MAX, DEFAULT_REMOTE_RESET_COUNT_MAX,
     DEFAULT_RESET_STREAM_MAX, DEFAULT_RESET_STREAM_SECS,
 };
+use crate::role::Role;
+use crate::{Codec, Connection};
 use crate::{
     Settings, StreamId,
     preface::{PrefaceConn, PrefaceError, PrefaceState},
     proto,
 };
+use std::marker::PhantomData;
 use std::time::Duration;
 
-#[derive(PartialEq, Clone)]
-pub enum Role {
-    Client,
-    Server,
+pub struct Client;
+pub struct Server;
+
+pub type ClientBuilder = Builder<Client>;
+pub type ServerBuilder = Builder<Server>;
+
+pub trait BuildConnection {
+    type Connection<T>: Sized;
+
+    type Handler;
+
+    fn is_server() -> bool;
+
+    fn is_client() -> bool;
+
+    fn init_stream_id() -> StreamId;
+
+    fn create_connection<T>(
+        role: Role,
+        config: ConnectionConfig,
+        codec: Codec<T, BytesMut>,
+    ) -> (Self::Connection<T>, Self::Handler)
+    where
+        T: AsyncRead + AsyncWrite + Unpin;
 }
 
-impl Role {
-    pub fn is_server(&self) -> bool {
-        matches!(self, Self::Server)
+impl BuildConnection for Client {
+    type Connection<T> = ClientConnection<T>;
+    type Handler = ClientHandler;
+
+    fn is_server() -> bool {
+        false
     }
 
-    pub fn is_client(&self) -> bool {
-        matches!(self, Self::Client)
+    fn is_client() -> bool {
+        true
     }
 
-    pub fn init_stream_id(&self) -> StreamId {
-        if self.is_server() {
-            2.into()
-        } else {
-            1.into()
-        }
+    fn init_stream_id() -> StreamId {
+        1.into()
+    }
+
+    fn create_connection<T>(
+        role: Role,
+        config: ConnectionConfig,
+        codec: Codec<T, BytesMut>,
+    ) -> (Self::Connection<T>, Self::Handler)
+    where
+        T: AsyncRead + AsyncWrite + Unpin,
+    {
+        Connection::new(role, config, codec)
     }
 }
 
-pub struct Builder {
+impl BuildConnection for Server {
+    type Connection<T> = ServerConnection<T>;
+
+    type Handler = ServerHandler;
+
+    fn is_server() -> bool {
+        true
+    }
+
+    fn is_client() -> bool {
+        false
+    }
+
+    fn init_stream_id() -> StreamId {
+        2.into()
+    }
+
+    fn create_connection<T>(
+        role: Role,
+        config: ConnectionConfig,
+        codec: Codec<T, BytesMut>,
+    ) -> (Self::Connection<T>, Self::Handler)
+    where
+        T: AsyncRead + AsyncWrite + Unpin,
+    {
+        Connection::new(role, config, codec)
+    }
+}
+
+pub struct Builder<R> {
     /// connection level flow control window size.
     pub initial_connection_window_size: Option<u32>,
 
@@ -59,18 +123,20 @@ pub struct Builder {
     /// Maximum number of remote reset streams to keep at a time.
     pub remote_reset_stream_max: usize,
 
-    pub role: Role,
+    role: PhantomData<R>,
 
     /// Initial `Settings` frame to send as part of the handshake.
     pub settings: Settings,
 }
 
-impl Builder {
-    fn new(role: Role) -> Self {
+impl<R> Builder<R>
+where
+    R: BuildConnection,
+{
+    pub fn new() -> Self {
         let mut settings = Settings::default();
         settings.set_enable_push(false);
         Builder {
-            role,
             initial_connection_window_size: None,
             local_reset_stream_max: DEFAULT_RESET_STREAM_MAX,
             local_max_error_reset_streams: Some(DEFAULT_LOCAL_RESET_COUNT_MAX),
@@ -79,15 +145,8 @@ impl Builder {
                 DEFAULT_RESET_STREAM_SECS,
             ),
             settings,
+            role: PhantomData,
         }
-    }
-
-    pub fn server() -> Self {
-        Builder::new(Role::Server)
-    }
-
-    pub fn client() -> Self {
-        Builder::new(Role::Client)
     }
 
     // ===== Flow Control =====
@@ -264,73 +323,44 @@ impl Builder {
     //
 
     pub async fn handshake<T>(
-        mut self,
+        self,
         io: T,
-    ) -> Result<(Builder, PrefaceState<T>), PrefaceError>
+    ) -> Result<(R::Connection<T>, R::Handler), PrefaceError>
     where
         T: AsyncRead + AsyncWrite + Unpin,
     {
-        let mut state =
-            PrefaceState::new(io, self.role.clone(), self.settings.clone());
-        // TODO: Generic state runner
+        let role = if R::is_client() {
+            Role::Client
+        } else {
+            Role::Server
+        };
+
+        let mut state = PrefaceState::new(io, role, self.settings.clone());
+
         loop {
             state = state.next().await?;
             if state.is_ended() {
                 break;
             }
         }
-        Ok((self, state))
-    }
-}
 
-pub struct ClientBuilder {
-    builder: Builder,
-}
-
-impl ClientBuilder {
-    pub fn new() -> Self {
-        ClientBuilder {
-            builder: Builder::new(Role::Client),
-        }
-    }
-
-    pub async fn handshake<T>(
-        self,
-        io: T,
-    ) -> Result<(ClientConnection<T>, ClientHandler), PrefaceError>
-    where
-        T: AsyncRead + AsyncWrite + Unpin,
-    {
-        let (builder, state) = self.builder.handshake(io).await?;
         let mut preface = PrefaceConn::try_from(state)?;
         let remote_settings = preface.take_remote_settings();
-        let config = ConnectionConfig::from((builder, remote_settings));
-        Ok(Connection::new(preface.role, config, preface.stream))
+        let config = self.build_config(remote_settings);
+
+        Ok(R::create_connection(preface.role, config, preface.stream))
     }
-}
 
-pub struct ServerBuilder {
-    builder: Builder,
-}
-
-impl ServerBuilder {
-    pub fn new() -> Self {
-        ServerBuilder {
-            builder: Builder::new(Role::Server),
+    fn build_config(&self, peer_settings: Settings) -> ConnectionConfig {
+        ConnectionConfig {
+            initial_connection_window_size: self
+                .initial_connection_window_size,
+            local_max_error_reset_streams: self.local_max_error_reset_streams,
+            reset_stream_duration: self.reset_stream_duration,
+            local_reset_stream_max: self.local_reset_stream_max,
+            remote_reset_stream_max: self.remote_reset_stream_max,
+            local_settings: self.settings.clone(),
+            peer_settings,
         }
-    }
-
-    pub async fn handshake<T>(
-        self,
-        io: T,
-    ) -> Result<(ClientConnection<T>, ClientHandler), PrefaceError>
-    where
-        T: AsyncRead + AsyncWrite + Unpin,
-    {
-        let (builder, state) = self.builder.handshake(io).await?;
-        let mut preface = PrefaceConn::try_from(state)?;
-        let remote_settings = preface.take_remote_settings();
-        let config = ConnectionConfig::from((builder, remote_settings));
-        Ok(Connection::new(preface.role, config, preface.stream))
     }
 }
