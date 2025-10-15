@@ -2,6 +2,7 @@
 use tokio::io::{Empty, empty};
 use two_plz::{
     Codec, Connection, Settings,
+    builder::Role,
     proto::{
         config::ConnectionConfig,
         connection::{ClientToUser, ServerToUser, UserToClient, UserToServer},
@@ -31,20 +32,31 @@ macro_rules! assert_ping {
     }};
 }
 
-pub fn build_server() -> Connection<Empty, ServerToUser, UserToServer> {
-    let (conn, _) = Connection::server(
-        ConnectionConfig::default(),
+fn default_connection_config() -> ConnectionConfig {
+    ConnectionConfig {
+        initial_connection_window_size: Some(100),
+        local_max_error_reset_streams: Some(100),
+        reset_stream_duration: std::time::Duration::from_millis(5000),
+        reset_stream_max: 100,
+        local_settings: Settings::default(),
+        peer_settings: Settings::default(),
+    }
+}
+
+pub fn build_server_conn() -> Connection<Empty, ServerToUser, UserToServer> {
+    let (conn, _) = Connection::new(
+        Role::Server,
+        default_connection_config(),
         Codec::new(empty()),
-        Settings::default(),
     );
     conn
 }
 
-pub fn build_client() -> Connection<Empty, ClientToUser, UserToClient> {
-    let (conn, _) = Connection::client(
-        ConnectionConfig::default(),
+pub fn build_client_conn() -> Connection<Empty, ClientToUser, UserToClient> {
+    let (conn, _) = Connection::new(
+        Role::Client,
+        default_connection_config(),
         Codec::new(empty()),
-        Settings::default(),
     );
     conn
 }

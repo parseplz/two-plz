@@ -5,7 +5,11 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 use tracing::{Level, info};
-use two_plz::{builder::Role, io::write_and_flush, preface::PrefaceState};
+use two_plz::{
+    builder::{Role, ServerBuilder},
+    io::write_and_flush,
+    preface::PrefaceState,
+};
 
 mod encrypt;
 use encrypt::{
@@ -16,7 +20,7 @@ use encrypt::{
 const CONNECTION_ESTABLISHED: [u8; 39] =
     *b"HTTP/1.1 200 Connection Established\r\n\r\n";
 
-//#[tokio::test]
+#[tokio::test]
 async fn mock_server() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_max_level(Level::DEBUG)
@@ -65,27 +69,9 @@ async fn mock_server() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_default();
     info!("[+] client alpn| {}", String::from_utf8_lossy(alpn));
 
-    let mut client_state = PrefaceState::new(client_tls, Role::Server);
-    loop {
-        client_state = client_state.next().await?;
-        if client_state.is_ended() {
-            break;
-        }
-    }
-    //let mut state = HandshakeState::init(client_tls, server_tls);
-    //
-    //let preface_conn = PrefaceFramed::try_from(state).unwrap();
-    //
-    //let (client, server) = preface_conn.into();
-    //
-    //let mut client_state = State::init(client);
-    //
-    //loop {
-    //    client_state = client_state.next().await.unwrap();
-    //    if client_state.is_ended() {
-    //        break;
-    //    }
-    //}
+    let (conn, handler) = ServerBuilder::new()
+        .handshake(client_tls)
+        .await?;
 
     Ok(())
 }

@@ -8,7 +8,7 @@ use common::*;
 
 #[test]
 fn recv_single_ping() {
-    let mut conn = build_server();
+    let mut conn = build_server_conn();
     let frame = Ping::new(Default::default());
     let state = read_runner(&mut conn, frame.into()).unwrap();
     assert_eq!(state, ReadState::NeedsFlush);
@@ -20,7 +20,7 @@ fn recv_single_ping() {
 
 #[tokio::test]
 async fn recv_multiple_ping() {
-    let mut conn = build_server();
+    let mut conn = build_server_conn();
     for i in 1..3 {
         let frame = Ping::new([i; 8]);
         let state = read_runner(&mut conn, frame.into()).unwrap();
