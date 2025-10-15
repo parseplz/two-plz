@@ -37,7 +37,7 @@ fn default_connection_config() -> ConnectionConfig {
         initial_connection_window_size: Some(100),
         local_max_error_reset_streams: Some(100),
         reset_stream_duration: std::time::Duration::from_millis(5000),
-        reset_stream_max: 100,
+        local_reset_stream_max: 100,
         local_settings: Settings::default(),
         peer_settings: Settings::default(),
     }
