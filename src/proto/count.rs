@@ -1,4 +1,7 @@
-use crate::proto::config::ConnectionConfig;
+use crate::{
+    Settings,
+    proto::{config::ConnectionConfig, store::Ptr},
+};
 
 #[derive(Debug)]
 pub(super) struct Counts {
@@ -32,7 +35,6 @@ pub(super) struct Counts {
 }
 
 impl Counts {
-    /// Create a new `Counts` using the provided configuration values.
     pub fn new(config: &ConnectionConfig) -> Self {
         Counts {
             max_send_streams: config
@@ -53,5 +55,115 @@ impl Counts {
                 .local_max_error_reset_streams,
             num_local_error_reset_streams: 0,
         }
+    }
+
+    /// Returns true when the next opened stream will reach capacity of
+    /// outbound streams
+    pub fn next_send_stream_will_reach_capacity(&self) -> bool {
+        self.max_send_streams <= (self.num_send_streams + 1)
+    }
+
+    pub fn has_streams(&self) -> bool {
+        self.num_send_streams != 0 || self.num_recv_streams != 0
+    }
+
+    // ===== local error resets ====
+
+    /// Returns true if we can issue another local reset due to protocol error.
+    pub fn can_inc_num_local_error_resets(&self) -> bool {
+        if let Some(max) = self.max_local_error_reset_streams {
+            max > self.num_local_error_reset_streams
+        } else {
+            true
+        }
+    }
+
+    pub fn inc_num_local_error_resets(&mut self) {
+        assert!(self.can_inc_num_local_error_resets());
+
+        // Increment the number of remote initiated streams
+        self.num_local_error_reset_streams += 1;
+    }
+
+    pub fn max_local_error_resets(&self) -> Option<usize> {
+        self.max_local_error_reset_streams
+    }
+
+    // ===== recv =====
+
+    pub(crate) fn max_recv_streams(&self) -> usize {
+        self.max_recv_streams
+    }
+
+    /// Returns true if the receive stream concurrency can be incremented
+    pub fn can_inc_num_recv_streams(&self) -> bool {
+        self.max_recv_streams > self.num_recv_streams
+    }
+
+    /// Increments the number of concurrent receive streams.
+    ///
+    /// # Panics
+    ///
+    /// Panics on failure as this should have been validated before hand.
+    pub fn inc_num_recv_streams(&mut self) {
+        assert!(self.can_inc_num_recv_streams());
+        self.num_recv_streams += 1;
+    }
+
+    pub fn dec_num_recv_streams(&mut self) {
+        assert!(self.num_recv_streams > 0);
+        self.num_recv_streams -= 1;
+    }
+
+    // ===== send =====
+    pub(crate) fn max_send_streams(&self) -> usize {
+        self.max_send_streams
+    }
+
+    /// Returns true if the send stream concurrency can be incremented
+    pub fn can_inc_num_send_streams(&self) -> bool {
+        self.max_send_streams > self.num_send_streams
+    }
+
+    /// Increments the number of concurrent send streams.
+    ///
+    /// # Panics
+    ///
+    /// Panics on failure as this should have been validated before hand.
+    pub fn inc_num_send_streams(&mut self) {
+        assert!(self.can_inc_num_send_streams());
+        self.num_send_streams += 1;
+    }
+
+    pub fn dec_num_send_streams(&mut self) {
+        assert!(self.num_send_streams > 0);
+        self.num_send_streams -= 1;
+    }
+
+    // ===== Local Reset =====
+    pub fn can_inc_num_reset_streams(&self) -> bool {
+        self.max_local_reset_streams > self.num_local_reset_streams
+    }
+
+    fn dec_num_reset_streams(&mut self) {
+        assert!(self.num_local_reset_streams > 0);
+        self.num_local_reset_streams -= 1;
+    }
+
+    /// Increments the number of pending reset streams.
+    ///
+    /// # Panics
+    ///
+    /// Panics on failure as this should have been validated before hand.
+    pub fn inc_num_reset_streams(&mut self) {
+        assert!(self.can_inc_num_reset_streams());
+        self.num_local_reset_streams += 1;
+    }
+
+    pub fn apply_remote_settings(&mut self, settings: &Settings) {
+        self.max_send_streams = settings
+            .max_concurrent_streams()
+            .map(|v| v as usize)
+            .unwrap_or(usize::MAX)
     }
 }
