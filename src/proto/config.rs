@@ -32,19 +32,3 @@ pub struct ConnectionConfig {
     pub local_settings: Settings,
     pub peer_settings: Settings,
 }
-
-impl From<(Builder, Settings)> for ConnectionConfig {
-    fn from((builder, peer_settings): (Builder, Settings)) -> Self {
-        Self {
-            initial_connection_window_size: builder
-                .initial_connection_window_size,
-            local_max_error_reset_streams: builder
-                .local_max_error_reset_streams,
-            reset_stream_duration: builder.reset_stream_duration,
-            local_reset_stream_max: builder.local_reset_stream_max,
-            remote_reset_stream_max: builder.remote_reset_stream_max,
-            local_settings: builder.settings,
-            peer_settings,
-        }
-    }
-}
