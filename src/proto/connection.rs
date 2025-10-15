@@ -1,4 +1,5 @@
 use crate::builder::Role;
+use crate::proto::count::Counts;
 use crate::proto::send::Send;
 use crate::proto::settings::SettingsAction;
 use crate::proto::{recv::Recv, settings::SettingsHandler};
@@ -24,14 +25,14 @@ use crate::{
 // E = sender = to user
 // U = receiver = from user
 pub struct Connection<T, E, U> {
-    config: ConnectionConfig,
-    ping_handler: PingHandler,
-    settings_handler: SettingsHandler,
+    count: Counts,
     pub handler: Handler<E, U>,
-    pub stream: Codec<T, BytesMut>,
+    ping_handler: PingHandler,
+    recv: Recv,
     role: Role,
     send: Send,
-    recv: Recv,
+    settings_handler: SettingsHandler,
+    pub stream: Codec<T, BytesMut>,
 }
 
 impl<T, E, U> Connection<T, E, U>
@@ -54,7 +55,7 @@ where
             handler,
             stream,
             role,
-            config,
+            count: Counts::new(&config),
             send,
             recv,
         };
