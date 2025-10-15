@@ -1,12 +1,13 @@
 extern crate two_plz;
 use bytes::BytesMut;
+use rustls_pki_types::ServerName;
 use tokio::{
     io::AsyncReadExt,
     net::{TcpListener, TcpStream},
 };
 use tracing::{Level, info};
 use two_plz::{
-    builder::{Role, ServerBuilder},
+    builder::{ClientBuilder, Role, ServerBuilder},
     io::write_and_flush,
     preface::PrefaceState,
 };
@@ -20,7 +21,7 @@ use encrypt::{
 const CONNECTION_ESTABLISHED: [u8; 39] =
     *b"HTTP/1.1 200 Connection Established\r\n\r\n";
 
-#[tokio::test]
+//#[tokio::test]
 async fn mock_server() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_max_level(Level::DEBUG)
@@ -71,6 +72,25 @@ async fn mock_server() -> Result<(), Box<dyn std::error::Error>> {
 
     let (conn, handler) = ServerBuilder::new()
         .handshake(client_tls)
+        .await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn mock_client() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt()
+        .with_max_level(Level::DEBUG)
+        .init();
+    let mut captain_crypto = CaptainCrypto::new()?;
+    let server_tcp = TcpStream::connect("www.google.com:443").await?;
+    let sni = ServerName::try_from("www.google.com")?;
+    let connector = captain_crypto.get_connector();
+    let server_tls = connector
+        .connect(sni, server_tcp)
+        .await?;
+    let (conn, handler) = ClientBuilder::new()
+        .handshake(server_tls)
         .await?;
 
     Ok(())
