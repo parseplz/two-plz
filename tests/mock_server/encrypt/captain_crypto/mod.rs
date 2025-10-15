@@ -7,6 +7,7 @@ use ca::*;
 use error::*;
 use openssl::hash::DigestBytes;
 use rcgen::{CertificateParams, KeyPair};
+use rustls::KeyLogFile;
 use rustls_pki_types::PrivateKeyDer;
 use tokio_rustls::TlsConnector;
 use tokio_rustls::rustls::client::WebPkiServerVerifier;
@@ -51,6 +52,7 @@ impl CaptainCrypto {
             .with_no_client_auth();
         client_config.alpn_protocols =
             vec![ALPN_H1.to_vec(), ALPN_H2.to_vec()];
+        client_config.key_log = Arc::new(KeyLogFile::new());
         let tls_connector = TlsConnector::from(Arc::new(client_config));
         let connector = Arc::new(tls_connector);
 
