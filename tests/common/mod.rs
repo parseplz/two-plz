@@ -2,11 +2,11 @@
 use tokio::io::{Empty, empty};
 use two_plz::{
     Codec, Connection, Settings,
-    builder::Role,
     proto::{
         config::ConnectionConfig,
         connection::{ClientToUser, ServerToUser, UserToClient, UserToServer},
     },
+    role::Role,
 };
 
 //

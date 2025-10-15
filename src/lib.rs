@@ -26,6 +26,7 @@ mod hpack;
 pub mod io;
 pub mod preface;
 pub mod proto;
+pub mod role;
 pub mod state;
 
 // tests

@@ -1,8 +1,8 @@
-use crate::builder::Role;
 use crate::proto::count::Counts;
 use crate::proto::send::Send;
 use crate::proto::settings::SettingsAction;
 use crate::proto::{recv::Recv, settings::SettingsHandler};
+use crate::role::Role;
 use std::io::Error;
 
 use bytes::{Bytes, BytesMut};

@@ -1,5 +1,4 @@
 use crate::{
-    builder::Role,
     frame::{DEFAULT_INITIAL_WINDOW_SIZE, Frame, StreamId},
     proto::{
         WindowSize,
@@ -9,6 +8,7 @@ use crate::{
         store::{Ptr, Queue},
         stream,
     },
+    role::Role,
     stream_id::StreamIdOverflow,
 };
 

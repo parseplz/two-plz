@@ -7,7 +7,7 @@ use tokio::{
 };
 use tracing::{Level, info};
 use two_plz::{
-    builder::{ClientBuilder, Role, ServerBuilder},
+    builder::{ClientBuilder, ServerBuilder},
     io::write_and_flush,
     preface::PrefaceState,
 };

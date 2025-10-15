@@ -2,11 +2,11 @@ use std::time::Duration;
 
 use crate::{
     DEFAULT_INITIAL_WINDOW_SIZE, StreamId,
-    builder::Role,
     proto::{
         WindowSize, buffer::Buffer, config::ConnectionConfig,
         flow_control::FlowControl, store::Queue, stream::NextResetExpire,
     },
+    role::Role,
     stream_id::StreamIdOverflow,
 };
 
