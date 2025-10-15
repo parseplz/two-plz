@@ -5,6 +5,10 @@ use crate::Connection;
 use crate::preface::PrefaceErrorState;
 use crate::proto::config::ConnectionConfig;
 use crate::proto::connection::{ClientConnection, ClientHandler};
+use crate::proto::{
+    DEFAULT_LOCAL_RESET_COUNT_MAX, DEFAULT_REMOTE_RESET_COUNT_MAX,
+    DEFAULT_RESET_STREAM_MAX, DEFAULT_RESET_STREAM_SECS,
+};
 use crate::{
     Settings, StreamId,
     preface::{PrefaceConn, PrefaceError, PrefaceState},
@@ -50,7 +54,10 @@ pub struct Builder {
     pub reset_stream_duration: Duration,
 
     /// Maximum number of locally reset streams to keep at a time.
-    pub reset_stream_max: usize,
+    pub local_reset_stream_max: usize,
+
+    /// Maximum number of remote reset streams to keep at a time.
+    pub remote_reset_stream_max: usize,
 
     pub role: Role,
 
@@ -65,11 +72,12 @@ impl Builder {
         Builder {
             role,
             initial_connection_window_size: None,
-            local_max_error_reset_streams: None,
+            local_reset_stream_max: DEFAULT_RESET_STREAM_MAX,
+            local_max_error_reset_streams: Some(DEFAULT_LOCAL_RESET_COUNT_MAX),
+            remote_reset_stream_max: DEFAULT_REMOTE_RESET_COUNT_MAX,
             reset_stream_duration: Duration::from_secs(
-                proto::DEFAULT_RESET_STREAM_SECS,
+                DEFAULT_RESET_STREAM_SECS,
             ),
-            reset_stream_max: proto::DEFAULT_RESET_STREAM_MAX,
             settings,
         }
     }
@@ -193,7 +201,7 @@ impl Builder {
     ///
     /// The default value is currently 50.
     pub fn max_concurrent_reset_streams(&mut self, max: usize) -> &mut Self {
-        self.reset_stream_max = max;
+        self.local_reset_stream_max = max;
         self
     }
 
