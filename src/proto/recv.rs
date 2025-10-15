@@ -18,6 +18,9 @@ pub(super) struct Recv {
     /// Connection level flow control governing received data
     flow: FlowControl,
 
+    /// Initial window size of remote initiated streams
+    init_stream_window_sz: WindowSize,
+
     /// The stream ID of the last processed stream
     last_processed_id: StreamId,
 
@@ -65,6 +68,10 @@ impl Recv {
                     .initial_connection_window_size
                     .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
             ),
+            init_stream_window_sz: config
+                .local_settings
+                .initial_window_size()
+                .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
             last_processed_id: StreamId::ZERO,
             max_stream_id: StreamId::MAX,
             next_stream_id: Ok(role.init_stream_id()),
