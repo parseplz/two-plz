@@ -83,45 +83,19 @@ where
         self.settings_handler.recv(frame)
     }
 
-    #[cfg(feature = "test-util")]
-    pub fn read_frame(&mut self) -> Result<Frame, proto::Error> {
-        self.stream.read_frame()
-    }
-
-    pub fn apply_local_settings(&self, settings: Settings) {
+    pub fn apply_local_settings(&mut self, settings: Settings) {
         todo!()
     }
-}
 
-impl<T> ServerConnection<T>
-where
-    T: AsyncRead + AsyncWrite + Unpin,
-{
-    pub fn server(
-        config: ConnectionConfig,
-        stream: Codec<T, BytesMut>,
-        local_settings: Settings,
-    ) -> (
-        Connection<T, ServerToUser, UserToServer>,
-        Handler<UserToServer, ServerToUser>,
-    ) {
-        Connection::new(Role::Server, config, stream, local_settings)
+    pub fn take_remote_settings(&mut self) -> Settings {
+        self.settings_handler
+            .take_remote_settings()
     }
-}
 
-impl<T> ClientConnection<T>
-where
-    T: AsyncRead + AsyncWrite + Unpin,
-{
-    pub fn client(
-        config: ConnectionConfig,
-        stream: Codec<T, BytesMut>,
-        local_settings: Settings,
-    ) -> (
-        Connection<T, ClientToUser, UserToClient>,
-        Handler<UserToClient, ClientToUser>,
-    ) {
-        Connection::new(Role::Client, config, stream, local_settings)
+    pub fn apply_remote_settings(&mut self, settings: Settings) {
+        todo!()
+    }
+
     // ===== Test =====
     #[cfg(feature = "test-util")]
     pub fn read_frame(&mut self) -> Result<Frame, proto::Error> {
@@ -129,8 +103,6 @@ where
     }
 }
 
-type ServerConnection<T> = Connection<T, ServerToUser, UserToServer>;
-type ClientConnection<T> = Connection<T, ClientToUser, UserToClient>;
 pub type ServerConnection<T> = Connection<T, ServerToUser, UserToServer>;
 pub type ClientConnection<T> = Connection<T, ClientToUser, UserToClient>;
 
