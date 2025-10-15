@@ -32,6 +32,12 @@ pub(super) struct Counts {
     /// Total number of locally reset streams due to protocol error across the
     /// lifetime of the connection.
     num_local_error_reset_streams: usize,
+
+    /// Maximum number of pending remotely reset streams
+    max_remote_reset_streams: usize,
+
+    /// Current number of pending remotely reset streams
+    num_remote_reset_streams: usize,
 }
 
 impl Counts {
@@ -49,11 +55,13 @@ impl Counts {
                 .map(|v| v as usize)
                 .unwrap_or(usize::MAX),
             num_recv_streams: 0,
-            max_local_reset_streams: config.reset_stream_max,
+            max_local_reset_streams: config.local_reset_stream_max,
             num_local_reset_streams: 0,
             max_local_error_reset_streams: config
                 .local_max_error_reset_streams,
             num_local_error_reset_streams: 0,
+            max_remote_reset_streams: config.remote_reset_stream_max,
+            num_remote_reset_streams: 0,
         }
     }
 
@@ -165,5 +173,25 @@ impl Counts {
             .max_concurrent_streams()
             .map(|v| v as usize)
             .unwrap_or(usize::MAX)
+    }
+
+    // ===== Remote Reset =====
+    pub fn can_inc_num_remote_reset_streams(&self) -> bool {
+        self.max_remote_reset_streams > self.num_remote_reset_streams
+    }
+
+    fn dec_num_remote_reset_streams(&mut self) {
+        assert!(self.num_remote_reset_streams > 0);
+        self.num_remote_reset_streams -= 1;
+    }
+
+    /// Increments the number of pending reset streams.
+    ///
+    /// # Panics
+    ///
+    /// Panics on failure as this should have been validated before hand.
+    pub fn inc_num_remote_reset_streams(&mut self) {
+        assert!(self.can_inc_num_remote_reset_streams());
+        self.num_remote_reset_streams += 1;
     }
 }
