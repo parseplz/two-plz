@@ -2,13 +2,14 @@ pub mod connection;
 
 mod buffer;
 pub mod config;
+mod count;
 mod error;
 mod flow_control;
 pub mod ping_pong;
 mod recv;
 mod rst_stream;
 mod send;
-mod settings;
+pub mod settings;
 mod state;
 mod store;
 mod stream;
