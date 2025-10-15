@@ -40,6 +40,7 @@ fn default_connection_config() -> ConnectionConfig {
         local_reset_stream_max: 100,
         local_settings: Settings::default(),
         peer_settings: Settings::default(),
+        remote_reset_stream_max: 10,
     }
 }
 
