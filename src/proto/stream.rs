@@ -7,6 +7,7 @@ use crate::{
         WindowSize,
         buffer::Deque,
         flow_control::FlowControl,
+        state::State,
         store::{self, Key, Next},
     },
 };
@@ -56,7 +57,7 @@ pub struct Stream {
     pub reset_at: Option<Instant>,
     pub next_reset_expire: Option<Key>,
     // TODO
-    //state: State,
+    state: State,
     //pub content_length: ContentLength,
 }
 
@@ -71,6 +72,7 @@ impl Stream {
 
         Stream {
             id,
+            state: State::default(),
             // === send ===
             send_flow,
             body: None,
