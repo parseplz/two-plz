@@ -1,6 +1,7 @@
 use crate::proto::count::Counts;
 use crate::proto::send::Send;
 use crate::proto::settings::SettingsAction;
+use crate::proto::store::Store;
 use crate::proto::{recv::Recv, settings::SettingsHandler};
 use crate::role::Role;
 use std::io::Error;
@@ -31,6 +32,7 @@ pub struct Connection<T, E, U> {
     recv: Recv,
     role: Role,
     send: Send,
+    store: Store,
     settings_handler: SettingsHandler,
     pub codec: Codec<T, BytesMut>,
 }
@@ -58,6 +60,7 @@ where
             count: Counts::new(&config),
             send,
             recv,
+            store: Store::new(),
         };
         (conn, user_handle)
     }
