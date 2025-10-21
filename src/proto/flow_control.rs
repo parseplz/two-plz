@@ -31,14 +31,6 @@ impl FlowControl {
         self.capacity.as_size()
     }
 
-    // ========== RECV SIDE ==========
-
-    /// Receive DATA from peer
-    pub fn recv_data(&mut self, sz: WindowSize) -> Result<(), Reason> {
-        self.window.decrease_by(sz)?;
-        Ok(())
-    }
-
     /// Check if should send WINDOW_UPDATE
     pub fn should_send_window_update(&self) -> Option<WindowSize> {
         if self.window >= self.capacity {
@@ -56,27 +48,11 @@ impl FlowControl {
         }
     }
 
-    /// After sending WINDOW_UPDATE
-    pub fn sent_window_update(
-        &mut self,
-        sz: WindowSize,
-    ) -> Result<(), Reason> {
-        self.window.increase_by(sz)
+    pub fn dec_window(&mut self, sz: WindowSize) -> Result<(), Reason> {
+        self.window.decrease_by(sz)
     }
 
-    // ========== SEND SIDE ==========
-
-    /// Send DATA to peer
-    pub fn send_data(&mut self, sz: WindowSize) -> Result<(), Reason> {
-        self.window.decrease_by(sz)?;
-        Ok(())
-    }
-
-    /// Receive WINDOW_UPDATE from peer
-    pub fn recv_window_update(
-        &mut self,
-        sz: WindowSize,
-    ) -> Result<(), Reason> {
+    pub fn inc_window(&mut self, sz: WindowSize) -> Result<(), Reason> {
         self.window.increase_by(sz)
     }
 }
