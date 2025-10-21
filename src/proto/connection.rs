@@ -32,7 +32,7 @@ pub struct Connection<T, E, U> {
     role: Role,
     send: Send,
     settings_handler: SettingsHandler,
-    pub stream: Codec<T, BytesMut>,
+    pub codec: Codec<T, BytesMut>,
 }
 
 impl<T, E, U> Connection<T, E, U>
@@ -53,7 +53,7 @@ where
                 config.local_settings.clone(),
             ),
             handler,
-            stream,
+            codec: stream,
             role,
             count: Counts::new(&config),
             send,
@@ -64,7 +64,7 @@ where
 
     // ===== Codec =====
     pub fn buffer(&mut self, item: Frame<BytesMut>) -> Result<(), UserError> {
-        self.stream.buffer(item)
+        self.codec.buffer(item)
     }
 
     // ===== Ping =====
@@ -88,19 +88,19 @@ where
         todo!()
     }
 
+    pub fn apply_remote_settings(&mut self, settings: Settings) {
+        todo!()
+    }
+
     pub fn take_remote_settings(&mut self) -> Settings {
         self.settings_handler
             .take_remote_settings()
     }
 
-    pub fn apply_remote_settings(&mut self, settings: Settings) {
-        todo!()
-    }
-
     // ===== Test =====
     #[cfg(feature = "test-util")]
     pub fn read_frame(&mut self) -> Result<Frame, proto::Error> {
-        self.stream.read_frame()
+        self.codec.read_frame()
     }
 }
 

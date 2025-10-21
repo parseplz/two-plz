@@ -63,8 +63,8 @@ pub fn build_client_conn() -> Connection<Empty, ClientToUser, UserToClient> {
 }
 
 pub fn write_to_read_buf<T, E, U>(conn: &mut Connection<T, E, U>) {
-    let write_buf = conn.stream.write_buf_mut().split();
-    conn.stream
+    let write_buf = conn.codec.write_buf_mut().split();
+    conn.codec
         .read_buf_mut()
         .unsplit(write_buf);
 }

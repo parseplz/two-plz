@@ -13,7 +13,7 @@ where
     T: AsyncRead + AsyncWrite + Unpin,
 {
     tokio::select! {
-        frame = conn.stream.next() => {
+        frame = conn.codec.next() => {
             match frame {
                 Some(Ok(frame)) => {
                     let state_result = read_runner(&mut conn, frame);

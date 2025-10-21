@@ -28,7 +28,7 @@ async fn recv_multiple_ping() {
     }
     write_to_read_buf(&mut conn);
     for i in 1..3 {
-        let ping = poll_frame!(Ping, conn.stream);
+        let ping = poll_frame!(Ping, conn.codec);
         assert_eq!(ping, Ping::pong([i; 8]));
     }
 }
