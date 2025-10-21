@@ -1,4 +1,7 @@
-use std::ops::{Index, IndexMut};
+use std::{
+    convert::Infallible,
+    ops::{Index, IndexMut},
+};
 
 use indexmap::{self, IndexMap};
 
@@ -66,6 +69,57 @@ impl Store {
             },
             store: self,
         })
+    }
+
+    #[allow(clippy::blocks_in_conditions)]
+    pub(crate) fn for_each<F>(&mut self, mut f: F)
+    where
+        F: FnMut(Ptr),
+    {
+        match self.try_for_each(|ptr| {
+            f(ptr);
+            Ok::<_, Infallible>(())
+        }) {
+            Ok(()) => (),
+            #[allow(unused)]
+            Err(infallible) => match infallible {},
+        }
+    }
+
+    pub fn try_for_each<F, E>(&mut self, mut f: F) -> Result<(), E>
+    where
+        F: FnMut(Ptr) -> Result<(), E>,
+    {
+        let mut len = self.ids.len();
+        let mut i = 0;
+
+        while i < len {
+            // Get the key by index, this makes the borrow checker happy
+            let (stream_id, index) = {
+                let entry = self.ids.get_index(i).unwrap();
+                (*entry.0, *entry.1)
+            };
+
+            f(Ptr {
+                key: Key {
+                    index,
+                    stream_id,
+                },
+                store: self,
+            })?;
+
+            // TODO: This logic probably could be better...
+            let new_len = self.ids.len();
+
+            if new_len < len {
+                debug_assert!(new_len == len - 1);
+                len -= 1;
+            } else {
+                i += 1;
+            }
+        }
+
+        Ok(())
     }
 }
 
