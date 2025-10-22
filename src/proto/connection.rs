@@ -87,14 +87,32 @@ where
         self.settings_handler.recv(local)
     }
 
-    pub fn apply_local_settings(&mut self, settings: Settings) {
-        todo!()
+    pub fn apply_local_settings(
+        &mut self,
+        settings: Settings,
+    ) -> Result<(), proto::Error> {
+        if let Some(max) = settings.max_frame_size() {
+            self.codec
+                .set_max_recv_frame_size(max as usize);
+        }
+
+        if let Some(max) = settings.max_header_list_size() {
+            self.codec
+                .set_max_recv_header_list_size(max as usize);
+        }
+
+        if let Some(val) = settings.header_table_size() {
+            self.codec
+                .set_recv_header_table_size(val as usize);
+        }
+        self.recv
+            .apply_local_settings(&settings, &mut self.store)
     }
 
     pub fn apply_remote_settings(
         &mut self,
         settings: Settings,
-    ) -> Result<(), super::Error> {
+    ) -> Result<(), proto::Error> {
         self.count
             .apply_remote_settings(&settings);
         self.send

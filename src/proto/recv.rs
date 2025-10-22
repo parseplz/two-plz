@@ -1,10 +1,14 @@
-use std::time::Duration;
+use std::{cmp::Ordering, time::Duration};
 
 use crate::{
-    DEFAULT_INITIAL_WINDOW_SIZE, StreamId,
+    DEFAULT_INITIAL_WINDOW_SIZE, Settings, StreamId,
     proto::{
-        WindowSize, buffer::Buffer, config::ConnectionConfig,
-        flow_control::FlowControl, store::Queue, stream::NextResetExpire,
+        self, WindowSize,
+        buffer::Buffer,
+        config::ConnectionConfig,
+        flow_control::FlowControl,
+        store::{Queue, Store},
+        stream::NextResetExpire,
     },
     role::Role,
     stream_id::StreamIdOverflow,
@@ -43,13 +47,7 @@ pub(super) struct Recv {
 
     /// How long locally reset streams should ignore received frames
     reset_duration: Duration,
-    //
-    // TODO
-    ///// If push promises are allowed to be received.
-    //is_push_enabled: bool,
-    //
-    ///// If extended connect protocol is enabled.
-    //is_extended_connect_protocol_enabled: bool,
+
     /// If push promises are allowed to be received.
     is_push_enabled: bool,
 
@@ -85,5 +83,52 @@ impl Recv {
             is_push_enabled: false,
             is_extended_connect_protocol_enabled: false,
         }
+    }
+
+    pub fn apply_local_settings(
+        &mut self,
+        settings: &Settings,
+        store: &mut Store,
+    ) -> Result<(), proto::Error> {
+        if let Some(val) = settings.is_extended_connect_protocol_enabled() {
+            self.is_extended_connect_protocol_enabled = val;
+        }
+
+        if let Some(target) = settings.initial_window_size() {
+            let old_sz = self.init_stream_window_sz;
+            self.init_stream_window_sz = target;
+
+            match target.cmp(&old_sz) {
+                // We must decrease the (local) window on every open stream.
+                Ordering::Less => {
+                    let dec = old_sz - target;
+                    tracing::trace!("decrementing all windows; dec={}", dec);
+
+                    store.try_for_each(|mut stream| {
+                        stream
+                            .recv_flow
+                            .dec_window(dec)
+                            .map_err(proto::Error::library_go_away)?;
+                        Ok::<_, proto::Error>(())
+                    })?;
+                }
+                // We must increase the (local) window on every open stream.
+                Ordering::Greater => {
+                    let inc = target - old_sz;
+                    tracing::trace!("incrementing all windows; inc={}", inc);
+                    store.try_for_each(|mut stream| {
+                        // XXX: Shouldn't the peer have already noticed our
+                        // overflow and sent us a GOAWAY?
+                        stream
+                            .recv_flow
+                            .inc_window(inc)
+                            .map_err(proto::Error::library_go_away)?;
+                        Ok::<_, proto::Error>(())
+                    })?;
+                }
+                Ordering::Equal => (),
+            }
+        }
+        Ok(())
     }
 }
