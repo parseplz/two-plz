@@ -56,8 +56,9 @@ pub struct Stream {
     /// The time when this stream may have been locally reset.
     pub reset_at: Option<Instant>,
     pub next_reset_expire: Option<Key>,
-    // TODO
+
     pub state: State,
+    // TODO
     //pub content_length: ContentLength,
 }
 
@@ -97,9 +98,7 @@ impl Stream {
     }
 
     fn is_closed(&self) -> bool {
-        // TODO
-        //self.state.is_closed() &&
-        self.pending_send.is_empty()
+        self.state.is_closed() && self.pending_send.is_empty()
     }
 
     pub fn is_send_ready(&self) -> bool {
