@@ -91,8 +91,8 @@ where
                         Self::NeedsFlush
                     }
                     Ok(SettingsAction::ApplyLocal(settings)) => {
-                        conn.apply_local_settings(settings);
                         // TODO: lead to further writes ?
+                        conn.apply_local_settings(settings);
                         Self::End
                     }
                     Err(e) => return Err(StateError::Proto(e)),

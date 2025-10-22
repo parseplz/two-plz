@@ -53,9 +53,6 @@ pub struct Send {
 
     /// Queue of streams waiting to be reset
     pending_reset: Queue<stream::NextResetExpire>,
-    // TODO
-    //is_push_enabled: bool,
-    //is_extended_connect_protocol_enabled: bool,
 
     is_push_enabled: bool,
     is_extended_connect_protocol_enabled: bool,
@@ -103,6 +100,7 @@ impl Send {
             self.pending_send.push(stream);
         }
     }
+
     /// settings
     pub fn apply_remote_settings(
         &mut self,
@@ -148,6 +146,7 @@ impl Send {
 
         Ok(())
     }
+
     pub fn recv_stream_window_update(
         &mut self,
         inc: WindowSize,
