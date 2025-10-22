@@ -109,6 +109,14 @@ impl Send {
         settings: &Settings,
         store: &mut Store,
     ) -> Result<(), super::Error> {
+        if let Some(val) = settings.is_push_enabled() {
+            self.is_push_enabled = val
+        }
+
+        if let Some(val) = settings.is_extended_connect_protocol_enabled() {
+            self.is_extended_connect_protocol_enabled = val;
+        }
+
         if let Some(val) = settings.initial_window_size() {
             let old_val = self.init_stream_window_sz;
             self.init_stream_window_sz = val;
