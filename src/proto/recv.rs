@@ -50,6 +50,11 @@ pub(super) struct Recv {
     //
     ///// If extended connect protocol is enabled.
     //is_extended_connect_protocol_enabled: bool,
+    /// If push promises are allowed to be received.
+    is_push_enabled: bool,
+
+    /// If extended connect protocol is enabled.
+    is_extended_connect_protocol_enabled: bool,
 }
 
 #[derive(Debug)]
@@ -77,6 +82,8 @@ impl Recv {
             next_stream_id: Ok(role.init_stream_id()),
             pending_reset_expired: Queue::new(),
             reset_duration: config.reset_stream_duration,
+            is_push_enabled: false,
+            is_extended_connect_protocol_enabled: false,
         }
     }
 }
