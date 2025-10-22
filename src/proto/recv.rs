@@ -85,6 +85,8 @@ impl Recv {
         }
     }
 
+    // ===== Settings =====
+
     pub fn apply_local_settings(
         &mut self,
         settings: &Settings,
@@ -130,5 +132,14 @@ impl Recv {
             }
         }
         Ok(())
+    }
+
+    // ===== GOAWAY =====
+
+    /// Get the max ID of streams we can receive.
+    ///
+    /// This gets lowered if we send a GOAWAY frame.
+    pub fn max_stream_id(&self) -> StreamId {
+        self.max_stream_id
     }
 }
