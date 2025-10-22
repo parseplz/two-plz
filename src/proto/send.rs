@@ -1,13 +1,19 @@
+use crate::DEFAULT_INITIAL_WINDOW_SIZE;
+use crate::Frame;
+use crate::Reason;
+use crate::Settings;
+use crate::proto::Error;
+use crate::proto::buffer::Buffer;
+use crate::proto::config::ConnectionConfig;
+use crate::proto::store::Ptr;
+use crate::proto::store::Queue;
+use crate::proto::store::Store;
+use crate::proto::stream;
+use std::cmp::Ordering;
+
 use crate::{
-    frame::{DEFAULT_INITIAL_WINDOW_SIZE, Frame, StreamId},
-    proto::{
-        WindowSize,
-        buffer::Buffer,
-        config::ConnectionConfig,
-        flow_control::FlowControl,
-        store::{Ptr, Queue},
-        stream,
-    },
+    StreamId,
+    proto::{WindowSize, flow_control::FlowControl},
     role::Role,
     stream_id::StreamIdOverflow,
 };
@@ -91,5 +97,53 @@ impl Send {
             // Queue the stream
             self.pending_send.push(stream);
         }
+    }
+    /// settings
+    pub fn apply_remote_settings(
+        &mut self,
+        settings: &Settings,
+        store: &mut Store,
+    ) -> Result<(), super::Error> {
+        if let Some(val) = settings.initial_window_size() {
+            let old_val = self.init_stream_window_sz;
+            self.init_stream_window_sz = val;
+
+            match val.cmp(&old_val) {
+                Ordering::Less => {
+                    let dec = old_val - val;
+                    store.try_for_each(|mut stream| {
+                        let stream = &mut *stream;
+                        if stream.state.is_send_closed() {
+                            return Ok(());
+                        }
+                        stream
+                            .send_flow
+                            .dec_window(dec)
+                            .map_err(Error::library_go_away)
+                    })?
+                }
+                Ordering::Greater => {
+                    let inc = val - old_val;
+                    store.try_for_each(|mut stream| {
+                        self.recv_stream_window_update(inc, &mut stream)
+                            .map_err(Error::library_go_away)
+                    })?;
+                }
+                Ordering::Equal => (),
+            }
+        }
+
+        Ok(())
+    }
+    pub fn recv_stream_window_update(
+        &mut self,
+        inc: WindowSize,
+        stream: &mut Ptr,
+    ) -> Result<(), Reason> {
+        if stream.state.is_send_closed() {
+            return Ok(());
+        }
+        stream.send_flow.inc_window(inc)?;
+        Ok(())
     }
 }

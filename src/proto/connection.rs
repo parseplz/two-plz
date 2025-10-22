@@ -82,17 +82,23 @@ where
     // ===== Settings =====
     pub fn handle_settings(
         &mut self,
-        frame: Settings,
+        local: Settings,
     ) -> Result<SettingsAction, proto::Error> {
-        self.settings_handler.recv(frame)
+        self.settings_handler.recv(local)
     }
 
     pub fn apply_local_settings(&mut self, settings: Settings) {
         todo!()
     }
 
-    pub fn apply_remote_settings(&mut self, settings: Settings) {
-        todo!()
+    pub fn apply_remote_settings(
+        &mut self,
+        settings: Settings,
+    ) -> Result<(), super::Error> {
+        self.count
+            .apply_remote_settings(&settings);
+        self.send
+            .apply_remote_settings(&settings, &mut self.store)
     }
 
     pub fn take_remote_settings(&mut self) -> Settings {
