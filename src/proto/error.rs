@@ -4,9 +4,10 @@ use crate::frame::{Reason, StreamId};
 use bytes::Bytes;
 use std::fmt;
 use std::io;
+use thiserror::Error;
 
 /// Either an H2 reason  or an I/O error
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Error)]
 pub enum ProtoError {
     Reset(StreamId, Reason, Initiator),
     GoAway(Bytes, Reason, Initiator),

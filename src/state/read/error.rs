@@ -6,7 +6,7 @@ use crate::codec::UserError;
 #[derive(Debug, Error)]
 pub enum ReadError {
     #[error("proto| {0}")]
-    Proto(ProtoError),
+    Proto(#[from] ProtoError),
     #[error("user| {0}")]
     User(#[from] UserError),
     // Ping
