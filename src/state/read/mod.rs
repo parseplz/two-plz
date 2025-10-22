@@ -82,20 +82,19 @@ where
                 PingAction::Shutdown => todo!(),
             },
             Self::HandleSettings(conn, settings) => {
-                match conn.handle_settings(settings) {
-                    Ok(SettingsAction::SendAck) => {
+                match conn.handle_settings(settings)? {
+                    SettingsAction::SendAck => {
                         conn.buffer(Settings::ack().into())?;
                         let remote = conn.take_remote_settings();
                         // TODO: lead to further writes ?
-                        conn.apply_remote_settings(remote);
+                        conn.apply_remote_settings(remote)?;
                         Self::NeedsFlush
                     }
-                    Ok(SettingsAction::ApplyLocal(settings)) => {
+                    SettingsAction::ApplyLocal(settings) => {
                         // TODO: lead to further writes ?
-                        conn.apply_local_settings(settings);
+                        conn.apply_local_settings(settings)?;
                         Self::End
                     }
-                    Err(e) => return Err(ReadError::Proto(e)),
                 }
             }
             _ => todo!(),
