@@ -174,11 +174,11 @@ fn decode_frame(
                     // A stream cannot depend on itself. An endpoint MUST
                     // treat this as a stream error (Section 5.4.2) of type
                     // `PROTOCOL_ERROR`.
-                    return Err(Error::library_reset($head.stream_id(), Reason::PROTOCOL_ERROR));
+                    return Err(ProtoError::library_reset($head.stream_id(), Reason::PROTOCOL_ERROR));
                 },
                 Err(e) => {
                     proto_err!(conn: "failed to load frame; err={:?}", e);
-                    return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+                    return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
                 }
             };
 
@@ -191,11 +191,11 @@ fn decode_frame(
                 Err(frame::Error::MalformedMessage) => {
                     let id = $head.stream_id();
                     proto_err!(stream: "malformed header block; stream={:?}", id);
-                    return Err(Error::library_reset(id, Reason::PROTOCOL_ERROR));
+                    return Err(ProtoError::library_reset(id, Reason::PROTOCOL_ERROR));
                 },
                 Err(e) => {
                     proto_err!(conn: "failed HPACK decoding; err={:?}", e);
-                    return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+                    return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
                 }
             }
 

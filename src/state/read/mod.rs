@@ -1,5 +1,5 @@
 mod error;
-use error::StateError;
+use error::ReadError;
 
 use crate::{
     frame::*,
@@ -15,7 +15,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 pub fn read_runner<T, E, U>(
     conn: &mut Connection<T, E, U>,
     frame: Frame,
-) -> Result<ReadState<T, E, U>, StateError>
+) -> Result<ReadState<T, E, U>, ReadError>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -51,7 +51,7 @@ where
         ReadState::HandleFrame(conn, frame)
     }
 
-    pub fn next(self) -> Result<Self, StateError> {
+    pub fn next(self) -> Result<Self, ReadError> {
         let next_state = match self {
             Self::HandleFrame(conn, frame) => match frame {
                 Frame::Data(data) => Self::HandleData(conn, data),
@@ -73,11 +73,11 @@ where
                         conn.buffer(pong.into())?;
                         Self::NeedsFlush
                     } else {
-                        return Err(StateError::PongPending);
+                        return Err(ReadError::PongPending);
                     }
                 }
                 PingAction::Unknown => {
-                    return Err(StateError::UnknownPing);
+                    return Err(ReadError::UnknownPing);
                 }
                 PingAction::Shutdown => todo!(),
             },
@@ -95,7 +95,7 @@ where
                         conn.apply_local_settings(settings);
                         Self::End
                     }
-                    Err(e) => return Err(StateError::Proto(e)),
+                    Err(e) => return Err(ReadError::Proto(e)),
                 }
             }
             _ => todo!(),

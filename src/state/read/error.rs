@@ -4,7 +4,7 @@ use thiserror::Error;
 use crate::codec::UserError;
 
 #[derive(Debug, Error)]
-pub enum StateError {
+pub enum ReadError {
     #[error("proto| {0}")]
     Proto(ProtoError),
     #[error("user| {0}")]
