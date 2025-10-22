@@ -56,6 +56,9 @@ pub struct Send {
     // TODO
     //is_push_enabled: bool,
     //is_extended_connect_protocol_enabled: bool,
+
+    is_push_enabled: bool,
+    is_extended_connect_protocol_enabled: bool,
 }
 
 impl Send {
@@ -73,6 +76,8 @@ impl Send {
             pending_open: Queue::new(),
             pending_reset: Queue::new(),
             pending_send: Queue::new(),
+            is_push_enabled: false,
+            is_extended_connect_protocol_enabled: false,
         }
     }
 
