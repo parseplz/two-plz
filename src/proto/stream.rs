@@ -57,7 +57,7 @@ pub struct Stream {
     pub reset_at: Option<Instant>,
     pub next_reset_expire: Option<Key>,
     // TODO
-    state: State,
+    pub state: State,
     //pub content_length: ContentLength,
 }
 

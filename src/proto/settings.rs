@@ -1,7 +1,9 @@
 use crate::{Reason, frame::Settings, proto};
 
 pub enum SettingsAction {
+    /// send a SETTINGS ACK for remote SETTINGS
     SendAck,
+    /// SETTINGS ACK received from peer apply local settings
     ApplyLocal(Settings),
 }
 

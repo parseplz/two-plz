@@ -147,6 +147,9 @@ impl State {
         let eos = frame.is_end_stream();
 
         self.inner = match self.inner {
+            /// Idle => HalfClosedRemote
+            ///         Open { local: AwaitingHeaders, remote: AwaitingHeaders }
+            ///         Open { local: AwaitingHeaders, remote: Streaming }
             Idle => {
                 initial = true;
 
@@ -176,6 +179,9 @@ impl State {
                     HalfClosedLocal(Streaming)
                 }
             }
+            /// open => HalfClosedRemote
+            ///         Open { local, remote: AwaitingHeaders }
+            ///         Open { local, remote: Streaming }
             Open {
                 local,
                 remote: AwaitingHeaders,
