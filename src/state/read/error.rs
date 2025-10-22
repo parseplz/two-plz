@@ -1,4 +1,4 @@
-use crate::proto::Error as ProtoError;
+use crate::proto::ProtoError;
 use thiserror::Error;
 
 use crate::codec::UserError;

@@ -89,7 +89,7 @@ impl Recv {
         &mut self,
         settings: &Settings,
         store: &mut Store,
-    ) -> Result<(), proto::Error> {
+    ) -> Result<(), proto::ProtoError> {
         if let Some(val) = settings.is_extended_connect_protocol_enabled() {
             self.is_extended_connect_protocol_enabled = val;
         }
@@ -108,8 +108,8 @@ impl Recv {
                         stream
                             .recv_flow
                             .dec_window(dec)
-                            .map_err(proto::Error::library_go_away)?;
-                        Ok::<_, proto::Error>(())
+                            .map_err(proto::ProtoError::library_go_away)?;
+                        Ok::<_, proto::ProtoError>(())
                     })?;
                 }
                 // We must increase the (local) window on every open stream.
@@ -122,8 +122,8 @@ impl Recv {
                         stream
                             .recv_flow
                             .inc_window(inc)
-                            .map_err(proto::Error::library_go_away)?;
-                        Ok::<_, proto::Error>(())
+                            .map_err(proto::ProtoError::library_go_away)?;
+                        Ok::<_, proto::ProtoError>(())
                     })?;
                 }
                 Ordering::Equal => (),

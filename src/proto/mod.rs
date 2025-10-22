@@ -14,7 +14,7 @@ mod state;
 mod store;
 mod stream;
 
-pub use error::Error;
+pub use error::ProtoError;
 
 /////////////////////
 pub type PingPayload = [u8; 8];

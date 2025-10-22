@@ -2,7 +2,7 @@ use crate::DEFAULT_INITIAL_WINDOW_SIZE;
 use crate::Frame;
 use crate::Reason;
 use crate::Settings;
-use crate::proto::Error;
+use crate::proto::ProtoError;
 use crate::proto::buffer::Buffer;
 use crate::proto::config::ConnectionConfig;
 use crate::proto::store::Ptr;
@@ -106,7 +106,7 @@ impl Send {
         &mut self,
         settings: &Settings,
         store: &mut Store,
-    ) -> Result<(), super::Error> {
+    ) -> Result<(), super::ProtoError> {
         if let Some(val) = settings.is_push_enabled() {
             self.is_push_enabled = val
         }
@@ -130,14 +130,14 @@ impl Send {
                         stream
                             .send_flow
                             .dec_window(dec)
-                            .map_err(Error::library_go_away)
+                            .map_err(ProtoError::library_go_away)
                     })?
                 }
                 Ordering::Greater => {
                     let inc = val - old_val;
                     store.try_for_each(|mut stream| {
                         self.recv_stream_window_update(inc, &mut stream)
-                            .map_err(Error::library_go_away)
+                            .map_err(ProtoError::library_go_away)
                     })?;
                 }
                 Ordering::Equal => (),

@@ -95,7 +95,7 @@ impl<T> IoStateExt<T> for Result<T, UserError> {
 }
 
 // TODO: Implement display for proto
-impl<T> IoStateExt<T> for Result<T, proto::Error> {
+impl<T> IoStateExt<T> for Result<T, proto::ProtoError> {
     #[inline]
     fn in_state(self, state: PrefaceErrorState) -> Result<T, PrefaceError> {
         self.map_err(|e| PrefaceError::new(state, PrefaceErrorKind::Proto))

@@ -4,7 +4,7 @@ use std::io;
 use crate::codec::UserError;
 use crate::frame::{self, Reason, StreamId};
 use crate::proto::error::Initiator;
-use crate::proto::{self, Error};
+use crate::proto::{self, ProtoError};
 
 use self::Inner::*;
 use self::Peer::*;
@@ -79,7 +79,7 @@ enum Peer {
 #[derive(Debug, Clone)]
 enum Cause {
     EndStream,
-    Error(Error),
+    Error(ProtoError),
 
     /// This indicates to the connection that a reset frame must be sent out
     /// once the send queue has been flushed.
@@ -142,7 +142,7 @@ impl State {
     pub fn recv_open(
         &mut self,
         frame: &frame::Headers,
-    ) -> Result<bool, Error> {
+    ) -> Result<bool, ProtoError> {
         let mut initial = false;
         let eos = frame.is_end_stream();
 
@@ -213,7 +213,9 @@ impl State {
             ref state => {
                 // All other transitions result in a protocol error
                 proto_err!(conn: "recv_open: in unexpected state {:?}", state);
-                return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+                return Err(ProtoError::library_go_away(
+                    Reason::PROTOCOL_ERROR,
+                ));
             }
         };
 
@@ -221,7 +223,7 @@ impl State {
     }
 
     /// Transition from Idle -> ReservedRemote
-    pub fn reserve_remote(&mut self) -> Result<(), Error> {
+    pub fn reserve_remote(&mut self) -> Result<(), ProtoError> {
         match self.inner {
             Idle => {
                 self.inner = ReservedRemote;
@@ -229,7 +231,7 @@ impl State {
             }
             ref state => {
                 proto_err!(conn: "reserve_remote: in unexpected state {:?}", state);
-                Err(Error::library_go_away(Reason::PROTOCOL_ERROR))
+                Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR))
             }
         }
     }
@@ -246,7 +248,7 @@ impl State {
     }
 
     /// Indicates that the remote side will not send more data to the local.
-    pub fn recv_close(&mut self) -> Result<(), Error> {
+    pub fn recv_close(&mut self) -> Result<(), ProtoError> {
         match self.inner {
             Open {
                 local,
@@ -267,7 +269,7 @@ impl State {
             }
             ref state => {
                 proto_err!(conn: "recv_close: in unexpected state {:?}", state);
-                Err(Error::library_go_away(Reason::PROTOCOL_ERROR))
+                Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR))
             }
         }
     }
@@ -303,7 +305,7 @@ impl State {
                     state,
                     queued
                 );
-                self.inner = Closed(Cause::Error(Error::remote_reset(
+                self.inner = Closed(Cause::Error(ProtoError::remote_reset(
                     frame.stream_id(),
                     frame.reason(),
                 )));
@@ -312,7 +314,7 @@ impl State {
     }
 
     /// Handle a connection-level error.
-    pub fn handle_error(&mut self, err: &proto::Error) {
+    pub fn handle_error(&mut self, err: &proto::ProtoError) {
         match self.inner {
             Closed(..) => {}
             _ => {
@@ -367,8 +369,9 @@ impl State {
         reason: Reason,
         initiator: Initiator,
     ) {
-        self.inner =
-            Closed(Cause::Error(Error::Reset(stream_id, reason, initiator)));
+        self.inner = Closed(Cause::Error(ProtoError::Reset(
+            stream_id, reason, initiator,
+        )));
     }
 
     /// Set the stream state to a scheduled reset.
@@ -399,7 +402,7 @@ impl State {
     pub fn is_remote_reset(&self) -> bool {
         matches!(
             self.inner,
-            Closed(Cause::Error(Error::Reset(_, _, Initiator::Remote)))
+            Closed(Cause::Error(ProtoError::Reset(_, _, Initiator::Remote)))
         )
     }
 
@@ -461,12 +464,12 @@ impl State {
         matches!(self.inner, Idle)
     }
 
-    pub fn ensure_recv_open(&self) -> Result<bool, proto::Error> {
+    pub fn ensure_recv_open(&self) -> Result<bool, proto::ProtoError> {
         // TODO: Is this correct?
         match self.inner {
             Closed(Cause::Error(ref e)) => Err(e.clone()),
             Closed(Cause::ScheduledLibraryReset(reason)) => {
-                Err(proto::Error::library_go_away(reason))
+                Err(proto::ProtoError::library_go_away(reason))
             }
             Closed(Cause::EndStream)
             | HalfClosedRemote(..)

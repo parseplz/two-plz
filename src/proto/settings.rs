@@ -1,4 +1,4 @@
-use crate::{frame::Settings, proto, Reason};
+use crate::{Reason, frame::Settings, proto};
 
 pub enum SettingsAction {
     /// send a SETTINGS ACK for remote SETTINGS
@@ -45,7 +45,7 @@ impl SettingsHandler {
     pub fn recv(
         &mut self,
         frame: Settings,
-    ) -> Result<SettingsAction, proto::Error> {
+    ) -> Result<SettingsAction, proto::ProtoError> {
         if frame.is_ack() {
             match &self.local {
                 Local::WaitingAck(settings) => {
@@ -57,7 +57,9 @@ impl SettingsHandler {
                     // We haven't sent any SETTINGS frames to be ACKed, so
                     // this is very bizarre! Remote is either buggy or malicious.
                     proto_err!(conn: "received unexpected settings ack");
-                    Err(proto::Error::library_go_away(Reason::PROTOCOL_ERROR))
+                    Err(proto::ProtoError::library_go_away(
+                        Reason::PROTOCOL_ERROR,
+                    ))
                 }
             }
         } else {

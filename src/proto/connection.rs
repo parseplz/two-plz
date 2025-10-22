@@ -83,14 +83,14 @@ where
     pub fn handle_settings(
         &mut self,
         local: Settings,
-    ) -> Result<SettingsAction, proto::Error> {
+    ) -> Result<SettingsAction, proto::ProtoError> {
         self.settings_handler.recv(local)
     }
 
     pub fn apply_local_settings(
         &mut self,
         settings: Settings,
-    ) -> Result<(), proto::Error> {
+    ) -> Result<(), proto::ProtoError> {
         if let Some(max) = settings.max_frame_size() {
             self.codec
                 .set_max_recv_frame_size(max as usize);
@@ -112,7 +112,7 @@ where
     pub fn apply_remote_settings(
         &mut self,
         settings: Settings,
-    ) -> Result<(), proto::Error> {
+    ) -> Result<(), proto::ProtoError> {
         self.count
             .apply_remote_settings(&settings);
         self.send
@@ -126,7 +126,7 @@ where
 
     // ===== Test =====
     #[cfg(feature = "test-util")]
-    pub fn read_frame(&mut self) -> Result<Frame, proto::Error> {
+    pub fn read_frame(&mut self) -> Result<Frame, proto::ProtoError> {
         self.codec.read_frame()
     }
 }

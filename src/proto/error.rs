@@ -7,7 +7,7 @@ use std::io;
 
 /// Either an H2 reason  or an I/O error
 #[derive(Clone, Debug)]
-pub enum Error {
+pub enum ProtoError {
     Reset(StreamId, Reason, Initiator),
     GoAway(Bytes, Reason, Initiator),
     Io(io::ErrorKind, Option<String>),
@@ -25,7 +25,7 @@ pub enum Initiator {
     Remote,
 }
 
-impl Error {
+impl ProtoError {
     pub(crate) fn is_local(&self) -> bool {
         match *self {
             Self::Reset(_, _, initiator) | Self::GoAway(_, _, initiator) => {
@@ -76,7 +76,7 @@ impl Initiator {
     }
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for ProtoError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Self::Reset(_, reason, _) | Self::GoAway(_, reason, _) => {
@@ -88,15 +88,15 @@ impl fmt::Display for Error {
     }
 }
 
-impl From<io::ErrorKind> for Error {
+impl From<io::ErrorKind> for ProtoError {
     fn from(src: io::ErrorKind) -> Self {
-        Error::Io(src, None)
+        ProtoError::Io(src, None)
     }
 }
 
-impl From<io::Error> for Error {
+impl From<io::Error> for ProtoError {
     fn from(src: io::Error) -> Self {
-        Error::Io(
+        ProtoError::Io(
             src.kind(),
             src.get_ref()
                 .map(|inner| inner.to_string()),
@@ -104,8 +104,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<Error> for SendError {
-    fn from(src: Error) -> Self {
+impl From<ProtoError> for SendError {
+    fn from(src: ProtoError) -> Self {
         Self::Connection(src)
     }
 }

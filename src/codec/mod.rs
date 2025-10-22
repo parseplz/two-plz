@@ -8,7 +8,7 @@ use self::framed_read::FramedRead;
 use self::framed_write::FramedWrite;
 
 use crate::frame::{self, Data, Frame};
-use crate::proto::{self, Error};
+use crate::proto::{self, ProtoError};
 
 use bytes::{Buf, BytesMut};
 use futures_core::Stream;
@@ -148,7 +148,7 @@ impl<T, B> Codec<T, B> {
     }
 
     #[cfg(feature = "test-util")]
-    pub fn read_frame(&mut self) -> Result<Frame, proto::Error> {
+    pub fn read_frame(&mut self) -> Result<Frame, proto::ProtoError> {
         self.inner.read_frame()
     }
 }
@@ -188,7 +188,7 @@ impl<T, B> Stream for Codec<T, B>
 where
     T: AsyncRead + Unpin,
 {
-    type Item = Result<Frame, Error>;
+    type Item = Result<Frame, ProtoError>;
 
     fn poll_next(
         mut self: Pin<&mut Self>,
