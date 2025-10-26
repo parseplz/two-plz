@@ -136,7 +136,7 @@ impl Send {
                 Ordering::Greater => {
                     let inc = val - old_val;
                     store.try_for_each(|mut stream| {
-                        self.recv_stream_window_update(inc, &mut stream)
+                        self.recv_stream_window_update(&mut stream, inc)
                             .map_err(ProtoError::library_go_away)
                     })?;
                 }
@@ -150,7 +150,10 @@ impl Send {
     pub fn recv_stream_window_update(
         &mut self,
         inc: WindowSize,
+    pub fn recv_stream_window_update(
+        &mut self,
         stream: &mut Ptr,
+        inc: WindowSize,
     ) -> Result<(), Reason> {
         if stream.state.is_send_closed() {
             return Ok(());
