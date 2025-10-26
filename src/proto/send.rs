@@ -101,7 +101,7 @@ impl Send {
         }
     }
 
-    /// settings
+    // ===== settings =====
     pub fn apply_remote_settings(
         &mut self,
         settings: &Settings,
@@ -147,9 +147,14 @@ impl Send {
         Ok(())
     }
 
-    pub fn recv_stream_window_update(
+    // ===== window update =====
+    pub fn recv_connection_window_update(
         &mut self,
         inc: WindowSize,
+    ) -> Result<(), Reason> {
+        self.flow.inc_window(inc)
+    }
+
     pub fn recv_stream_window_update(
         &mut self,
         stream: &mut Ptr,
