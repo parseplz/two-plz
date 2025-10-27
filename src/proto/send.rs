@@ -43,7 +43,7 @@ pub struct Send {
     // TODO: make this configurable
     // hyper Builder::StreamId
     /// Stream identifier to use for next initialized stream.
-    next_stream_id: Result<StreamId, StreamIdOverflow>,
+    pub next_stream_id: Result<StreamId, StreamIdOverflow>,
 
     /// Queue of streams waiting for socket capacity to send a frame.
     pending_send: Queue<stream::NextSend>,

@@ -38,7 +38,7 @@ pub(super) struct Recv {
     max_stream_id: StreamId,
 
     /// The lowest stream ID that is still idle
-    next_stream_id: Result<StreamId, StreamIdOverflow>,
+    pub next_stream_id: Result<StreamId, StreamIdOverflow>,
 
     /// Streams that have pending window updates
     /// pending_window_updates: Queue<NextWindowUpdate>,
