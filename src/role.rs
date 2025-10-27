@@ -22,4 +22,9 @@ impl Role {
             1.into()
         }
     }
+
+    pub fn is_local_init(&self, id: StreamId) -> bool {
+        assert!(!id.is_zero());
+        self.is_server() == id.is_server_initiated()
+    }
 }
