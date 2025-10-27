@@ -1,3 +1,5 @@
+use crate::Reason;
+use crate::proto::error::Initiator;
 use bytes::BytesMut;
 use std::time::Instant;
 
@@ -103,6 +105,11 @@ impl Stream {
 
     pub fn is_send_ready(&self) -> bool {
         !self.is_pending_open
+    }
+
+    pub(super) fn set_reset(&mut self, reason: Reason, initiator: Initiator) {
+        self.state
+            .set_reset(self.id, reason, initiator);
     }
 }
 
