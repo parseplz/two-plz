@@ -126,6 +126,15 @@ where
             .take_remote_settings()
     }
 
+    // ==== Window Update =====
+    pub fn recv_connection_window_update(
+        &mut self,
+        size: u32,
+    ) -> Result<(), ProtoError> {
+        self.send
+            .recv_connection_window_update(size)
+            .map_err(ProtoError::library_go_away)
+    }
 
     // ===== Misc =====
     /// Check whether the stream was present in the past
