@@ -19,6 +19,9 @@ use crate::{
 };
 
 pub struct Send {
+    /// Holds frames that are waiting to be sent
+    buffer: Buffer<Frame>,
+
     /// Initial window size of locally initiated streams
     init_stream_window_sz: WindowSize,
 
@@ -61,6 +64,7 @@ pub struct Send {
 impl Send {
     pub fn new(config: &ConnectionConfig, role: &Role) -> Send {
         Send {
+            buffer: Buffer::new(),
             flow: FlowControl::new(DEFAULT_INITIAL_WINDOW_SIZE),
             init_stream_window_sz: config
                 .peer_settings
