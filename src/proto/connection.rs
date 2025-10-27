@@ -124,6 +124,24 @@ where
             .take_remote_settings()
     }
 
+
+    // ===== Misc =====
+    /// Check whether the stream was present in the past
+    fn ensure_not_idle(&mut self, id: StreamId) -> Result<(), Reason> {
+        let next_id = if self.role.is_local_init(id) {
+            self.send.next_stream_id
+        } else {
+            self.recv.next_stream_id
+        };
+
+        if let Ok(next) = next_id {
+            if id >= next {
+                return Err(Reason::PROTOCOL_ERROR);
+            }
+        }
+        Ok(())
+    }
+
     // ===== Test =====
     #[cfg(feature = "test-util")]
     pub fn read_frame(&mut self) -> Result<Frame, proto::ProtoError> {
