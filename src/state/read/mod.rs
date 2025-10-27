@@ -64,7 +64,7 @@ where
                 Frame::PushPromise(push_promise) => todo!(),
                 Frame::Ping(ping) => Self::HandlePing(conn, ping),
                 Frame::GoAway(go_away) => todo!(),
-                Frame::WindowUpdate(window_update) => todo!(),
+                Frame::WindowUpdate(wu) => Self::HandleWindowUpdate(conn, wu),
             },
             Self::HandlePing(conn, ping) => match conn.handle_ping(ping) {
                 PingAction::Ok => Self::End,
@@ -96,6 +96,16 @@ where
                         Self::End
                     }
                 }
+            }
+            Self::HandleWindowUpdate(conn, window_update) => {
+                let id = window_update.stream_id();
+                let inc = window_update.size_increment();
+                if id.is_zero() {
+                    conn.recv_connection_window_update(inc)?
+                } else {
+                    conn.recv_stream_window_update(id, inc)?
+                }
+                todo!()
             }
             _ => todo!(),
         };
