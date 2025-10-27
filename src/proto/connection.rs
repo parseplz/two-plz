@@ -136,6 +136,30 @@ where
             .map_err(ProtoError::library_go_away)
     }
 
+    pub fn recv_stream_window_update(
+        &mut self,
+        id: StreamId,
+        size: u32,
+    ) -> Result<(), ProtoError> {
+        if let Some(mut stream) = self.store.find_mut(&id) {
+            if let Err(e) = self
+                .send
+                .recv_stream_window_update(&mut stream, size)
+            {
+                // send reset
+                self.send.send_reset(
+                    Reason::FLOW_CONTROL_ERROR,
+                    Initiator::Library,
+                    &mut stream,
+                )
+            }
+            Ok(())
+        } else {
+            self.ensure_not_idle(id)
+                .map_err(ProtoError::library_go_away)
+        }
+    }
+
     // ===== Misc =====
     /// Check whether the stream was present in the past
     fn ensure_not_idle(&mut self, id: StreamId) -> Result<(), Reason> {
