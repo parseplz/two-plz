@@ -92,6 +92,17 @@ impl Send {
         self.schedule_send(stream);
     }
 
+    /// Clear the send queue for a stream
+    pub fn clear_queue(&mut self, stream: &mut Ptr) {
+        while let Some(frame) = stream
+            .pending_send
+            .pop_front(&mut self.buffer)
+        {
+            tracing::trace!(?frame, "dropping");
+        }
+    }
+
+    /// Schedule a stream to be sent
     pub fn schedule_send(&mut self, stream: &mut Ptr) {
         // If the stream is waiting to be opened, nothing more to do.
         if stream.is_send_ready() {
