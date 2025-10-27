@@ -166,4 +166,47 @@ impl Send {
         stream.send_flow.inc_window(inc)?;
         Ok(())
     }
+
+    // ===== reset =====
+    pub fn send_reset(
+        &mut self,
+        reason: Reason,
+        initiator: Initiator,
+        stream: &mut Ptr,
+    ) {
+        let is_reset = stream.state.is_reset();
+        let is_closed = stream.state.is_closed();
+        let is_empty = stream.pending_send.is_empty();
+        let stream_id = stream.id;
+
+        if is_reset {
+            // Don't double reset
+            tracing::trace!(
+                " -> not sending RST_STREAM ({:?} is already reset)",
+                stream_id
+            );
+            return;
+        }
+
+        // Transition the state to reset no matter what.
+        stream.set_reset(reason, initiator);
+
+        // If closed AND the send queue is flushed, then the stream cannot be
+        // reset explicitly, either. Implicit resets can still be queued.
+        if is_closed && is_empty {
+            tracing::trace!(
+                " -> not sending explicit RST_STREAM ({:?} was closed \
+                 and send queue was flushed)",
+                stream_id
+            );
+            return;
+        }
+
+        // Clear all pending outbound frames.
+        self.clear_queue(stream);
+
+        // add reset to the send queue
+        let frame = frame::Reset::new(stream.id, reason);
+        self.queue_frame(frame.into(), stream);
+    }
 }
