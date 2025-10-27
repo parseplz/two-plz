@@ -1,4 +1,6 @@
+use crate::proto::ProtoError;
 use crate::proto::count::Counts;
+use crate::proto::error::Initiator;
 use crate::proto::send::Send;
 use crate::proto::settings::SettingsAction;
 use crate::proto::store::Store;
@@ -13,7 +15,7 @@ use tokio::{
     sync::mpsc::{self, error::SendError},
 };
 
-use crate::{Settings, proto};
+use crate::{Reason, Reset, Settings, WindowUpdate, frame, proto};
 use crate::{
     codec::{Codec, UserError},
     frame::{Frame, Ping, StreamId},
@@ -83,14 +85,14 @@ where
     pub fn handle_settings(
         &mut self,
         local: Settings,
-    ) -> Result<SettingsAction, proto::ProtoError> {
+    ) -> Result<SettingsAction, ProtoError> {
         self.settings_handler.recv(local)
     }
 
     pub fn apply_local_settings(
         &mut self,
         settings: Settings,
-    ) -> Result<(), proto::ProtoError> {
+    ) -> Result<(), ProtoError> {
         if let Some(max) = settings.max_frame_size() {
             self.codec
                 .set_max_recv_frame_size(max as usize);
@@ -112,7 +114,7 @@ where
     pub fn apply_remote_settings(
         &mut self,
         settings: Settings,
-    ) -> Result<(), proto::ProtoError> {
+    ) -> Result<(), ProtoError> {
         self.count
             .apply_remote_settings(&settings);
         self.send
