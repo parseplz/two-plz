@@ -202,4 +202,8 @@ impl Counts {
         assert!(self.can_inc_num_remote_reset_streams());
         self.num_remote_reset_streams += 1;
     }
+
+    pub(crate) fn max_remote_reset_streams(&self) -> usize {
+        self.max_remote_reset_streams
+    }
 }
