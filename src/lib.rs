@@ -19,6 +19,7 @@ macro_rules! ready {
 }
 
 pub mod builder;
+pub mod client;
 pub mod codec;
 mod ext;
 mod frame;

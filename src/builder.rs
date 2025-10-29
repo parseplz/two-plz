@@ -2,11 +2,9 @@ use bytes::BytesMut;
 use tokio::io::AsyncWriteExt;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use crate::client::ClientConnection;
 use crate::preface::PrefaceErrorState;
 use crate::proto::config::ConnectionConfig;
-use crate::proto::connection::{
-    ClientConnection, ClientHandler, ServerConnection, ServerHandler,
-};
 use crate::proto::{
     DEFAULT_LOCAL_RESET_COUNT_MAX, DEFAULT_REMOTE_RESET_COUNT_MAX,
     DEFAULT_RESET_STREAM_MAX, DEFAULT_RESET_STREAM_SECS,
@@ -21,10 +19,6 @@ use crate::{
 };
 use std::marker::PhantomData;
 use std::time::Duration;
-
-pub struct Client;
-
-pub type ClientBuilder = Builder<Client>;
 
 pub trait BuildConnection {
     type Connection<T>: Sized;
@@ -42,34 +36,6 @@ pub trait BuildConnection {
     ) -> Self::Connection<T>
     where
         T: AsyncRead + AsyncWrite + Unpin;
-}
-
-impl BuildConnection for Client {
-    type Connection<T> = ClientConnection<T>;
-    type Handler = ClientHandler;
-
-    fn is_server() -> bool {
-        false
-    }
-
-    fn is_client() -> bool {
-        true
-    }
-
-    fn init_stream_id() -> StreamId {
-        1.into()
-    }
-
-    fn create_connection<T>(
-        role: Role,
-        config: ConnectionConfig,
-        codec: Codec<T, BytesMut>,
-    ) -> (Self::Connection<T>, Self::Handler)
-    where
-        T: AsyncRead + AsyncWrite + Unpin,
-    {
-        Connection::new(role, config, codec)
-    }
 }
 
 pub struct Builder<R> {
