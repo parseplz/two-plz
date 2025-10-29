@@ -12,10 +12,10 @@ use futures::StreamExt;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 // Run the state machine once a frame is received
-pub fn read_runner<T, E, U>(
-    conn: &mut Connection<T, E, U>,
+pub fn read_runner<T>(
+    conn: &mut Connection<T>,
     frame: Frame,
-) -> Result<ReadState<T, E, U>, ReadError>
+) -> Result<ReadState<T>, ReadError>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -28,26 +28,26 @@ where
     }
 }
 
-pub enum ReadState<'a, T, E, U> {
-    HandleFrame(&'a mut Connection<T, E, U>, Frame),
-    HandleData(&'a mut Connection<T, E, U>, Data),
-    HandleHeaders(&'a mut Connection<T, E, U>, Headers),
-    HandlePriority(&'a mut Connection<T, E, U>, Priority),
-    HandleReset(&'a mut Connection<T, E, U>, Reset),
-    HandleSettings(&'a mut Connection<T, E, U>, Settings),
-    HandlePushPromise(&'a mut Connection<T, E, U>, PushPromise),
-    HandlePing(&'a mut Connection<T, E, U>, Ping),
-    HandleGoAway(&'a mut Connection<T, E, U>, GoAway),
-    HandleWindowUpdate(&'a mut Connection<T, E, U>, WindowUpdate),
+pub enum ReadState<'a, T> {
+    HandleFrame(&'a mut Connection<T>, Frame),
+    HandleData(&'a mut Connection<T>, Data),
+    HandleHeaders(&'a mut Connection<T>, Headers),
+    HandlePriority(&'a mut Connection<T>, Priority),
+    HandleReset(&'a mut Connection<T>, Reset),
+    HandleSettings(&'a mut Connection<T>, Settings),
+    HandlePushPromise(&'a mut Connection<T>, PushPromise),
+    HandlePing(&'a mut Connection<T>, Ping),
+    HandleGoAway(&'a mut Connection<T>, GoAway),
+    HandleWindowUpdate(&'a mut Connection<T>, WindowUpdate),
     NeedsFlush,
     End,
 }
 
-impl<'a, T, E, U> ReadState<'a, T, E, U>
+impl<'a, T> ReadState<'a, T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
-    pub fn init(conn: &'a mut Connection<T, E, U>, frame: Frame) -> Self {
+    pub fn init(conn: &'a mut Connection<T>, frame: Frame) -> Self {
         ReadState::HandleFrame(conn, frame)
     }
 
@@ -117,7 +117,7 @@ where
     }
 }
 
-impl<'a, T, E, U> std::fmt::Debug for ReadState<'a, T, E, U> {
+impl<'a, T> std::fmt::Debug for ReadState<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::HandleFrame(..) => write!(f, "HandleFrame"),
@@ -137,7 +137,7 @@ impl<'a, T, E, U> std::fmt::Debug for ReadState<'a, T, E, U> {
 }
 
 #[cfg(feature = "test-util")]
-impl<'a, T, E, U> PartialEq for ReadState<'a, T, E, U> {
+impl<'a, T> PartialEq for ReadState<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         std::mem::discriminant(self) == std::mem::discriminant(other)
     }
