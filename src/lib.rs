@@ -33,3 +33,7 @@ pub mod state;
 pub use crate::proto::connection::Connection;
 pub use codec::Codec;
 pub use frame::*;
+
+// TODO: move to their respective modules
+struct Request;
+struct Response;
