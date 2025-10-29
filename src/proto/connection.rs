@@ -25,11 +25,8 @@ use crate::{
     },
 };
 
-// E = sender = to user
-// U = receiver = from user
-pub struct Connection<T, E, U> {
+pub struct Connection<T> {
     count: Counts,
-    pub handler: Handler<E, U>,
     ping_handler: PingHandler,
     recv: Recv,
     role: Role,
@@ -39,7 +36,7 @@ pub struct Connection<T, E, U> {
     pub codec: Codec<T, BytesMut>,
 }
 
-impl<T, E, U> Connection<T, E, U>
+impl<T> Connection<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -47,24 +44,21 @@ where
         role: Role,
         config: ConnectionConfig,
         stream: Codec<T, BytesMut>,
-    ) -> (Self, Handler<U, E>) {
-        let (handler, user_handle) = Handler::build();
+    ) -> Self {
         let send = Send::new(&config, &role);
         let recv = Recv::new(&config, &role);
-        let conn = Connection {
+        Connection {
             ping_handler: PingHandler::new(),
             settings_handler: SettingsHandler::new(
                 config.local_settings.clone(),
             ),
-            handler,
             codec: stream,
             role,
             count: Counts::new(&config),
             send,
             recv,
             store: Store::new(),
-        };
-        (conn, user_handle)
+        }
     }
 
     // ===== Codec =====
@@ -181,47 +175,5 @@ where
     #[cfg(feature = "test-util")]
     pub fn read_frame(&mut self) -> Result<Frame, proto::ProtoError> {
         self.codec.read_frame()
-    }
-}
-
-pub type ServerConnection<T> = Connection<T, ServerToUser, UserToServer>;
-pub type ClientConnection<T> = Connection<T, ClientToUser, UserToClient>;
-
-pub type ServerHandler = Handler<UserToServer, ServerToUser>;
-pub type ClientHandler = Handler<UserToClient, ClientToUser>;
-
-pub enum ServerToUser {} // Request
-pub enum UserToServer {} // Response
-
-pub enum ClientToUser {} // Response
-pub enum UserToClient {} // Request
-
-pub struct Handler<T, E> {
-    sender: mpsc::Sender<T>,
-    pub receiver: mpsc::Receiver<E>,
-}
-
-impl<T, E> Handler<T, E> {
-    fn build() -> (Handler<T, E>, Handler<E, T>) {
-        let (ftx, frx) = mpsc::channel(1);
-        let (stx, srx) = mpsc::channel(1);
-        (
-            Handler {
-                sender: ftx,
-                receiver: srx,
-            },
-            Handler {
-                sender: stx,
-                receiver: frx,
-            },
-        )
-    }
-
-    pub async fn recv(&mut self) -> Option<E> {
-        self.receiver.recv().await
-    }
-
-    async fn send(&mut self, item: T) -> Result<(), SendError<T>> {
-        self.sender.send(item).await
     }
 }
