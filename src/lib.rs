@@ -27,6 +27,7 @@ pub mod io;
 pub mod preface;
 pub mod proto;
 pub mod role;
+pub mod server;
 pub mod state;
 
 // tests

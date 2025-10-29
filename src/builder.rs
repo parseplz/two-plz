@@ -12,6 +12,7 @@ use crate::proto::{
     DEFAULT_RESET_STREAM_MAX, DEFAULT_RESET_STREAM_SECS,
 };
 use crate::role::Role;
+use crate::server::ServerConnection;
 use crate::{Codec, Connection};
 use crate::{
     Settings, StreamId,
@@ -22,10 +23,8 @@ use std::marker::PhantomData;
 use std::time::Duration;
 
 pub struct Client;
-pub struct Server;
 
 pub type ClientBuilder = Builder<Client>;
-pub type ServerBuilder = Builder<Server>;
 
 pub trait BuildConnection {
     type Connection<T>: Sized;
@@ -59,35 +58,6 @@ impl BuildConnection for Client {
 
     fn init_stream_id() -> StreamId {
         1.into()
-    }
-
-    fn create_connection<T>(
-        role: Role,
-        config: ConnectionConfig,
-        codec: Codec<T, BytesMut>,
-    ) -> (Self::Connection<T>, Self::Handler)
-    where
-        T: AsyncRead + AsyncWrite + Unpin,
-    {
-        Connection::new(role, config, codec)
-    }
-}
-
-impl BuildConnection for Server {
-    type Connection<T> = ServerConnection<T>;
-
-    type Handler = ServerHandler;
-
-    fn is_server() -> bool {
-        true
-    }
-
-    fn is_client() -> bool {
-        false
-    }
-
-    fn init_stream_id() -> StreamId {
-        2.into()
     }
 
     fn create_connection<T>(
