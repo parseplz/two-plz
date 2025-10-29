@@ -171,6 +171,37 @@ where
         Ok(())
     }
 
+    /// Check if we possibly could have processed and since forgotten this stream.
+    ///
+    /// If we send a RST_STREAM for a stream, we will eventually "forget" about
+    /// the stream to free up memory. It's possible that the remote peer had
+    /// frames in-flight, and by the time we receive them, our own state is
+    /// gone. We *could* tear everything down by sending a GOAWAY, but it
+    /// is more likely to be latency/memory constraints that caused this,
+    /// and not a bad actor. So be less catastrophic, the spec allows
+    /// us to send another RST_STREAM of STREAM_CLOSED.
+    fn may_have_forgotten_stream(&self, id: StreamId) -> bool {
+        if id.is_zero() {
+            return false;
+        }
+
+        let next = if self.role.is_local_init(id) {
+            self.send.next_stream_id
+        } else {
+            self.recv.next_stream_id
+        };
+
+        if let Ok(next_id) = next {
+            debug_assert_eq!(
+                id.is_server_initiated(),
+                next_id.is_server_initiated(),
+            );
+            id < next_id
+        } else {
+            true
+        }
+    }
+
     // ===== Test =====
     #[cfg(feature = "test-util")]
     pub fn read_frame(&mut self) -> Result<Frame, proto::ProtoError> {
