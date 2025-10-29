@@ -30,19 +30,17 @@ pub type ServerBuilder = Builder<Server>;
 pub trait BuildConnection {
     type Connection<T>: Sized;
 
-    type Handler;
-
     fn is_server() -> bool;
 
     fn is_client() -> bool;
 
     fn init_stream_id() -> StreamId;
 
-    fn create_connection<T>(
+    fn build<T>(
         role: Role,
         config: ConnectionConfig,
         codec: Codec<T, BytesMut>,
-    ) -> (Self::Connection<T>, Self::Handler)
+    ) -> Self::Connection<T>
     where
         T: AsyncRead + AsyncWrite + Unpin;
 }
@@ -325,7 +323,7 @@ where
     pub async fn handshake<T>(
         self,
         io: T,
-    ) -> Result<(R::Connection<T>, R::Handler), PrefaceError>
+    ) -> Result<R::Connection<T>, PrefaceError>
     where
         T: AsyncRead + AsyncWrite + Unpin,
     {
@@ -348,7 +346,7 @@ where
         let remote_settings = preface.take_remote_settings();
         let config = self.build_config(remote_settings);
 
-        Ok(R::create_connection(preface.role, config, preface.stream))
+        Ok(R::build(preface.role, config, preface.stream))
     }
 
     fn build_config(&self, peer_settings: Settings) -> ConnectionConfig {
