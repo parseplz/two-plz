@@ -144,6 +144,15 @@ impl Stream {
         self.state
             .set_reset(self.id, reason, initiator);
     }
+
+
+    pub fn ensure_content_length_zero(&self) -> Result<(), ()> {
+        match self.content_length {
+            ContentLength::Remaining(0) => Ok(()),
+            ContentLength::Remaining(_) => Err(()),
+            _ => Ok(()),
+        }
+    }
 }
 
 // ===== Queue =====
