@@ -10,7 +10,7 @@ use crate::proto::stream::Stream;
 mod entry;
 mod ptr;
 mod queue;
-use entry::*;
+pub use entry::*;
 pub(crate) use ptr::{Key, Ptr};
 pub(crate) use queue::{Next, Queue};
 

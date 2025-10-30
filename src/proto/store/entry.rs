@@ -3,16 +3,16 @@ use indexmap::{self};
 use super::*;
 use crate::proto::store::ptr::Key;
 
-pub(super) enum Entry<'a> {
+pub enum Entry<'a> {
     Occupied(OccupiedEntry<'a>),
     Vacant(VacantEntry<'a>),
 }
 
-pub(super) struct OccupiedEntry<'a> {
+pub struct OccupiedEntry<'a> {
     pub ids: indexmap::map::OccupiedEntry<'a, StreamId, SlabIndex>,
 }
 
-pub(super) struct VacantEntry<'a> {
+pub struct VacantEntry<'a> {
     pub ids: indexmap::map::VacantEntry<'a, StreamId, SlabIndex>,
     pub slab: &'a mut slab::Slab<Stream>,
 }

@@ -20,6 +20,7 @@ use crate::{
     stream_id::StreamIdOverflow,
 };
 
+#[derive(Debug)]
 pub struct Send {
     /// Holds frames that are waiting to be sent
     buffer: Buffer<Frame>,
