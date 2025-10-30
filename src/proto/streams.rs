@@ -48,7 +48,7 @@ pub(crate) struct Streams<B> {
 }
 
 impl<B> Streams<B> {
-    fn new(role: Role, config: ConnectionConfig) -> Self {
+    pub fn new(role: Role, config: ConnectionConfig) -> Self {
         Streams {
             inner: Inner::new(role, config),
             send_buffer: Arc::new(SendBuffer::new()),

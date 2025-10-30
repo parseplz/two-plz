@@ -1,12 +1,16 @@
-use crate::proto::ProtoError;
 use crate::proto::count::Counts;
 use crate::proto::error::Initiator;
+use crate::proto::recv::Open;
 use crate::proto::send::Send;
 use crate::proto::settings::SettingsAction;
 use crate::proto::store::Store;
+use crate::proto::stream::Stream;
+use crate::proto::streams::Streams;
+use crate::proto::{ProtoError, store};
 use crate::proto::{recv::Recv, settings::SettingsHandler};
 use crate::role::Role;
 use std::io::Error;
+use store::Entry;
 
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
@@ -15,7 +19,7 @@ use tokio::{
     sync::mpsc::{self, error::SendError},
 };
 
-use crate::{Reason, Reset, Settings, WindowUpdate, frame, proto};
+use crate::{Headers, Reason, Reset, Settings, WindowUpdate, frame, proto};
 use crate::{
     codec::{Codec, UserError},
     frame::{Frame, Ping, StreamId},
@@ -25,18 +29,15 @@ use crate::{
     },
 };
 
-pub struct Connection<T> {
-    count: Counts,
-    ping_handler: PingHandler,
-    recv: Recv,
-    role: Role,
-    send: Send,
-    store: Store,
-    settings_handler: SettingsHandler,
+pub struct Connection<T, B> {
     pub codec: Codec<T, BytesMut>,
+    streams: Streams<B>,
+    ping_handler: PingHandler,
+    settings_handler: SettingsHandler,
+    role: Role,
 }
 
-impl<T> Connection<T>
+impl<T, B> Connection<T, B>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -53,11 +54,8 @@ where
                 config.local_settings.clone(),
             ),
             codec: stream,
-            role,
-            count: Counts::new(&config),
-            send,
-            recv,
-            store: Store::new(),
+            role: role.clone(),
+            streams: Streams::new(role, config),
         }
     }
 
