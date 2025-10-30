@@ -223,4 +223,52 @@ impl Counts {
     pub fn role(&self) -> Role {
         self.role.clone()
     }
+
+    /// Run a block of code that could potentially transition a stream's state.
+    ///
+    /// If the stream state transitions to closed, this function will perform
+    /// all necessary cleanup.
+    ///
+    /// TODO: Is this function still needed?
+    pub fn transition<F, U>(&mut self, mut stream: Ptr, f: F) -> U
+    where
+        F: FnOnce(&mut Self, &mut Ptr) -> U,
+    {
+        // TODO: Does this need to be computed before performing the action?
+        let is_pending_reset = stream.is_pending_reset_expiration();
+
+        // Run the action
+        let ret = f(self, &mut stream);
+
+        self.transition_after(stream, is_pending_reset);
+
+        ret
+    }
+
+    // TODO: move this to macro?
+    pub fn transition_after(
+        &mut self,
+        mut stream: Ptr,
+        is_reset_counted: bool,
+    ) {
+        if stream.is_closed() {
+            if !stream.is_pending_reset_expiration() {
+                stream.unlink();
+                if is_reset_counted {
+                    self.dec_num_reset_streams();
+                }
+            }
+
+            if !stream.state.is_scheduled_reset() && stream.is_counted {
+                tracing::trace!("dec_num_streams; stream={:?}", stream.id);
+                // Decrement the number of active streams.
+                self.dec_num_streams(&mut stream);
+            }
+        }
+
+        // Release the stream if it requires releasing
+        if stream.is_released() {
+            stream.remove();
+        }
+    }
 }
