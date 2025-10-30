@@ -93,6 +93,36 @@ impl<B> Streams<B> {
             .recv_connection_window_update(size)
             .map_err(ProtoError::library_go_away)
     }
+
+    pub fn recv_stream_window_update(
+        &mut self,
+        id: StreamId,
+        size: u32,
+    ) -> Result<(), ProtoError> {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        if let Some(mut stream) = me.store.find_mut(&id) {
+            if let Err(e) = me
+                .actions
+                .send
+                .recv_stream_window_update(&mut stream, size)
+            {
+                // send reset
+                me.actions.send.send_reset(
+                    Reason::FLOW_CONTROL_ERROR,
+                    Initiator::Library,
+                    &mut stream,
+                )
+            }
+            Ok(())
+        } else {
+            me.actions
+                .ensure_not_idle(me.counts.role(), id)
+                .map_err(ProtoError::library_go_away)
+        }
+    }
+
+    // ===== Misc =====
 }
 
 /// Fields needed to manage state related to managing the set of streams. This
