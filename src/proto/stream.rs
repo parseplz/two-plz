@@ -116,6 +116,12 @@ impl Stream {
         self.state.is_closed() && self.pending_send.is_empty()
     }
 
+    /// Returns true if stream is currently being held for some time because of
+    /// a local reset.
+    pub fn is_pending_reset_expiration(&self) -> bool {
+        self.reset_at.is_some()
+    }
+
     pub fn is_send_ready(&self) -> bool {
         !self.is_pending_open
     }
