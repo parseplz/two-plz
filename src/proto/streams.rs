@@ -67,6 +67,19 @@ impl<B> Streams<B> {
             .recv
             .apply_local_settings(settings, &mut me.store)
     }
+
+    pub fn apply_remote_settings(
+        &mut self,
+        settings: &Settings,
+    ) -> Result<(), ProtoError> {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        me.counts
+            .apply_remote_settings(&settings);
+        me.actions
+            .send
+            .apply_remote_settings(&settings, &mut me.store)
+    }
 }
 
 /// Fields needed to manage state related to managing the set of streams. This

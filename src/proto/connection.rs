@@ -107,10 +107,8 @@ where
         &mut self,
         settings: Settings,
     ) -> Result<(), ProtoError> {
-        self.count
-            .apply_remote_settings(&settings);
-        self.send
-            .apply_remote_settings(&settings, &mut self.store)
+        self.streams
+            .apply_remote_settings(&settings)
     }
 
     pub fn take_remote_settings(&mut self) -> Settings {
