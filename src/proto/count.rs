@@ -103,6 +103,19 @@ impl Counts {
     }
 
     // ===== recv =====
+    fn dec_num_streams(&mut self, stream: &mut Ptr) {
+        assert!(stream.is_counted);
+
+        if self.role.is_local_init(stream.id) {
+            assert!(self.num_send_streams > 0);
+            self.num_send_streams -= 1;
+            stream.is_counted = false;
+        } else {
+            assert!(self.num_recv_streams > 0);
+            self.num_recv_streams -= 1;
+            stream.is_counted = false;
+        }
+    }
 
     pub(crate) fn max_recv_streams(&self) -> usize {
         self.max_recv_streams
@@ -127,11 +140,6 @@ impl Counts {
         stream.is_counted = true;
     }
 
-    pub fn dec_num_recv_streams(&mut self) {
-        assert!(self.num_recv_streams > 0);
-        self.num_recv_streams -= 1;
-    }
-
     // ===== send =====
     pub(crate) fn max_send_streams(&self) -> usize {
         self.max_send_streams
@@ -150,11 +158,6 @@ impl Counts {
     pub fn inc_num_send_streams(&mut self) {
         assert!(self.can_inc_num_send_streams());
         self.num_send_streams += 1;
-    }
-
-    pub fn dec_num_send_streams(&mut self) {
-        assert!(self.num_send_streams > 0);
-        self.num_send_streams -= 1;
     }
 
     /// settings frame
