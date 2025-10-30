@@ -88,7 +88,7 @@ pub(super) struct Recv {
 
 #[derive(Debug)]
 pub(super) enum Event {
-    Header,
+    Headers(PollMessage),
     Body,
     Trailer,
 }
