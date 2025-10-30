@@ -65,6 +65,9 @@ pub(super) struct Recv {
     /// The lowest stream ID that is still idle
     pub next_stream_id: Result<StreamId, StreamIdOverflow>,
 
+    /// New streams to be accepted
+    pending_accept: Queue<NextAccept>,
+
     /// Streams that have pending window updates
     /// pending_window_updates: Queue<NextWindowUpdate>,
     /// Locally reset streams that should be reaped when they expire
@@ -106,6 +109,7 @@ impl Recv {
             last_processed_id: StreamId::ZERO,
             max_stream_id: StreamId::MAX,
             next_stream_id: Ok(role.init_stream_id()),
+            pending_accept: Queue::new(),
             pending_reset_expired: Queue::new(),
             reset_duration: config.reset_stream_duration,
             is_push_enabled: false,
