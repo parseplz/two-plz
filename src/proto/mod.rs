@@ -13,6 +13,7 @@ pub mod settings;
 mod state;
 mod store;
 mod stream;
+mod streams;
 
 pub use error::ProtoError;
 
