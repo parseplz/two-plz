@@ -99,8 +99,8 @@ where
             self.codec
                 .set_recv_header_table_size(val as usize);
         }
-        self.recv
-            .apply_local_settings(&settings, &mut self.store)
+        self.streams
+            .apply_local_settings(&settings)
     }
 
     pub fn apply_remote_settings(

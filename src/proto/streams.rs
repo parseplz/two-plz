@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    Frame,
+    Frame, Settings,
     proto::{
         ProtoError, buffer::Buffer, config::ConnectionConfig, count::Counts,
         recv::Recv, send::Send, store::Store,
@@ -53,6 +53,19 @@ impl<B> Streams<B> {
             inner: Inner::new(role, config),
             send_buffer: Arc::new(SendBuffer::new()),
         }
+    }
+
+    // ===== Settings =====
+    pub fn apply_local_settings(
+        &mut self,
+        settings: &Settings,
+    ) -> Result<(), ProtoError> {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+
+        me.actions
+            .recv
+            .apply_local_settings(settings, &mut me.store)
     }
 }
 
