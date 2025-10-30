@@ -1,5 +1,8 @@
+use http::HeaderMap;
+
 use crate::{
-    Reason, StreamId,
+    Reason, Request, Response, StreamId,
+    headers::Pseudo,
     proto::{ProtoError, recv::Open},
 };
 
@@ -64,5 +67,14 @@ impl Role {
 
             Ok(())
         }
+    }
+
+    pub fn convert_poll_message(
+        &self,
+        pseudo: Pseudo,
+        fields: HeaderMap,
+        stream_id: StreamId,
+    ) -> Result<PollMessage, ProtoError> {
+        todo!()
     }
 }
