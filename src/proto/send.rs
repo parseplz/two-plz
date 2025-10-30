@@ -221,4 +221,9 @@ impl Send {
         let frame = frame::Reset::new(stream.id, reason);
         self.queue_frame(frame.into(), stream);
     }
+
+    // ===== Misc ====
+    pub fn init_window_sz(&self) -> WindowSize {
+        self.init_stream_window_sz
+    }
 }

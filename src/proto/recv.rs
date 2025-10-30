@@ -191,4 +191,8 @@ impl Recv {
     pub fn max_stream_id(&self) -> StreamId {
         self.max_stream_id
     }
+    // ===== Misc ====
+    pub fn init_window_sz(&self) -> WindowSize {
+        self.init_stream_window_sz
+    }
 }
