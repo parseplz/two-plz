@@ -3,7 +3,7 @@ use crate::{
     proto::{ProtoError, recv::Open},
 };
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Role {
     Client,
     Server,
