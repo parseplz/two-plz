@@ -376,6 +376,30 @@ impl Recv {
     pub fn max_stream_id(&self) -> StreamId {
         self.max_stream_id
     }
+    /// Add a locally reset stream to queue to be eventually reaped.
+    pub fn enqueue_reset_expiration(
+        &mut self,
+        stream: &mut Ptr,
+        counts: &mut Counts,
+    ) {
+        if !stream.state.is_local_error()
+            || stream.is_pending_reset_expiration()
+        {
+            return;
+        }
+
+        if counts.can_inc_num_reset_streams() {
+            counts.inc_num_reset_streams();
+            trace!("enqueue_reset_expiration; added {:?}", stream.id);
+            self.pending_reset_expired.push(stream);
+        } else {
+            trace!(
+                "enqueue_reset_expiration; dropped {:?}, over max_concurrent_reset_streams",
+                stream.id
+            );
+        }
+    }
+
     // ===== Misc ======
     pub fn next_stream_id(&self) -> Result<StreamId, ProtoError> {
         if let Ok(id) = self.next_stream_id {
