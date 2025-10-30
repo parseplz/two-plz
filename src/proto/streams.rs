@@ -80,6 +80,19 @@ impl<B> Streams<B> {
             .send
             .apply_remote_settings(&settings, &mut me.store)
     }
+
+    // ==== Window Update =====
+    pub fn recv_connection_window_update(
+        &mut self,
+        size: u32,
+    ) -> Result<(), ProtoError> {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        me.actions
+            .send
+            .recv_connection_window_update(size)
+            .map_err(ProtoError::library_go_away)
+    }
 }
 
 /// Fields needed to manage state related to managing the set of streams. This
