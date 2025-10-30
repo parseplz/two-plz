@@ -192,6 +192,15 @@ impl Recv {
     pub fn max_stream_id(&self) -> StreamId {
         self.max_stream_id
     }
+    // ===== Misc ======
+    pub fn next_stream_id(&self) -> Result<StreamId, ProtoError> {
+        if let Ok(id) = self.next_stream_id {
+            Ok(id)
+        } else {
+            Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR))
+        }
+    }
+
     // ===== Misc ====
     pub fn init_window_sz(&self) -> WindowSize {
         self.init_stream_window_sz
