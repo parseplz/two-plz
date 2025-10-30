@@ -92,7 +92,7 @@ pub(super) struct Recv {
 pub(super) enum Event {
     Headers(PollMessage),
     Body,
-    Trailer,
+    Trailers(HeaderMap),
 }
 
 impl Recv {
