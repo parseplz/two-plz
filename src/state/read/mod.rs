@@ -12,10 +12,10 @@ use futures::StreamExt;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 // Run the state machine once a frame is received
-pub fn read_runner<T>(
-    conn: &mut Connection<T>,
+pub fn read_runner<T, B>(
+    conn: &mut Connection<T, B>,
     frame: Frame,
-) -> Result<ReadState<T>, ReadError>
+) -> Result<ReadState<T, B>, ReadError>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -28,26 +28,26 @@ where
     }
 }
 
-pub enum ReadState<'a, T> {
-    HandleFrame(&'a mut Connection<T>, Frame),
-    HandleData(&'a mut Connection<T>, Data),
-    HandleHeaders(&'a mut Connection<T>, Headers),
-    HandlePriority(&'a mut Connection<T>, Priority),
-    HandleReset(&'a mut Connection<T>, Reset),
-    HandleSettings(&'a mut Connection<T>, Settings),
-    HandlePushPromise(&'a mut Connection<T>, PushPromise),
-    HandlePing(&'a mut Connection<T>, Ping),
-    HandleGoAway(&'a mut Connection<T>, GoAway),
-    HandleWindowUpdate(&'a mut Connection<T>, WindowUpdate),
+pub enum ReadState<'a, T, B> {
+    HandleFrame(&'a mut Connection<T, B>, Frame),
+    HandleData(&'a mut Connection<T, B>, Data),
+    HandleHeaders(&'a mut Connection<T, B>, Headers),
+    HandlePriority(&'a mut Connection<T, B>, Priority),
+    HandleReset(&'a mut Connection<T, B>, Reset),
+    HandleSettings(&'a mut Connection<T, B>, Settings),
+    HandlePushPromise(&'a mut Connection<T, B>, PushPromise),
+    HandlePing(&'a mut Connection<T, B>, Ping),
+    HandleGoAway(&'a mut Connection<T, B>, GoAway),
+    HandleWindowUpdate(&'a mut Connection<T, B>, WindowUpdate),
     NeedsFlush,
     End,
 }
 
-impl<'a, T> ReadState<'a, T>
+impl<'a, T, B> ReadState<'a, T, B>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
-    pub fn init(conn: &'a mut Connection<T>, frame: Frame) -> Self {
+    pub fn init(conn: &'a mut Connection<T, B>, frame: Frame) -> Self {
         ReadState::HandleFrame(conn, frame)
     }
 
@@ -55,7 +55,6 @@ where
         let next_state = match self {
             Self::HandleFrame(conn, frame) => match frame {
                 Frame::Data(data) => Self::HandleData(conn, data),
-                Frame::Headers(headers) => todo!(),
                 Frame::Priority(priority) => todo!(),
                 Frame::Reset(reset) => todo!(),
                 Frame::Settings(settings) => {
@@ -117,7 +116,7 @@ where
     }
 }
 
-impl<'a, T> std::fmt::Debug for ReadState<'a, T> {
+impl<'a, T, B> std::fmt::Debug for ReadState<'a, T, B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::HandleFrame(..) => write!(f, "HandleFrame"),
@@ -137,7 +136,7 @@ impl<'a, T> std::fmt::Debug for ReadState<'a, T> {
 }
 
 #[cfg(feature = "test-util")]
-impl<'a, T> PartialEq for ReadState<'a, T> {
+impl<'a, T, B> PartialEq for ReadState<'a, T, B> {
     fn eq(&self, other: &Self) -> bool {
         std::mem::discriminant(self) == std::mem::discriminant(other)
     }
