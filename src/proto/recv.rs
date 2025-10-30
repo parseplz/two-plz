@@ -1,17 +1,19 @@
 use std::{cmp::Ordering, time::Duration};
 
+use http::HeaderMap;
+
 use crate::{
-    DEFAULT_INITIAL_WINDOW_SIZE, Reason, Settings, StreamId, frame,
+    DEFAULT_INITIAL_WINDOW_SIZE, Reason, Settings, StreamId, frame, headers,
     proto::{
         self, ProtoError, WindowSize,
         buffer::Buffer,
         config::ConnectionConfig,
         count::Counts,
         flow_control::FlowControl,
-        store::{Queue, Store},
-        stream::{NextResetExpire, Stream},
+        store::{Ptr, Queue, Store},
+        stream::{NextAccept, NextResetExpire, Stream},
     },
-    role::Role,
+    role::{PollMessage, Role},
     stream_id::StreamIdOverflow,
 };
 
@@ -119,6 +121,146 @@ impl Recv {
     }
 
     // ===== Headers =====
+
+    /// Transition the stream state based on receiving headers
+    ///
+    /// The caller ensures that the frame represents headers and not trailers.
+    pub fn recv_headers(
+        &mut self,
+        frame: frame::Headers,
+        stream: &mut Ptr,
+        counts: &mut Counts,
+    ) -> Result<(), RecvHeaderBlockError<Option<frame::Headers>>> {
+        let is_initial = stream.state.recv_open(&frame)?;
+
+        if is_initial {
+            if frame.stream_id() > self.last_processed_id {
+                self.last_processed_id = frame.stream_id();
+            }
+
+            // Increment the number of concurrent streams
+            counts.inc_num_recv_streams(stream);
+        }
+
+        if !stream.content_length.is_head() {
+            use super::stream::ContentLength;
+            use http::header;
+
+            if let Some(content_length) = frame
+                .fields()
+                .get(header::CONTENT_LENGTH)
+            {
+                let content_length = match headers::parse_u64(
+                    content_length.as_bytes(),
+                ) {
+                    Ok(v) => v,
+                    Err(_) => {
+                        proto_err!(stream: "could not parse content-length; stream={:?}", stream.id);
+                        return Err(ProtoError::library_reset(
+                            stream.id,
+                            Reason::PROTOCOL_ERROR,
+                        )
+                        .into());
+                    }
+                };
+
+                stream.content_length =
+                    ContentLength::Remaining(content_length);
+                // END_STREAM on headers frame with non-zero content-length is malformed.
+                // https://datatracker.ietf.org/doc/html/rfc9113#section-8.1.1
+                if frame.is_end_stream()
+                    && content_length > 0
+                    && frame
+                        .pseudo()
+                        .status
+                        .map_or(true, |status| status != 204 && status != 304)
+                {
+                    proto_err!(stream: "recv_headers with END_STREAM: content-length is not zero; stream={:?};", stream.id);
+                    return Err(ProtoError::library_reset(
+                        stream.id,
+                        Reason::PROTOCOL_ERROR,
+                    )
+                    .into());
+                }
+            }
+        }
+
+        if frame.is_over_size() {
+            // A frame is over size if the decoded header block was bigger than
+            // SETTINGS_MAX_HEADER_LIST_SIZE.
+            //
+            // > A server that receives a larger header block than it is willing
+            // > to handle can send an HTTP 431 (Request Header Fields Too
+            // > Large) status code [RFC6585]. A client can discard responses
+            // > that it cannot process.
+            //
+            // So, if peer is a server, we'll send a 431. In either case,
+            // an error is recorded, which will send a REFUSED_STREAM,
+            // since we don't want any of the data frames either.
+            tracing::debug!(
+                "stream error REQUEST_HEADER_FIELDS_TOO_LARGE -- \
+                 recv_headers: frame is over size; stream={:?}",
+                stream.id
+            );
+            return if counts.role().is_server() && is_initial {
+                let mut res = frame::Headers::new(
+                    stream.id,
+                    headers::Pseudo::response(
+                        ::http::StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
+                    ),
+                    HeaderMap::new(),
+                );
+                res.set_end_stream();
+                Err(RecvHeaderBlockError::Oversize(Some(res)))
+            } else {
+                Err(RecvHeaderBlockError::Oversize(None))
+            };
+        }
+
+        let stream_id = frame.stream_id();
+        let (pseudo, fields) = frame.into_parts();
+
+        if pseudo.protocol.is_some()
+            && counts.role().is_server()
+            && !self.is_extended_connect_protocol_enabled
+        {
+            proto_err!(stream: "cannot use :protocol if extended connect protocol is disabled; stream={:?}", stream.id);
+            return Err(ProtoError::library_reset(
+                stream.id,
+                Reason::PROTOCOL_ERROR,
+            )
+            .into());
+        }
+
+        if pseudo.status.is_some() && counts.role().is_server() {
+            proto_err!(stream: "cannot use :status header for requests; stream={:?}", stream.id);
+            return Err(ProtoError::library_reset(
+                stream.id,
+                Reason::PROTOCOL_ERROR,
+            )
+            .into());
+        }
+
+        if !pseudo.is_informational() {
+            let message = counts
+                .role()
+                .convert_poll_message(pseudo, fields, stream_id)?;
+
+            stream
+                .pending_recv
+                .push_back(&mut self.buffer, Event::Headers(message));
+
+            // Only servers can receive a headers frame that initiates the stream.
+            // This is verified in `Streams` before calling this function.
+            if counts.role().is_server() {
+                // Correctness: never push a stream to `pending_accept` without having the
+                // corresponding headers frame pushed to `stream.pending_recv`.
+                self.pending_accept.push(stream);
+            }
+        }
+
+        Ok(())
+    }
 
     /// Update state reflecting a new, remotely opened stream
     ///
