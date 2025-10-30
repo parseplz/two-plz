@@ -218,6 +218,6 @@ impl Counts {
 
     // ===== Misc =====
     pub fn role(&self) -> Role {
-        self.role
+        self.role.clone()
     }
 }
