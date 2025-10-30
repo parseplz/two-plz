@@ -118,9 +118,13 @@ impl Counts {
     /// # Panics
     ///
     /// Panics on failure as this should have been validated before hand.
-    pub fn inc_num_recv_streams(&mut self) {
+    pub fn inc_num_recv_streams(&mut self, stream: &mut Ptr) {
         assert!(self.can_inc_num_recv_streams());
+        assert!(!stream.is_counted);
+
+        // Increment the number of remote initiated streams
         self.num_recv_streams += 1;
+        stream.is_counted = true;
     }
 
     pub fn dec_num_recv_streams(&mut self) {
