@@ -57,6 +57,9 @@ pub(super) struct Recv {
     /// Locally reset streams that should be reaped when they expire
     pending_reset_expired: Queue<NextResetExpire>,
 
+    /// Refused StreamId, this represents a frame that must be sent out.
+    refused: Option<StreamId>,
+
     /// How long locally reset streams should ignore received frames
     reset_duration: Duration,
 
@@ -94,7 +97,41 @@ impl Recv {
             reset_duration: config.reset_stream_duration,
             is_push_enabled: false,
             is_extended_connect_protocol_enabled: false,
+            refused: None,
         }
+    }
+
+    // ===== Headers =====
+
+    /// Update state reflecting a new, remotely opened stream
+    ///
+    /// Returns the stream state if successful. `None` if refused
+    pub fn open(
+        &mut self,
+        id: StreamId,
+        mode: Open,
+        counts: &mut Counts,
+        peer: &Role,
+    ) -> Result<Option<StreamId>, ProtoError> {
+        // TODO: WHY ?
+        //assert!(self.refused.is_none());
+
+        peer.ensure_can_open(id, mode)?;
+
+        let next_id = self.next_stream_id()?;
+        if id < next_id {
+            proto_err!(conn: "id ({:?}) < next_id ({:?})", id, next_id);
+            return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+
+        self.next_stream_id = id.next_id();
+
+        if !counts.can_inc_num_recv_streams() {
+            //self.refused = Some(id);
+            return Ok(None);
+        }
+
+        Ok(Some(id))
     }
 
     // ===== Settings =====
