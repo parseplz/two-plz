@@ -130,4 +130,26 @@ impl Actions {
             conn_error: None,
         }
     }
+
+    // ===== Misc =====
+
+    /// Check whether the stream was present in the past
+    fn ensure_not_idle(
+        &mut self,
+        role: Role,
+        id: StreamId,
+    ) -> Result<(), Reason> {
+        let next_id = if role.is_local_init(id) {
+            self.send.next_stream_id
+        } else {
+            self.recv.next_stream_id
+        };
+
+        if let Ok(next) = next_id {
+            if id >= next {
+                return Err(Reason::PROTOCOL_ERROR);
+            }
+        }
+        Ok(())
+    }
 }
