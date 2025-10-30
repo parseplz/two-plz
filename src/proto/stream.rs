@@ -15,6 +15,10 @@ use crate::{
 };
 
 // ===== Queues =====
+// recv
+#[derive(Debug)]
+pub(super) struct NextAccept;
+
 // send
 #[derive(Debug)]
 pub(super) struct NextSend;
@@ -56,6 +60,10 @@ pub struct Stream {
     pub is_pending_open: bool,
 
     // ===== Recv =====
+    /// Next Accept
+    pub next_pending_accept: Option<Key>,
+    pub is_pending_accept: bool,
+
     pub recv_flow: FlowControl,
     pub pending_recv: Deque, // Events
     pub content_length: ContentLength,
@@ -78,6 +86,7 @@ impl Stream {
         Stream {
             id,
             state: State::default(),
+            is_counted: false,
             // === send ===
             send_flow,
             body: None,
@@ -92,6 +101,8 @@ impl Stream {
             next_open: None,
             is_pending_open: false,
             // === recv ===
+            next_pending_accept: None,
+            is_pending_accept: false,
             recv_flow,
             pending_recv: Deque::new(),
             content_length: ContentLength::Omitted,
@@ -116,6 +127,30 @@ impl Stream {
 }
 
 // ===== Queue =====
+// recv
+impl store::Next for NextAccept {
+    fn next(stream: &Stream) -> Option<store::Key> {
+        stream.next_pending_accept
+    }
+
+    fn set_next(stream: &mut Stream, key: Option<store::Key>) {
+        stream.next_pending_accept = key;
+    }
+
+    fn take_next(stream: &mut Stream) -> Option<store::Key> {
+        stream.next_pending_accept.take()
+    }
+
+    fn is_queued(stream: &Stream) -> bool {
+        stream.is_pending_accept
+    }
+
+    fn set_queued(stream: &mut Stream, val: bool) {
+        stream.is_pending_accept = val;
+    }
+}
+
+// send
 impl Next for NextSend {
     fn next(stream: &Stream) -> Option<store::Key> {
         stream.next_pending_send
