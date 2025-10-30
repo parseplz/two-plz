@@ -145,7 +145,7 @@ struct Inner {
 impl Inner {
     fn new(role: Role, config: ConnectionConfig) -> Arc<Mutex<Inner>> {
         Arc::new(Mutex::new(Inner {
-            counts: Counts::new(&config),
+            counts: Counts::new(role.clone(), &config),
             actions: Actions::new(role, config),
             store: Store::new(),
             refs: 1,
