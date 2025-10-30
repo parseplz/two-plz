@@ -1,10 +1,14 @@
 use crate::{
     Settings,
     proto::{config::ConnectionConfig, store::Ptr},
+    role::Role,
 };
 
 #[derive(Debug)]
 pub(super) struct Counts {
+    /// role
+    role: Role,
+
     /// Maximum number of locally initiated streams
     max_send_streams: usize,
 
@@ -41,8 +45,9 @@ pub(super) struct Counts {
 }
 
 impl Counts {
-    pub fn new(config: &ConnectionConfig) -> Self {
+    pub fn new(role: Role, config: &ConnectionConfig) -> Self {
         Counts {
+            role,
             max_send_streams: config
                 .local_settings
                 .max_concurrent_streams()
