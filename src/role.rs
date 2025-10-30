@@ -3,6 +3,12 @@ use crate::{
     proto::{ProtoError, recv::Open},
 };
 
+#[derive(Debug)]
+pub enum PollMessage {
+    Client(Response),
+    Server(Request),
+}
+
 #[derive(PartialEq, Clone, Debug)]
 pub enum Role {
     Client,
