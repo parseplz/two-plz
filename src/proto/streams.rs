@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    Frame, Settings,
+    Frame, Reason, Settings, StreamId,
     proto::{
         ProtoError, buffer::Buffer, config::ConnectionConfig, count::Counts,
-        recv::Recv, send::Send, store::Store,
+        error::Initiator, recv::Recv, send::Send, store::Store,
     },
     role::Role,
 };
