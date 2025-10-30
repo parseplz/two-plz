@@ -20,6 +20,12 @@ pub(crate) enum Open {
     PushPromise,
 }
 
+impl Open {
+    pub fn is_push_promise(&self) -> bool {
+        matches!(*self, Self::PushPromise)
+    }
+}
+
 #[derive(Debug)]
 pub(super) struct Recv {
     /// Holds frames that are waiting to be read
