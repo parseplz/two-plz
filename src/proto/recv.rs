@@ -16,6 +16,18 @@ use crate::{
 };
 
 #[derive(Debug)]
+pub(super) enum RecvHeaderBlockError<T> {
+    Oversize(T),
+    State(ProtoError),
+}
+
+impl<T> From<ProtoError> for RecvHeaderBlockError<T> {
+    fn from(err: ProtoError) -> Self {
+        RecvHeaderBlockError::State(err)
+    }
+}
+
+#[derive(Debug)]
 pub(crate) enum Open {
     Headers,
     PushPromise,
