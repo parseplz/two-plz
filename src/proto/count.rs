@@ -211,4 +211,9 @@ impl Counts {
     pub(crate) fn max_remote_reset_streams(&self) -> usize {
         self.max_remote_reset_streams
     }
+
+    // ===== Misc =====
+    pub fn role(&self) -> Role {
+        self.role
+    }
 }
