@@ -13,7 +13,7 @@ pub struct Client;
 pub type ClientBuilder = Builder<Client>;
 
 impl BuildConnection for Client {
-    type Connection<T> = ClientConnection<T>;
+    type Connection<T, B> = ClientConnection<T, B>;
 
     fn is_server() -> bool {
         false
@@ -27,11 +27,11 @@ impl BuildConnection for Client {
         1.into()
     }
 
-    fn build<T>(
+    fn build<T, B>(
         role: Role,
         config: ConnectionConfig,
         codec: Codec<T, BytesMut>,
-    ) -> Self::Connection<T>
+    ) -> Self::Connection<T, B>
     where
         T: AsyncRead + AsyncWrite + Unpin,
     {
@@ -47,8 +47,8 @@ impl BuildConnection for Client {
 // RecvResponse.recv_response().await => Response
 // Response => compelete response
 
-pub struct ClientConnection<T> {
-    pub conn: Connection<T>,
+pub struct ClientConnection<T, B> {
+    pub conn: Connection<T, B>,
 }
 
 struct SendRequest;

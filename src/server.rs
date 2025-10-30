@@ -15,7 +15,7 @@ pub struct Server;
 pub type ServerBuilder = Builder<Server>;
 
 impl BuildConnection for Server {
-    type Connection<T> = ServerConnection<T>;
+    type Connection<T, B> = ServerConnection<T, B>;
 
     fn is_server() -> bool {
         true
@@ -29,11 +29,11 @@ impl BuildConnection for Server {
         2.into()
     }
 
-    fn build<T>(
+    fn build<T, B>(
         role: Role,
         config: ConnectionConfig,
         codec: Codec<T, BytesMut>,
-    ) -> Self::Connection<T>
+    ) -> Self::Connection<T, B>
     where
         T: AsyncRead + AsyncWrite + Unpin,
     {
@@ -48,11 +48,11 @@ impl BuildConnection for Server {
 // Request => complete request
 // SendResponse.send_response(Response)
 
-pub struct ServerConnection<T> {
-    conn: Connection<T>,
+pub struct ServerConnection<T, B> {
+    conn: Connection<T, B>,
 }
 
-impl<T> ServerConnection<T> {
+impl<T, B> ServerConnection<T, B> {
     async fn accept(&mut self) -> Result<(Request, SendResponse), Error> {
         todo!()
     }

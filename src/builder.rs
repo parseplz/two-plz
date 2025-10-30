@@ -21,7 +21,7 @@ use std::marker::PhantomData;
 use std::time::Duration;
 
 pub trait BuildConnection {
-    type Connection<T>: Sized;
+    type Connection<T, B>: Sized;
 
     fn is_server() -> bool;
 
@@ -29,11 +29,11 @@ pub trait BuildConnection {
 
     fn init_stream_id() -> StreamId;
 
-    fn build<T>(
+    fn build<T, B>(
         role: Role,
         config: ConnectionConfig,
         codec: Codec<T, BytesMut>,
-    ) -> Self::Connection<T>
+    ) -> Self::Connection<T, B>
     where
         T: AsyncRead + AsyncWrite + Unpin;
 }
@@ -256,10 +256,10 @@ where
     //}
     //
 
-    pub async fn handshake<T>(
+    pub async fn handshake<T, B>(
         self,
         io: T,
-    ) -> Result<R::Connection<T>, PrefaceError>
+    ) -> Result<R::Connection<T, B>, PrefaceError>
     where
         T: AsyncRead + AsyncWrite + Unpin,
     {
