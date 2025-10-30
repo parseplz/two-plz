@@ -35,8 +35,8 @@ pub(super) struct NextResetExpire;
 #[derive(Debug)]
 pub struct Stream {
     pub(crate) id: StreamId,
-
     pub state: State,
+    pub ref_count: usize,
 
     /// Set to `true` when the stream is counted against the connection's max
     /// concurrent streams.
@@ -72,6 +72,7 @@ pub struct Stream {
     /// The time when this stream may have been locally reset.
     pub reset_at: Option<Instant>,
     pub next_reset_expire: Option<Key>,
+
 }
 
 impl Stream {
@@ -87,6 +88,7 @@ impl Stream {
             id,
             state: State::default(),
             is_counted: false,
+            ref_count: 0,
             // === send ===
             send_flow,
             body: None,
