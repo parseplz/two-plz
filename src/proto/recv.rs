@@ -286,11 +286,37 @@ impl Recv {
         self.next_stream_id = id.next_id();
 
         if !counts.can_inc_num_recv_streams() {
-            //self.refused = Some(id);
+            self.refused = Some(id);
             return Ok(None);
         }
 
         Ok(Some(id))
+    }
+
+    /// Transition the stream based on receiving trailers
+    pub fn recv_trailers(
+        &mut self,
+        frame: Headers,
+        stream: &mut Ptr,
+    ) -> Result<(), ProtoError> {
+        // Transition the state
+        stream.state.recv_close()?;
+
+        if stream
+            .ensure_content_length_zero()
+            .is_err()
+        {
+            proto_err!(stream: "recv_trailers: content-length is not zero; stream={:?};",  stream.id);
+            return Err(ProtoError::library_reset(
+                stream.id,
+                Reason::PROTOCOL_ERROR,
+            ));
+        }
+
+        stream
+            .pending_recv
+            .push_back(&mut self.buffer, Event::Trailers(frame.into_fields()));
+        Ok(())
     }
 
     // ===== Settings =====
