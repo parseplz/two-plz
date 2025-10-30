@@ -114,7 +114,7 @@ impl Stream {
         }
     }
 
-    fn is_closed(&self) -> bool {
+    pub fn is_closed(&self) -> bool {
         self.state.is_closed() && self.pending_send.is_empty()
     }
 
@@ -122,6 +122,18 @@ impl Stream {
     /// a local reset.
     pub fn is_pending_reset_expiration(&self) -> bool {
         self.reset_at.is_some()
+    }
+
+    /// Returns true if the stream is no longer in use
+    pub fn is_released(&self) -> bool {
+        // The stream is closed and fully flushed
+        self.is_closed() &&
+            // There are no more outstanding references to the stream
+            self.ref_count == 0 &&
+            // The stream is not in any queue
+            !self.is_pending_send && !self.is_pending_send_capacity &&
+            !self.is_pending_accept && 
+            !self.is_pending_open && self.reset_at.is_none()
     }
 
     pub fn is_send_ready(&self) -> bool {
