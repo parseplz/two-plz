@@ -32,6 +32,12 @@ pub(super) struct NextResetExpire;
 pub struct Stream {
     pub(crate) id: StreamId,
 
+    pub state: State,
+
+    /// Set to `true` when the stream is counted against the connection's max
+    /// concurrent streams.
+    pub is_counted: bool,
+
     // ===== Send =====
     pub send_flow: FlowControl,
     body: Option<BytesMut>,
@@ -58,10 +64,6 @@ pub struct Stream {
     /// The time when this stream may have been locally reset.
     pub reset_at: Option<Instant>,
     pub next_reset_expire: Option<Key>,
-
-    pub state: State,
-    // TODO
-    //pub content_length: ContentLength,
 }
 
 impl Stream {
