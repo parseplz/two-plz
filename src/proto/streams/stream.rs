@@ -97,8 +97,6 @@ impl Stream {
         init_send_window: WindowSize,
         init_recv_window: WindowSize,
     ) -> Stream {
-        let send_flow = FlowControl::new(init_send_window);
-        let recv_flow = FlowControl::new(init_recv_window);
 
         Stream {
             id,
@@ -106,7 +104,7 @@ impl Stream {
             ref_count: 0,
             is_counted: false,
             // === send ===
-            send_flow,
+            send_flow: FlowControl::new(init_send_window),
             // next send
             next_pending_send: None,
             is_pending_send: false,
@@ -119,7 +117,7 @@ impl Stream {
             next_open: None,
             is_pending_open: false,
             // === recv ===
-            recv_flow,
+            recv_flow: FlowControl::new(init_recv_window),
             content_length: ContentLength::Omitted,
             is_recv: true,
             // next accept
