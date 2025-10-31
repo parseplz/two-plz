@@ -148,14 +148,19 @@ impl Stream {
         self.ref_count -= 1;
     }
 
-    pub fn is_closed(&self) -> bool {
-        self.state.is_closed() && self.pending_send.is_empty()
+    // ===== State ======
+
+    /// Returns true when the consumer of the stream has dropped all handles
+    /// (indicating no further interest in the stream) and the stream state is
+    /// not actually closed.
+    ///
+    /// In this case, a reset should be sent.
+    pub fn is_canceled_interest(&self) -> bool {
+        self.ref_count == 0 && !self.state.is_closed()
     }
 
-    /// Returns true if stream is currently being held for some time because of
-    /// a local reset.
-    pub fn is_pending_reset_expiration(&self) -> bool {
-        self.reset_at.is_some()
+    pub fn is_closed(&self) -> bool {
+        self.state.is_closed() && self.pending_send.is_empty()
     }
 
     /// Returns true if the stream is no longer in use
@@ -173,6 +178,15 @@ impl Stream {
     pub fn is_send_ready(&self) -> bool {
         !self.is_pending_open
     }
+
+    // ===== Reset =====
+
+    /// Returns true if stream is currently being held for some time because of
+    /// a local reset.
+    pub fn is_pending_reset_expiration(&self) -> bool {
+        self.reset_at.is_some()
+    }
+
 
     pub(super) fn set_reset(&mut self, reason: Reason, initiator: Initiator) {
         self.state
