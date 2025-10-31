@@ -1,6 +1,6 @@
 use crate::proto::streams::buffer::Deque;
 use crate::proto::streams::flow_control::FlowControl;
-use crate::proto::streams::store::{self, Key, Next};
+use crate::proto::streams::store::{self, Key, Next, Queue};
 use crate::{Reason, proto::streams::state::State};
 use crate::proto::error::Initiator;
 use bytes::BytesMut;
@@ -35,6 +35,8 @@ pub(super) struct NextResetExpire;
 pub struct Stream {
     pub(crate) id: StreamId,
     pub state: State,
+
+    /// Number of outstanding handles pointing to this stream
     pub ref_count: usize,
 
     /// Set to `true` when the stream is counted against the connection's max
@@ -43,7 +45,6 @@ pub struct Stream {
 
     // ===== Send =====
     pub send_flow: FlowControl,
-    body: Option<BytesMut>,
 
     /// Next Send
     pub next_pending_send: Option<Key>,
@@ -53,24 +54,35 @@ pub struct Stream {
     /// Next capacity.
     pub next_pending_send_capacity: Option<Key>,
     pub is_pending_send_capacity: bool,
+    /// Set to true when the send capacity has been incremented
+    pub send_capacity_inc: bool,
 
     /// Next Open
     pub next_open: Option<Key>,
     pub is_pending_open: bool,
 
     // ===== Recv =====
+    pub recv_flow: FlowControl,
+    pub content_length: ContentLength,
+    /// When the RecvStream drop occurs, no data should be received.
+    pub is_recv: bool,
+
+    /// Next Complete
+
     /// Next Accept
     pub next_pending_accept: Option<Key>,
     pub is_pending_accept: bool,
-
-    pub recv_flow: FlowControl,
     pub pending_recv: Deque, // Events
-    pub content_length: ContentLength,
 
     // ===== Reset =====
     /// The time when this stream may have been locally reset.
     pub reset_at: Option<Instant>,
     pub next_reset_expire: Option<Key>,
+
+    /// ===== Push Promise =====
+    /// The stream's pending push promises
+    pub pending_push_promises: Queue<NextAccept>,
+
 
 }
 
@@ -86,11 +98,10 @@ impl Stream {
         Stream {
             id,
             state: State::default(),
-            is_counted: false,
             ref_count: 0,
+            is_counted: false,
             // === send ===
             send_flow,
-            body: None,
             // next send
             next_pending_send: None,
             is_pending_send: false,
@@ -98,18 +109,23 @@ impl Stream {
             // next capacity
             next_pending_send_capacity: None,
             is_pending_send_capacity: false,
+            send_capacity_inc: false,
             // next open
             next_open: None,
             is_pending_open: false,
             // === recv ===
+            recv_flow,
+            content_length: ContentLength::Omitted,
+            is_recv: true,
+            // next accept
             next_pending_accept: None,
             is_pending_accept: false,
-            recv_flow,
             pending_recv: Deque::new(),
-            content_length: ContentLength::Omitted,
             // === reset ===
             reset_at: None,
             next_reset_expire: None,
+            // push promise
+            pending_push_promises: Queue::new(),
         }
     }
 
@@ -206,7 +222,7 @@ impl Next for NextSend {
     }
 }
 
-impl store::Next for NextSendCapacity {
+impl Next for NextSendCapacity {
     fn next(stream: &Stream) -> Option<store::Key> {
         stream.next_pending_send_capacity
     }
@@ -228,7 +244,7 @@ impl store::Next for NextSendCapacity {
     }
 }
 
-impl store::Next for NextOpen {
+impl Next for NextOpen {
     fn next(stream: &Stream) -> Option<store::Key> {
         stream.next_open
     }
@@ -255,7 +271,7 @@ impl store::Next for NextOpen {
     }
 }
 
-impl store::Next for NextResetExpire {
+impl Next for NextResetExpire {
     fn next(stream: &Stream) -> Option<store::Key> {
         stream.next_reset_expire
     }
