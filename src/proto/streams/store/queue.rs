@@ -1,6 +1,6 @@
 use std::{fmt, marker::PhantomData};
 
-use crate::proto::{
+use crate::proto::streams::{
     store::{Indices, Key, Ptr, Resolve},
     stream::Stream,
 };

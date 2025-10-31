@@ -1,12 +1,7 @@
 use std::time::Duration;
 
-use tracing::error;
 
-use crate::{
-    builder::Builder,
-    frame::{Settings, StreamId},
-    proto::DEFAULT_LOCAL_RESET_COUNT_MAX,
-};
+use crate::frame::Settings;
 
 #[derive(Clone, Debug)]
 pub struct ConnectionConfig {

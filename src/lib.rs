@@ -37,5 +37,7 @@ pub use codec::Codec;
 pub use frame::*;
 
 // TODO: move to their respective modules
+#[derive(Debug)]
 struct Request;
+#[derive(Debug)]
 struct Response;

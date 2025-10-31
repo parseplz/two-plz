@@ -1,7 +1,6 @@
 use indexmap::{self};
 
 use super::*;
-use crate::proto::store::ptr::Key;
 
 pub enum Entry<'a> {
     Occupied(OccupiedEntry<'a>),

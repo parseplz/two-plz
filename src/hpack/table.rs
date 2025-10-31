@@ -329,9 +329,9 @@ impl Table {
         let pos_idx = 0usize.wrapping_sub(self.inserted);
 
         let prev = self.indices[probe].replace(Pos {
-                index: pos_idx,
-                hash,
-            });
+            index: pos_idx,
+            hash,
+        });
 
         if let Some(mut prev) = prev {
             // Shift forward
@@ -496,10 +496,11 @@ impl Table {
 
         for (i, pos) in self.indices.iter().enumerate() {
             if let Some(pos) = *pos
-                && 0 == probe_distance(self.mask, pos.hash, i) {
-                    first_ideal = i;
-                    break;
-                }
+                && 0 == probe_distance(self.mask, pos.hash, i)
+            {
+                first_ideal = i;
+                break;
+            }
         }
 
         // visit the entries in an order where we can simply reinsert them

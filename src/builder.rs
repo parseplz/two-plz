@@ -1,21 +1,16 @@
 use bytes::BytesMut;
-use tokio::io::AsyncWriteExt;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::client::ClientConnection;
-use crate::preface::PrefaceErrorState;
 use crate::proto::config::ConnectionConfig;
 use crate::proto::{
     DEFAULT_LOCAL_RESET_COUNT_MAX, DEFAULT_REMOTE_RESET_COUNT_MAX,
     DEFAULT_RESET_STREAM_MAX, DEFAULT_RESET_STREAM_SECS,
 };
 use crate::role::Role;
-use crate::server::ServerConnection;
-use crate::{Codec, Connection};
+use crate::Codec;
 use crate::{
     Settings, StreamId,
     preface::{PrefaceConn, PrefaceError, PrefaceState},
-    proto,
 };
 use std::marker::PhantomData;
 use std::time::Duration;
@@ -61,6 +56,15 @@ pub struct Builder<R> {
 
     /// Initial `Settings` frame to send as part of the handshake.
     pub settings: Settings,
+}
+
+impl<R> Default for Builder<R>
+where
+    R: BuildConnection,
+ {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<R> Builder<R>

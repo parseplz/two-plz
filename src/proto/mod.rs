@@ -1,21 +1,11 @@
 pub mod connection;
 
-mod buffer;
-pub mod config;
-mod count;
-mod error;
-mod flow_control;
-pub mod ping_pong;
-pub mod recv;
-mod rst_stream;
-pub mod send;
-pub mod settings;
-mod state;
-mod store;
-mod stream;
-mod streams;
-
 pub use error::ProtoError;
+pub mod config;
+mod error;
+pub mod ping_pong;
+pub mod settings;
+pub mod streams;
 
 /////////////////////
 pub type PingPayload = [u8; 8];

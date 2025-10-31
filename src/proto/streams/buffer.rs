@@ -6,6 +6,12 @@ pub struct Buffer<T> {
     slab: Slab<Slot<T>>,
 }
 
+impl<T> Default for Buffer<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> Buffer<T> {
     pub fn new() -> Self {
         Buffer {

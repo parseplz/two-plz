@@ -3,7 +3,7 @@ use http::HeaderMap;
 use crate::{
     Reason, Request, Response, StreamId,
     headers::Pseudo,
-    proto::{ProtoError, recv::Open},
+    proto::{ProtoError, streams::recv::Open},
 };
 
 #[derive(Debug)]

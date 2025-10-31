@@ -1,4 +1,7 @@
-use crate::Reason;
+use crate::proto::streams::buffer::Deque;
+use crate::proto::streams::flow_control::FlowControl;
+use crate::proto::streams::store::{self, Key, Next};
+use crate::{Reason, proto::streams::state::State};
 use crate::proto::error::Initiator;
 use bytes::BytesMut;
 use std::time::Instant;
@@ -7,10 +10,6 @@ use crate::{
     frame::StreamId,
     proto::{
         WindowSize,
-        buffer::Deque,
-        flow_control::FlowControl,
-        state::State,
-        store::{self, Key, Next},
     },
 };
 
@@ -157,7 +156,7 @@ impl Stream {
 
 // ===== Queue =====
 // recv
-impl store::Next for NextAccept {
+impl Next for NextAccept {
     fn next(stream: &Stream) -> Option<store::Key> {
         stream.next_pending_accept
     }

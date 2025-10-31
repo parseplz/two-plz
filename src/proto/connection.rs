@@ -1,25 +1,13 @@
-use crate::proto::count::Counts;
-use crate::proto::error::Initiator;
-use crate::proto::recv::Open;
-use crate::proto::send::Send;
+use crate::proto::ProtoError;
 use crate::proto::settings::SettingsAction;
-use crate::proto::store::Store;
-use crate::proto::stream::Stream;
+use crate::proto::settings::SettingsHandler;
 use crate::proto::streams::Streams;
-use crate::proto::{ProtoError, store};
-use crate::proto::{recv::Recv, settings::SettingsHandler};
 use crate::role::Role;
-use std::io::Error;
-use store::Entry;
 
-use bytes::{Bytes, BytesMut};
-use futures::StreamExt;
-use tokio::{
-    io::{AsyncRead, AsyncWrite},
-    sync::mpsc::{self, error::SendError},
-};
+use bytes::BytesMut;
+use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::{Headers, Reason, Reset, Settings, WindowUpdate, frame, proto};
+use crate::{Headers, Reset, Settings};
 use crate::{
     codec::{Codec, UserError},
     frame::{Frame, Ping, StreamId},
@@ -46,8 +34,6 @@ where
         config: ConnectionConfig,
         stream: Codec<T, BytesMut>,
     ) -> Self {
-        let send = Send::new(&config, &role);
-        let recv = Recv::new(&config, &role);
         Connection {
             ping_handler: PingHandler::new(),
             settings_handler: SettingsHandler::new(
@@ -62,6 +48,11 @@ where
     // ===== Codec =====
     pub fn buffer(&mut self, item: Frame<BytesMut>) -> Result<(), UserError> {
         self.codec.buffer(item)
+    }
+
+    // ===== Header =====
+    pub fn handle_header(&mut self, frame: Headers) -> Result<(), ProtoError> {
+        self.streams.recv_header(frame)
     }
 
     // ===== Ping =====
@@ -134,6 +125,9 @@ where
             .recv_stream_window_update(id, size)
     }
 
+    // ==== Reset =====
+    pub fn recv_reset(&mut self, frame: Reset) -> Result<(), ProtoError> {
+        todo!()
     }
 
     // ===== Test =====

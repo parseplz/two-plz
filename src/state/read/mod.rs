@@ -55,6 +55,7 @@ where
         let next_state = match self {
             Self::HandleFrame(conn, frame) => match frame {
                 Frame::Data(data) => Self::HandleData(conn, data),
+                Frame::Headers(headers) => Self::HandleHeaders(conn, headers),
                 Frame::Priority(priority) => todo!(),
                 Frame::Reset(reset) => todo!(),
                 Frame::Settings(settings) => {
@@ -65,6 +66,10 @@ where
                 Frame::GoAway(go_away) => todo!(),
                 Frame::WindowUpdate(wu) => Self::HandleWindowUpdate(conn, wu),
             },
+            Self::HandleHeaders(conn, headers) => {
+                conn.handle_header(headers);
+                todo!()
+            }
             Self::HandlePing(conn, ping) => match conn.handle_ping(ping) {
                 PingAction::Ok => Self::End,
                 PingAction::MustAck => {

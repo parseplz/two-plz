@@ -6,7 +6,7 @@ use std::{
 use indexmap::{self, IndexMap};
 
 use crate::frame::StreamId;
-use crate::proto::stream::Stream;
+use crate::proto::streams::stream::Stream;
 mod entry;
 mod ptr;
 mod queue;

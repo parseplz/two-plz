@@ -1,6 +1,6 @@
 use crate::{
     Settings,
-    proto::{config::ConnectionConfig, store::Ptr},
+    proto::{config::ConnectionConfig, streams::store::Ptr},
     role::Role,
 };
 
@@ -245,7 +245,6 @@ impl Counts {
         ret
     }
 
-    // TODO: move this to macro?
     pub fn transition_after(
         &mut self,
         mut stream: Ptr,

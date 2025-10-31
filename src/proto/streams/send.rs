@@ -2,22 +2,22 @@ use crate::DEFAULT_INITIAL_WINDOW_SIZE;
 use crate::Frame;
 use crate::Reason;
 use crate::Settings;
+use crate::codec::UserError;
 use crate::frame;
 use crate::proto::ProtoError;
-use crate::proto::buffer::Buffer;
 use crate::proto::config::ConnectionConfig;
 use crate::proto::error::Initiator;
-use crate::proto::store::Ptr;
-use crate::proto::store::Queue;
-use crate::proto::store::Store;
-use crate::proto::stream;
+use crate::proto::streams::Counts;
+use crate::proto::streams::Store;
+use crate::proto::streams::buffer::Buffer;
+use crate::proto::streams::flow_control::FlowControl;
+use crate::proto::streams::store::Ptr;
+use crate::proto::streams::store::Queue;
+use crate::proto::streams::stream;
 use std::cmp::Ordering;
 
 use crate::{
-    StreamId,
-    proto::{WindowSize, flow_control::FlowControl},
-    role::Role,
-    stream_id::StreamIdOverflow,
+    StreamId, proto::WindowSize, role::Role, stream_id::StreamIdOverflow,
 };
 
 #[derive(Debug)]
@@ -112,6 +112,40 @@ impl Send {
             // Queue the stream
             self.pending_send.push(stream);
         }
+    }
+
+    // ===== Headers =====
+    pub fn send_headers<B>(
+        &mut self,
+        frame: frame::Headers,
+        buffer: &mut Buffer<Frame<B>>,
+        stream: &mut Ptr,
+        counts: &mut Counts,
+    ) -> Result<(), UserError> {
+        Self::check_headers(frame.fields())?;
+
+        let end_stream = frame.is_end_stream();
+
+        // Update the state
+        stream.state.send_open(end_stream)?;
+
+        if counts
+            .role()
+            .is_local_init(frame.stream_id())
+        // TODO
+        //&& !stream.is_pending_push
+        {
+            self.pending_open.push(stream);
+        }
+
+        // Queue the frame for sending
+        //
+        // This call expects that, since new streams are in the open queue, new
+        // streams won't be pushed on pending_send.
+        stream
+            .pending_send
+            .push_back(buffer, frame.into());
+        Ok(())
     }
 
     // ===== settings =====
@@ -223,6 +257,21 @@ impl Send {
         self.queue_frame(frame.into(), stream);
     }
 
+    pub fn schedule_implicit_reset(
+        &mut self,
+        stream: &mut Ptr,
+        reason: Reason,
+        counts: &mut Counts,
+    ) {
+        if stream.state.is_closed() {
+            // Stream is already closed, nothing more to do
+            return;
+        }
+
+        stream.state.set_scheduled_reset(reason);
+        self.schedule_send(stream);
+    }
+
     // ===== Misc ====
     pub fn init_window_sz(&self) -> WindowSize {
         self.init_stream_window_sz
@@ -238,12 +287,11 @@ impl Send {
         {
             tracing::debug!("illegal connection-specific headers found");
             return Err(UserError::MalformedHeaders);
-        } else if let Some(te) = fields.get(http::header::TE) {
-            if te != "trailers" {
+        } else if let Some(te) = fields.get(http::header::TE)
+            && te != "trailers" {
                 tracing::debug!("illegal connection-specific headers found");
                 return Err(UserError::MalformedHeaders);
             }
-        }
         Ok(())
     }
 }

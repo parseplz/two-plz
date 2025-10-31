@@ -1,28 +1,30 @@
-use tracing::trace;
-
+mod buffer;
+mod counts;
+mod flow_control;
+pub mod recv;
+pub mod send;
+use send::Send;
+mod state;
+mod store;
+mod stream;
 use crate::proto::{
-    recv::RecvHeaderBlockError,
-    store::{Key, Ptr, Resolve},
-};
-use std::{
-    fmt,
-    sync::{Arc, Mutex},
-};
-
-use crate::{
-    Frame, Headers, Reason, Settings, StreamId,
-    proto::{
-        ProtoError,
-        buffer::Buffer,
-        config::ConnectionConfig,
-        count::Counts,
-        error::Initiator,
-        recv::{Open, Recv},
-        send::Send,
-        store::{Entry, Store},
+    config::ConnectionConfig,
+    error::Initiator,
+    streams::{
+        counts::Counts,
+        recv::{Open, Recv, RecvHeaderBlockError},
+        store::{Entry, Ptr, Resolve},
         stream::Stream,
     },
-    role::Role,
+};
+use buffer::Buffer;
+use store::Store;
+use tracing::trace;
+
+use std::sync::{Arc, Mutex};
+
+use crate::{
+    Frame, Headers, Reason, Settings, StreamId, proto::ProtoError, role::Role,
 };
 
 #[derive(Debug)]
@@ -97,10 +99,10 @@ impl<B> Streams<B> {
         let mut me = self.inner.lock().unwrap();
         let me = &mut *me;
         me.counts
-            .apply_remote_settings(&settings);
+            .apply_remote_settings(settings);
         me.actions
             .send
-            .apply_remote_settings(&settings, &mut me.store)
+            .apply_remote_settings(settings, &mut me.store)
     }
 
     // ==== Window Update =====
@@ -346,11 +348,10 @@ impl Actions {
             self.recv.next_stream_id
         };
 
-        if let Ok(next) = next_id {
-            if id >= next {
+        if let Ok(next) = next_id
+            && id >= next {
                 return Err(Reason::PROTOCOL_ERROR);
             }
-        }
         Ok(())
     }
 

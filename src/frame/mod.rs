@@ -1,6 +1,6 @@
-use crate::hpack;
-
 use bytes::Bytes;
+
+use crate::hpack;
 
 use std::fmt;
 
@@ -38,7 +38,7 @@ mod tests {
 mod data;
 mod go_away;
 mod head;
-mod headers;
+pub mod headers;
 mod ping;
 mod priority;
 mod reason;

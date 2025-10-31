@@ -1,9 +1,8 @@
+use super::{Resolve, SlabIndex, Store, Stream};
+use crate::frame::StreamId;
 use std::fmt;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
-
-use crate::frame::StreamId;
-use crate::proto::store::{Resolve, SlabIndex, Store, Stream};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Key {

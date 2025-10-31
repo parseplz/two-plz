@@ -8,7 +8,7 @@ use self::framed_read::FramedRead;
 use self::framed_write::FramedWrite;
 
 use crate::frame::{self, Data, Frame};
-use crate::proto::{self, ProtoError};
+use crate::proto::ProtoError;
 
 use bytes::{Buf, BytesMut};
 use futures_core::Stream;

@@ -1,17 +1,21 @@
 use std::{cmp::Ordering, time::Duration};
 
 use http::HeaderMap;
+use tracing::trace;
 
 use crate::{
-    DEFAULT_INITIAL_WINDOW_SIZE, Reason, Settings, StreamId, frame, headers,
+    DEFAULT_INITIAL_WINDOW_SIZE, Headers, Reason, Settings, StreamId, frame,
+    headers,
     proto::{
         self, ProtoError, WindowSize,
-        buffer::Buffer,
         config::ConnectionConfig,
-        count::Counts,
-        flow_control::FlowControl,
-        store::{Ptr, Queue, Store},
-        stream::{NextAccept, NextResetExpire, Stream},
+        streams::{
+            Counts, Store,
+            buffer::Buffer,
+            flow_control::FlowControl,
+            store::{Ptr, Queue},
+            stream::{NextAccept, NextResetExpire, Stream},
+        },
     },
     role::{PollMessage, Role},
     stream_id::StreamIdOverflow,
@@ -173,7 +177,7 @@ impl Recv {
                     && frame
                         .pseudo()
                         .status
-                        .map_or(true, |status| status != 204 && status != 304)
+                        .is_none_or(|status| status != 204 && status != 304)
                 {
                     proto_err!(stream: "recv_headers with END_STREAM: content-length is not zero; stream={:?};", stream.id);
                     return Err(ProtoError::library_reset(
@@ -270,12 +274,11 @@ impl Recv {
         id: StreamId,
         mode: Open,
         counts: &mut Counts,
-        peer: &Role,
+        role: &Role,
     ) -> Result<Option<StreamId>, ProtoError> {
-        // TODO: WHY ?
-        //assert!(self.refused.is_none());
+        assert!(self.refused.is_none());
 
-        peer.ensure_can_open(id, mode)?;
+        role.ensure_can_open(id, mode)?;
 
         let next_id = self.next_stream_id()?;
         if id < next_id {
@@ -376,6 +379,35 @@ impl Recv {
     pub fn max_stream_id(&self) -> StreamId {
         self.max_stream_id
     }
+
+    // ===== RESET =====
+    pub fn recv_reset(
+        &mut self,
+        frame: frame::Reset,
+        stream: &mut Stream,
+        counts: &mut Counts,
+    ) -> Result<(), ProtoError> {
+        if counts.can_inc_num_remote_reset_streams() {
+            counts.inc_num_remote_reset_streams();
+        } else {
+            tracing::warn!(
+                "recv_reset; remotely-reset pending-accept streams reached limit ({:?})",
+                counts.max_remote_reset_streams(),
+            );
+            return Err(ProtoError::library_go_away_data(
+                Reason::ENHANCE_YOUR_CALM,
+                "too_many_resets",
+            ));
+        }
+
+        // Notify the stream
+        stream
+            .state
+            .recv_reset(frame, stream.is_pending_send);
+
+        Ok(())
+    }
+
     /// Add a locally reset stream to queue to be eventually reaped.
     pub fn enqueue_reset_expiration(
         &mut self,
