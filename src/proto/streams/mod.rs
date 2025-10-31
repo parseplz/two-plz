@@ -1,10 +1,26 @@
-use std::sync::{Arc, Mutex};
+use tracing::trace;
+
+use crate::proto::{
+    recv::RecvHeaderBlockError,
+    store::{Key, Ptr, Resolve},
+};
+use std::{
+    fmt,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
-    Frame, Reason, Settings, StreamId,
+    Frame, Headers, Reason, Settings, StreamId,
     proto::{
-        ProtoError, buffer::Buffer, config::ConnectionConfig, count::Counts,
-        error::Initiator, recv::Recv, send::Send, store::Store,
+        ProtoError,
+        buffer::Buffer,
+        config::ConnectionConfig,
+        count::Counts,
+        error::Initiator,
+        recv::{Open, Recv},
+        send::Send,
+        store::{Entry, Store},
+        stream::Stream,
     },
     role::Role,
 };
@@ -53,6 +69,12 @@ impl<B> Streams<B> {
             inner: Inner::new(role, config),
             send_buffer: Arc::new(SendBuffer::new()),
         }
+    }
+
+    // ===== Header =====
+    pub fn recv_header(&mut self, frame: Headers) -> Result<(), ProtoError> {
+        let mut me = self.inner.lock().unwrap();
+        me.recv_headers(&self.send_buffer, frame)
     }
 
     // ===== Settings =====
@@ -151,6 +173,115 @@ impl Inner {
             refs: 1,
         }))
     }
+
+    fn recv_headers<B>(
+        &mut self,
+        send_buffer: &SendBuffer<B>,
+        frame: Headers,
+    ) -> Result<(), ProtoError> {
+        let id = frame.stream_id();
+        let role = self.counts.role();
+
+        // The GOAWAY process has begun. All streams with a greater ID than
+        // specified as part of GOAWAY should be ignored.
+        if id > self.actions.recv.max_stream_id() {
+            return Ok(());
+        }
+
+        let key = match self.store.find_entry(id) {
+            Entry::Occupied(e) => e.key(),
+            Entry::Vacant(e) => {
+                // Client: it's possible to send a request, and then send
+                // a RST_STREAM while the response HEADERS were in transit.
+                //
+                // Server: we can't reset a stream before having received
+                // the request headers, so don't allow.
+                if !role.is_server() {
+                    // This may be response headers for a stream we've already
+                    // forgotten about...
+                    if self
+                        .actions
+                        .is_forgotten_stream(&role, id)
+                    {
+                        return Err(ProtoError::library_reset(
+                            id,
+                            Reason::STREAM_CLOSED,
+                        ));
+                    }
+                }
+
+                match self.actions.recv.open(
+                    id,
+                    Open::Headers,
+                    &mut self.counts,
+                    &role,
+                )? {
+                    Some(stream_id) => {
+                        let stream = Stream::new(
+                            stream_id,
+                            self.actions.send.init_window_sz(),
+                            self.actions.recv.init_window_sz(),
+                        );
+
+                        e.insert(stream)
+                    }
+                    None => return Ok(()),
+                }
+            }
+        };
+
+        let stream = self.store.resolve(key);
+        if stream.state.is_local_error() {
+            // Locally reset streams must ignore frames "for some time".
+            // This is because the remote may have sent trailers before
+            // receiving the RST_STREAM frame.
+            trace!("recv_headers| ignoring trailers on|{:?}", stream.id);
+            return Ok(());
+        }
+
+        let actions = &mut self.actions;
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+
+        self.counts.transition(stream, |counts, stream| {
+            let res = if stream.state.is_recv_headers() {
+                match actions.recv.recv_headers(frame, stream, counts) {
+                    Ok(()) => Ok(()),
+                    Err(RecvHeaderBlockError::Oversize(resp)) => {
+                        if let Some(header) = resp {
+                            let sent = actions.send.send_headers(
+                                header, send_buffer, stream, counts);
+                            debug_assert!(sent.is_ok(), "oversize response should not fail");
+
+                            actions.send.schedule_implicit_reset(
+                                stream,
+                                Reason::PROTOCOL_ERROR,
+                                counts,
+                            );
+
+                            actions.recv.enqueue_reset_expiration(stream, counts);
+
+                            Ok(())
+                        } else {
+                            Err(ProtoError::library_reset(stream.id, Reason::PROTOCOL_ERROR))
+                        }
+                    },
+                    Err(RecvHeaderBlockError::State(err)) => Err(err),
+                }
+            } else {
+                /// Trailers
+                if !frame.is_end_stream() {
+                    // Receiving trailers that don't set EOS is a "malformed"
+                    // message. Malformed messages are a stream error.
+                    proto_err!(stream: "recv_headers: trailers frame was not EOS; stream={:?}", stream.id);
+                    return Err(ProtoError::library_reset(stream.id, Reason::PROTOCOL_ERROR));
+                }
+
+                actions.recv.recv_trailers(frame, stream)
+            };
+            actions.reset_on_recv_stream_err(send_buffer, stream, counts, res)
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -174,7 +305,34 @@ impl Actions {
         }
     }
 
-    // ===== Misc =====
+    fn reset_on_recv_stream_err<B>(
+        &mut self,
+        buffer: &mut Buffer<Frame<B>>,
+        stream: &mut Ptr,
+        counts: &mut Counts,
+        res: Result<(), ProtoError>,
+    ) -> Result<(), ProtoError> {
+        if let Err(ProtoError::Reset(stream_id, reason, initiator)) = res {
+            debug_assert_eq!(stream_id, stream.id);
+
+            if counts.can_inc_num_local_error_resets() {
+                counts.inc_num_local_error_resets();
+                // Reset the stream.
+                self.send
+                    .send_reset(reason, initiator, stream);
+                self.recv
+                    .enqueue_reset_expiration(stream, counts);
+                Ok(())
+            } else {
+                Err(ProtoError::library_go_away_data(
+                    Reason::ENHANCE_YOUR_CALM,
+                    "too_many_internal_resets",
+                ))
+            }
+        } else {
+            res
+        }
+    }
 
     /// Check whether the stream was present in the past
     fn ensure_not_idle(
@@ -205,7 +363,7 @@ impl Actions {
     /// is more likely to be latency/memory constraints that caused this,
     /// and not a bad actor. So be less catastrophic, the spec allows
     /// us to send another RST_STREAM of STREAM_CLOSED.
-    fn may_have_forgotten_stream(&self, role: Role, id: StreamId) -> bool {
+    fn is_forgotten_stream(&self, role: &Role, id: StreamId) -> bool {
         if id.is_zero() {
             return false;
         }
