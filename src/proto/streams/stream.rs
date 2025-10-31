@@ -135,6 +135,19 @@ impl Stream {
         }
     }
 
+    // ====== Ref count =====
+    /// Increment the stream's ref count
+    pub fn ref_inc(&mut self) {
+        assert!(self.ref_count < usize::MAX);
+        self.ref_count += 1;
+    }
+
+    /// Decrements the stream's ref count
+    pub fn ref_dec(&mut self) {
+        assert!(self.ref_count > 0);
+        self.ref_count -= 1;
+    }
+
     pub fn is_closed(&self) -> bool {
         self.state.is_closed() && self.pending_send.is_empty()
     }
