@@ -18,6 +18,9 @@ use crate::{
 #[derive(Debug)]
 pub(super) struct NextAccept;
 
+#[derive(Debug)]
+pub(super) struct NextComplete;
+
 // send
 #[derive(Debug)]
 pub(super) struct NextSend;
@@ -67,12 +70,14 @@ pub struct Stream {
     /// When the RecvStream drop occurs, no data should be received.
     pub is_recv: bool,
 
-    /// Next Complete
-
     /// Next Accept
     pub next_pending_accept: Option<Key>,
     pub is_pending_accept: bool,
     pub pending_recv: Deque, // Events
+
+    // Next Complete
+    pub next_pending_complete: Option<Key>,
+    pub is_pending_complete: bool,
 
     // ===== Reset =====
     /// The time when this stream may have been locally reset.
@@ -121,6 +126,9 @@ impl Stream {
             next_pending_accept: None,
             is_pending_accept: false,
             pending_recv: Deque::new(),
+            // next complete
+            next_pending_complete: None,
+            is_pending_complete: false,
             // === reset ===
             reset_at: None,
             next_reset_expire: None,
