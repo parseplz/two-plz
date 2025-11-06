@@ -204,6 +204,13 @@ impl Stream {
             _ => Ok(()),
         }
     }
+
+
+    pub fn notify_recv(&mut self) {
+        if let Some(task) = self.recv_task.take() {
+            task.wake();
+        }
+    }
 }
 
 // ===== Queue =====
