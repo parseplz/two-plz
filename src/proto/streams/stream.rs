@@ -90,7 +90,6 @@ pub struct Stream {
     /// The stream's pending push promises
     pub pending_push_promises: Queue<NextAccept>,
 
-
 }
 
 impl Stream {
@@ -238,6 +237,30 @@ impl Next for NextAccept {
     }
 }
 
+impl Next for NextComplete {
+    fn next(stream: &Stream) -> Option<Key> {
+        stream.next_pending_complete
+    }
+
+    fn set_next(stream: &mut Stream, key: Option<Key>) {
+        stream.next_pending_complete = key
+    }
+
+    fn take_next(stream: &mut Stream) -> Option<Key> {
+        stream.next_pending_complete.take()
+    }
+
+    fn is_queued(stream: &Stream) -> bool {
+        stream.is_pending_complete
+    }
+
+    fn set_queued(stream: &mut Stream, val: bool) {
+        stream.is_pending_accept = val
+    }
+}
+
+
+
 // send
 impl Next for NextSend {
     fn next(stream: &Stream) -> Option<store::Key> {
@@ -343,8 +366,8 @@ impl Next for NextResetExpire {
 
 #[derive(Debug)]
 pub enum ContentLength {
-    Omitted,
     Head,
+    Omitted,
     Remaining(u64),
 }
 
