@@ -69,6 +69,8 @@ pub struct Stream {
     pub content_length: ContentLength,
     /// When the RecvStream drop occurs, no data should be received.
     pub is_recv: bool,
+    /// Task tracking receiving frames
+    pub recv_task: Option<Waker>,
 
     /// Next Accept
     pub next_pending_accept: Option<Key>,
@@ -120,6 +122,7 @@ impl Stream {
             recv_flow: FlowControl::new(init_recv_window),
             content_length: ContentLength::Omitted,
             is_recv: true,
+            recv_task: None,
             // next accept
             next_pending_accept: None,
             is_pending_accept: false,
