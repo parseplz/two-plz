@@ -194,6 +194,7 @@ impl Stream {
     pub(super) fn set_reset(&mut self, reason: Reason, initiator: Initiator) {
         self.state
             .set_reset(self.id, reason, initiator);
+        self.notify_recv();
     }
 
 
