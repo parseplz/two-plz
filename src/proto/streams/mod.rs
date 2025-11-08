@@ -3,7 +3,9 @@ mod counts;
 mod flow_control;
 pub mod recv;
 pub mod send;
+pub mod streams_ref;
 use send::Send;
+use std::task::Waker;
 mod state;
 mod store;
 mod stream;
@@ -13,8 +15,9 @@ use crate::proto::{
     streams::{
         counts::Counts,
         recv::{Open, Recv, RecvHeaderBlockError},
-        store::{Entry, Ptr, Resolve},
+        store::{Entry, Key, Ptr, Resolve},
         stream::Stream,
+        streams_ref::StreamRef,
     },
 };
 use buffer::Buffer;
@@ -71,6 +74,36 @@ impl<B> Streams<B> {
             inner: Inner::new(role, config),
             send_buffer: Arc::new(SendBuffer::new()),
         }
+    }
+
+    pub fn next_accept(&mut self) -> Option<StreamRef<B>> {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        me.actions
+            .recv
+            .next_accept(&mut me.store)
+            .map(|key| {
+                let stream = &mut me.store.resolve(key);
+                tracing::trace!(
+                    "next_incoming| id={:?}, state={:?}",
+                    stream.id,
+                    stream.state
+                );
+                // TODO: ideally, OpaqueStreamRefs::new would do this, but
+                // we're holding the lock, so it can't.
+                me.refs += 1;
+
+                // Pending-accepted remotely-reset streams are counted.
+                if stream.state.is_remote_reset() {
+                    me.counts.dec_num_remote_reset_streams();
+                }
+
+                StreamRef::new(
+                    self.inner.clone(),
+                    stream,
+                    self.send_buffer.clone(),
+                )
+            })
     }
 
     // ===== Header =====
