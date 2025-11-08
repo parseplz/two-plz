@@ -1,14 +1,17 @@
-use std::io::Error;
-
-use bytes::BytesMut;
-use tokio::io::{AsyncRead, AsyncWrite};
-
 use crate::{
-    Codec, Connection, Request, Response, StreamId,
+    Codec, Connection, Response, StreamId,
     builder::{BuildConnection, Builder},
-    proto::config::ConnectionConfig,
+    proto::{config::ConnectionConfig, streams::streams_ref::StreamRef},
+    request::Request,
     role::Role,
 };
+use bytes::{Buf, BytesMut};
+use futures::future::poll_fn;
+use std::{
+    io::Error,
+    task::{Context, Poll},
+};
+use tokio::io::{AsyncRead, AsyncWrite};
 
 // ===== Builder =====
 pub struct Server;
@@ -38,7 +41,7 @@ impl BuildConnection for Server {
         T: AsyncRead + AsyncWrite + Unpin,
     {
         ServerConnection {
-            conn: Connection::new(role, config, codec),
+            connection: Connection::new(role, config, codec),
         }
     }
 }
@@ -49,12 +52,40 @@ impl BuildConnection for Server {
 // SendResponse.send_response(Response)
 
 pub struct ServerConnection<T, B> {
-    conn: Connection<T, B>,
+    connection: Connection<T, B>,
 }
 
-impl<T, B> ServerConnection<T, B> {
-    async fn accept(&mut self) -> Result<(Request, SendResponse), Error> {
-        todo!()
+impl<T, B> ServerConnection<T, B>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+    B: Buf,
+{
+    pub async fn accept(
+        &mut self,
+    ) -> Option<Result<(Request, SendResponse<B>), crate::Error>> {
+        poll_fn(move |cx| self.poll_accept(cx)).await
+    }
+
+    pub fn poll_accept(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<(Request, SendResponse<B>), crate::Error>>> {
+        //TODO .map_err(Into::into);
+        if self.connection.poll(cx).is_ready() {
+            // If the socket is closed, don't return anything
+            // TODO: drop any pending streams
+            return Poll::Ready(None);
+        }
+
+        if let Some(inner) = self.connection.next_accept() {
+            tracing::trace!("received incoming");
+            let request = inner.take_request();
+            let respond = SendResponse {
+                inner,
+            };
+            return Poll::Ready(Some(Ok((request, respond))));
+        }
+        Poll::Pending
     }
 }
 
