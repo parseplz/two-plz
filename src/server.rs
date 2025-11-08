@@ -89,9 +89,12 @@ where
     }
 }
 
-struct SendResponse;
+#[derive(Debug)]
+pub struct SendResponse<B: Buf> {
+    inner: StreamRef<B>,
+}
 
-impl SendResponse {
+impl<B: Buf> SendResponse<B> {
     fn send_response(&mut self, response: Response) -> Result<(), Error> {
         todo!()
     }
