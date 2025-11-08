@@ -17,12 +17,25 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
+enum ConnectionState {
+    /// Currently open in a sane state
+    Open,
+
+    /// The codec must be flushed
+    Closing(Reason, Initiator),
+
+    /// In a closed state
+    Closed(Reason, Initiator),
+}
+
 pub struct Connection<T, B> {
     pub codec: Codec<T, BytesMut>,
     streams: Streams<B>,
     ping_handler: PingHandler,
     settings_handler: SettingsHandler,
     role: Role,
+    state: ConnectionState,
 }
 
 impl<T, B> Connection<T, B>
@@ -35,6 +48,7 @@ where
         stream: Codec<T, BytesMut>,
     ) -> Self {
         Connection {
+            state: ConnectionState::Open,
             ping_handler: PingHandler::new(),
             settings_handler: SettingsHandler::new(
                 config.local_settings.clone(),
