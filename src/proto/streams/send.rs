@@ -15,6 +15,7 @@ use crate::proto::streams::store::Ptr;
 use crate::proto::streams::store::Queue;
 use crate::proto::streams::stream;
 use std::cmp::Ordering;
+use std::task::Waker;
 
 use crate::{
     StreamId, proto::WindowSize, role::Role, stream_id::StreamIdOverflow,
@@ -75,7 +76,7 @@ impl Send {
                 .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
             last_opened_id: StreamId::ZERO,
             max_stream_id: StreamId::MAX,
-            next_stream_id: Ok(role.init_stream_id()),
+            next_stream_id: Ok(role.peer_init_stream_id()),
             pending_capacity: Queue::new(),
             pending_open: Queue::new(),
             pending_reset: Queue::new(),
@@ -91,7 +92,8 @@ impl Send {
         stream
             .pending_send
             .push_back(&mut self.buffer, frame);
-        self.schedule_send(stream);
+        //self.schedule_send(stream);
+        todo!()
     }
 
     /// Clear the send queue for a stream
@@ -129,20 +131,22 @@ impl Send {
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut Ptr,
         counts: &mut Counts,
+        task: &mut Option<Waker>,
     ) -> Result<(), UserError> {
         Self::check_headers(frame.fields())?;
-
         let end_stream = frame.is_end_stream();
 
         // Update the state
         stream.state.send_open(end_stream)?;
 
+        let mut pending_open = false;
         if counts
             .role()
             .is_local_init(frame.stream_id())
         // TODO
         //&& !stream.is_pending_push
         {
+            pending_open = true;
             self.pending_open.push(stream);
         }
 
@@ -153,6 +157,14 @@ impl Send {
         stream
             .pending_send
             .push_back(buffer, frame.into());
+
+        // Need to notify the connection when pushing onto pending_open since
+        // queue_frame only notifies for pending_send.
+        if pending_open {
+            if let Some(task) = task.take() {
+                task.wake();
+            }
+        }
         Ok(())
     }
 
@@ -262,7 +274,8 @@ impl Send {
 
         // add reset to the send queue
         let frame = frame::Reset::new(stream.id, reason);
-        self.queue_frame(frame.into(), stream);
+        todo!()
+        //self.queue_frame(frame.into(), stream);
     }
 
     pub fn schedule_implicit_reset(
@@ -270,14 +283,14 @@ impl Send {
         stream: &mut Ptr,
         reason: Reason,
         counts: &mut Counts,
+        task: &mut Option<Waker>,
     ) {
         if stream.state.is_closed() {
             // Stream is already closed, nothing more to do
             return;
         }
-
         stream.state.set_scheduled_reset(reason);
-        self.schedule_send(stream);
+        self.schedule_send(stream, task);
     }
 
     // ===== Misc ====
@@ -296,10 +309,11 @@ impl Send {
             tracing::debug!("illegal connection-specific headers found");
             return Err(UserError::MalformedHeaders);
         } else if let Some(te) = fields.get(http::header::TE)
-            && te != "trailers" {
-                tracing::debug!("illegal connection-specific headers found");
-                return Err(UserError::MalformedHeaders);
-            }
+            && te != "trailers"
+        {
+            tracing::debug!("illegal connection-specific headers found");
+            return Err(UserError::MalformedHeaders);
+        }
         Ok(())
     }
 }
