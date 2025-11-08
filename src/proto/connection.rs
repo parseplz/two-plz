@@ -17,6 +17,11 @@ use crate::{
     },
 };
 
+pub enum ReadAction {
+    Continue,
+    NeedsFlush,
+}
+
 #[derive(Debug)]
 enum ConnectionState {
     /// Currently open in a sane state
