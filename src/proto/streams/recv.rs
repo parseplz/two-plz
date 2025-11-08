@@ -147,6 +147,7 @@ impl Recv {
         let is_initial = stream.state.recv_open(&frame)?;
 
         if is_initial {
+            // save the id to use in GOAWAY frames
             if frame.stream_id() > self.last_processed_id {
                 self.last_processed_id = frame.stream_id();
             }
@@ -155,98 +156,23 @@ impl Recv {
             counts.inc_num_recv_streams(stream);
         }
 
+        // parse the content length
         if !stream.content_length.is_head() {
-            use super::stream::ContentLength;
-            use http::header;
-
-            if let Some(content_length) = frame
-                .fields()
-                .get(header::CONTENT_LENGTH)
-            {
-                let content_length = match headers::parse_u64(
-                    content_length.as_bytes(),
-                ) {
-                    Ok(v) => v,
-                    Err(_) => {
-                        proto_err!(stream: "could not parse content-length; stream={:?}", stream.id);
-                        return Err(ProtoError::library_reset(
-                            stream.id,
-                            Reason::PROTOCOL_ERROR,
-                        )
-                        .into());
-                    }
-                };
-
-                stream.content_length =
-                    ContentLength::Remaining(content_length);
-                // END_STREAM on headers frame with non-zero content-length is malformed.
-                // https://datatracker.ietf.org/doc/html/rfc9113#section-8.1.1
-                if frame.is_end_stream()
-                    && content_length > 0
-                    && frame
-                        .pseudo()
-                        .status
-                        .is_none_or(|status| status != 204 && status != 304)
-                {
-                    proto_err!(stream: "recv_headers with END_STREAM: content-length is not zero; stream={:?};", stream.id);
-                    return Err(ProtoError::library_reset(
-                        stream.id,
-                        Reason::PROTOCOL_ERROR,
-                    )
-                    .into());
-                }
-            }
+            Self::parse_content_length(stream, &frame)?;
         }
 
         if frame.is_over_size() {
-            // A frame is over size if the decoded header block was bigger than
-            // SETTINGS_MAX_HEADER_LIST_SIZE.
-            //
-            // > A server that receives a larger header block than it is willing
-            // > to handle can send an HTTP 431 (Request Header Fields Too
-            // > Large) status code [RFC6585]. A client can discard responses
-            // > that it cannot process.
-            //
-            // So, if peer is a server, we'll send a 431. In either case,
-            // an error is recorded, which will send a REFUSED_STREAM,
-            // since we don't want any of the data frames either.
-            tracing::debug!(
-                "stream error REQUEST_HEADER_FIELDS_TOO_LARGE -- \
-                 recv_headers: frame is over size; stream={:?}",
-                stream.id
-            );
-            return if counts.role().is_server() && is_initial {
-                let mut res = frame::Headers::new(
-                    stream.id,
-                    headers::Pseudo::response(
-                        ::http::StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
-                    ),
-                    HeaderMap::new(),
-                );
-                res.set_end_stream();
-                Err(RecvHeaderBlockError::Oversize(Some(res)))
-            } else {
-                Err(RecvHeaderBlockError::Oversize(None))
-            };
+            Self::check_frame_size(is_initial, &frame, stream, counts)?;
         }
 
         let stream_id = frame.stream_id();
+        let is_end = frame.is_end_stream();
         let (pseudo, fields) = frame.into_parts();
 
-        if pseudo.protocol.is_some()
-            && counts.role().is_server()
-            && !self.is_extended_connect_protocol_enabled
+        // check extended protocol and response headers in request
+        if !self.is_extended_protocol_usage_correct(stream, &pseudo, counts)
+            && !Self::are_response_headers_in_request(stream, &pseudo, counts)
         {
-            proto_err!(stream: "cannot use :protocol if extended connect protocol is disabled; stream={:?}", stream.id);
-            return Err(ProtoError::library_reset(
-                stream.id,
-                Reason::PROTOCOL_ERROR,
-            )
-            .into());
-        }
-
-        if pseudo.status.is_some() && counts.role().is_server() {
-            proto_err!(stream: "cannot use :status header for requests; stream={:?}", stream.id);
             return Err(ProtoError::library_reset(
                 stream.id,
                 Reason::PROTOCOL_ERROR,
@@ -257,28 +183,146 @@ impl Recv {
         if !pseudo.is_informational() {
             let message = counts
                 .role()
-                .convert_poll_message(pseudo, fields, stream_id)?;
+                .convert_poll_message(pseudo, fields, stream_id, None)?;
 
+            // add headers to stream
             stream
                 .pending_recv
                 .push_back(&mut self.buffer, Event::Headers(message));
 
-            // Only servers can receive a headers frame that initiates the stream.
-            // This is verified in `Streams` before calling this function.
-            if counts.role().is_server() {
-                // Correctness: never push a stream to `pending_accept` without having the
-                // corresponding headers frame pushed to `stream.pending_recv`.
-                self.pending_accept.push(stream);
+            if is_end {
+                // TODO
+                // client
+                // stream.notify_recv();
+                // Only servers can receive a headers frame that initiates the stream.
+                // This is verified in `Streams` before calling this function.
+                if counts.role().is_server() {
+                    // Correctness: never push a stream to `pending_accept` without having the
+                    // corresponding headers frame pushed to `stream.pending_recv`.
+                    self.pending_accept.push(stream);
+                }
+            } else {
+                // add to pending complete
+                self.pending_complete.push(stream);
             }
         }
-
         Ok(())
     }
 
-    /// Update state reflecting a new, remotely opened stream
-    ///
-    /// Returns the stream state if successful. `None` if refused
-    pub fn open(
+    #[inline(always)]
+    pub fn parse_content_length(
+        stream: &mut Ptr,
+        frame: &frame::Headers,
+    ) -> Result<(), ProtoError> {
+        use super::stream::ContentLength;
+        use http::header;
+
+        if let Some(content_length) = frame
+            .fields()
+            .get(header::CONTENT_LENGTH)
+        {
+            let content_length = headers::parse_u64(
+                    content_length.as_bytes(),
+                )
+                .map_err(|_| {
+                    proto_err!(stream: "could not parse content-length| stream={:?}", stream.id);
+                    ProtoError::library_reset(
+                        stream.id,
+                        Reason::PROTOCOL_ERROR,
+                    )
+                })?;
+
+            stream.content_length = ContentLength::Remaining(content_length);
+            // END_STREAM on headers frame with non-zero content-length is malformed.
+            // https://datatracker.ietf.org/doc/html/rfc9113#section-8.1.1
+            if frame.is_end_stream()
+                && content_length > 0
+                && frame
+                    .pseudo()
+                    .status
+                    .is_none_or(|status| status != 204 && status != 304)
+            {
+                proto_err!(stream: "recv_headers with END_STREAM| content-length is not zero| stream={:?};", stream.id);
+                return Err(ProtoError::library_reset(
+                    stream.id,
+                    Reason::PROTOCOL_ERROR,
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn check_frame_size(
+        is_initial: bool,
+        frame: &frame::Headers,
+        stream: &mut Ptr,
+        counts: &mut Counts,
+    ) -> Result<(), RecvHeaderBlockError<Option<frame::Headers>>> {
+        // A frame is over size if the decoded header block was bigger than
+        // SETTINGS_MAX_HEADER_LIST_SIZE.
+        //
+        // > A server that receives a larger header block than it is willing
+        // > to handle can send an HTTP 431 (Request Header Fields Too
+        // > Large) status code [RFC6585]. A client can discard responses
+        // > that it cannot process.
+        //
+        // So, if role is a server, we'll send a 431. In either case,
+        // an error is recorded, which will send a REFUSED_STREAM,
+        // since we don't want any of the data frames either.
+        tracing::debug!(
+            "stream error REQUEST_HEADER_FIELDS_TOO_LARGE -- \
+                recv_headers| frame is over size| stream={:?}",
+            stream.id
+        );
+        // server
+        return if counts.role().is_server() && is_initial {
+            let mut response = Headers::new(
+                stream.id,
+                headers::Pseudo::response(
+                    ::http::StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
+                ),
+                HeaderMap::new(),
+            );
+            response.set_end_stream();
+            Err(RecvHeaderBlockError::Oversize(Some(response)))
+            // client
+        } else {
+            Err(RecvHeaderBlockError::Oversize(None))
+        };
+    }
+
+    #[inline(always)]
+    fn is_extended_protocol_usage_correct(
+        &mut self,
+        stream: &mut Ptr,
+        pseudo: &Pseudo,
+        counts: &mut Counts,
+    ) -> bool {
+        if pseudo.protocol.is_some()
+            && counts.role().is_server()
+            && !self.is_extended_connect_protocol_enabled
+        {
+            proto_err!(stream: "cannot use :protocol if extended connect protocol is disabled; stream={:?}", stream.id);
+            false
+        } else {
+            true
+        }
+    }
+
+    #[inline(always)]
+    fn are_response_headers_in_request(
+        stream: &mut Ptr,
+        pseudo: &Pseudo,
+        counts: &mut Counts,
+    ) -> bool {
+        if pseudo.status.is_some() && counts.role().is_server() {
+            proto_err!(stream: "cannot use :status header for requests; stream={:?}", stream.id);
+            false
+        } else {
+            true
+        }
+    }
         &mut self,
         id: StreamId,
         mode: Open,
