@@ -1,22 +1,23 @@
 use std::{cmp::Ordering, time::Duration};
 
-use http::HeaderMap;
+use http::{HeaderMap, header::HOST};
 use tracing::trace;
 
 use crate::{
     DEFAULT_INITIAL_WINDOW_SIZE, Headers, Reason, Settings, StreamId, frame,
-    headers,
+    headers::{self, Pseudo},
     proto::{
-        self, ProtoError, WindowSize,
+        ProtoError, WindowSize,
         config::ConnectionConfig,
         streams::{
             Counts, Store,
             buffer::Buffer,
             flow_control::FlowControl,
-            store::{Ptr, Queue},
-            stream::{NextAccept, NextResetExpire, Stream},
+            store::{Key, Ptr, Queue},
+            stream::{NextAccept, NextComplete, NextResetExpire, Stream},
         },
     },
+    request::Request,
     role::{PollMessage, Role},
     stream_id::StreamIdOverflow,
 };
@@ -151,7 +152,6 @@ impl Recv {
             if frame.stream_id() > self.last_processed_id {
                 self.last_processed_id = frame.stream_id();
             }
-
             // Increment the number of concurrent streams
             counts.inc_num_recv_streams(stream);
         }
@@ -334,15 +334,12 @@ impl Recv {
         role: &Role,
     ) -> Result<Option<StreamId>, ProtoError> {
         assert!(self.refused.is_none());
-
         role.ensure_can_open(id, mode)?;
-
         let next_id = self.next_stream_id()?;
         if id < next_id {
             proto_err!(conn: "id ({:?}) < next_id ({:?})", id, next_id);
             return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
         }
-
         self.next_stream_id = id.next_id();
 
         if !counts.can_inc_num_recv_streams() {
@@ -406,7 +403,7 @@ impl Recv {
         &mut self,
         settings: &Settings,
         store: &mut Store,
-    ) -> Result<(), proto::ProtoError> {
+    ) -> Result<(), ProtoError> {
         if let Some(val) = settings.is_extended_connect_protocol_enabled() {
             self.is_extended_connect_protocol_enabled = val;
         }
@@ -425,8 +422,8 @@ impl Recv {
                         stream
                             .recv_flow
                             .dec_window(dec)
-                            .map_err(proto::ProtoError::library_go_away)?;
-                        Ok::<_, proto::ProtoError>(())
+                            .map_err(ProtoError::library_go_away)?;
+                        Ok::<_, ProtoError>(())
                     })?;
                 }
                 // We must increase the (local) window on every open stream.
@@ -439,8 +436,8 @@ impl Recv {
                         stream
                             .recv_flow
                             .inc_window(inc)
-                            .map_err(proto::ProtoError::library_go_away)?;
-                        Ok::<_, proto::ProtoError>(())
+                            .map_err(ProtoError::library_go_away)?;
+                        Ok::<_, ProtoError>(())
                     })?;
                 }
                 Ordering::Equal => (),
@@ -500,11 +497,11 @@ impl Recv {
 
         if counts.can_inc_num_reset_streams() {
             counts.inc_num_reset_streams();
-            trace!("enqueue_reset_expiration; added {:?}", stream.id);
+            trace!("enqueue_reset_expiration| added {:?}", stream.id);
             self.pending_reset_expired.push(stream);
         } else {
             trace!(
-                "enqueue_reset_expiration; dropped {:?}, over max_concurrent_reset_streams",
+                "enqueue_reset_expiration| dropped {:?}, over max_concurrent_reset_streams",
                 stream.id
             );
         }
@@ -519,7 +516,6 @@ impl Recv {
         }
     }
 
-    // ===== Misc ====
     pub fn init_window_sz(&self) -> WindowSize {
         self.init_stream_window_sz
     }
