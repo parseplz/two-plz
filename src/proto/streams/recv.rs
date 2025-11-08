@@ -323,6 +323,10 @@ impl Recv {
             true
         }
     }
+
+    /// check if the ID is the next expected and within the limit of total no
+    /// of recv streams
+    pub fn can_open(
         &mut self,
         id: StreamId,
         mode: Open,
