@@ -74,6 +74,9 @@ pub(super) struct Recv {
     /// New streams to be accepted
     pending_accept: Queue<NextAccept>,
 
+    /// Streams waiting for EOS
+    pending_complete: Queue<NextComplete>,
+
     /// Streams that have pending window updates
     /// pending_window_updates: Queue<NextWindowUpdate>,
     /// Locally reset streams that should be reaped when they expire
@@ -114,8 +117,9 @@ impl Recv {
                 .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
             last_processed_id: StreamId::ZERO,
             max_stream_id: StreamId::MAX,
-            next_stream_id: Ok(role.init_stream_id()),
+            next_stream_id: Ok(role.peer_init_stream_id()),
             pending_accept: Queue::new(),
+            pending_complete: Queue::new(),
             pending_reset_expired: Queue::new(),
             reset_duration: config.reset_stream_duration,
             is_push_enabled: false,
