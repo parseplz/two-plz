@@ -128,9 +128,14 @@ impl Recv {
         }
     }
 
-    // ===== Headers =====
+    pub fn next_accept(&mut self, store: &mut Store) -> Option<Key> {
+        self.pending_accept
+            .pop(store)
+            .map(|ptr| ptr.key())
+    }
 
-    /// Transition the stream state based on receiving headers
+    // ===== Headers =====
+    /// Check if the headers frame is in right format and parse the headers
     ///
     /// The caller ensures that the frame represents headers and not trailers.
     pub fn recv_headers(
