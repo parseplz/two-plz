@@ -1,4 +1,4 @@
-use crate::{frame::Settings, proto, Reason};
+use crate::{Reason, frame::Settings, proto};
 
 pub enum SettingsAction {
     /// send a SETTINGS ACK for remote SETTINGS

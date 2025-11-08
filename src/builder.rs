@@ -1,13 +1,13 @@
 use bytes::BytesMut;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use crate::Codec;
 use crate::proto::config::ConnectionConfig;
 use crate::proto::{
     DEFAULT_LOCAL_RESET_COUNT_MAX, DEFAULT_REMOTE_RESET_COUNT_MAX,
     DEFAULT_RESET_STREAM_MAX, DEFAULT_RESET_STREAM_SECS,
 };
 use crate::role::Role;
-use crate::Codec;
 use crate::{
     Settings, StreamId,
     preface::{PrefaceConn, PrefaceError, PrefaceState},
@@ -61,7 +61,7 @@ pub struct Builder<R> {
 impl<R> Default for Builder<R>
 where
     R: BuildConnection,
- {
+{
     fn default() -> Self {
         Self::new()
     }

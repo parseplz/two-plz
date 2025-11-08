@@ -148,7 +148,7 @@ impl<T, B> Codec<T, B> {
     }
 
     #[cfg(feature = "test-util")]
-    pub fn read_frame(&mut self) -> Result<Frame, proto::ProtoError> {
+    pub fn read_frame(&mut self) -> Result<Frame, ProtoError> {
         self.inner.read_frame()
     }
 }
