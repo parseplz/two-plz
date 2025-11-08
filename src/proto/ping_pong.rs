@@ -23,6 +23,12 @@ pub(crate) enum PingAction {
     Shutdown,
 }
 
+impl PingAction {
+    pub(crate) fn is_shutdown(&self) -> bool {
+        matches!(*self, Self::Shutdown)
+    }
+}
+
 impl PingHandler {
     pub fn new() -> PingHandler {
         PingHandler::default()
