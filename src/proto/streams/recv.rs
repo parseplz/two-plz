@@ -519,4 +519,26 @@ impl Recv {
     pub fn init_window_sz(&self) -> WindowSize {
         self.init_stream_window_sz
     }
+
+    pub fn take_request(&mut self, stream: &mut Ptr) -> Request {
+        use crate::role::PollMessage::*;
+        while let Some(event) = stream
+            .pending_recv
+            .pop_front(&mut self.buffer)
+        {
+            dbg!(event);
+        }
+
+        todo!()
+
+        //match stream
+        //    .pending_recv
+        //    .pop_front(&mut self.buffer)
+        //{
+        //    Some(Event::Headers(Server(request))) => request,
+        //    _ => {
+        //        unreachable!("server stream queue must start with Headers")
+        //    }
+        //}
+    }
 }
