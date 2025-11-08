@@ -200,7 +200,7 @@ impl Counts {
         self.max_remote_reset_streams > self.num_remote_reset_streams
     }
 
-    fn dec_num_remote_reset_streams(&mut self) {
+    pub fn dec_num_remote_reset_streams(&mut self) {
         assert!(self.num_remote_reset_streams > 0);
         self.num_remote_reset_streams -= 1;
     }
