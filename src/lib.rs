@@ -28,6 +28,7 @@ pub mod io;
 pub mod preface;
 pub mod proto;
 pub mod request;
+pub mod response;
 pub mod role;
 pub mod server;
 pub mod state;
@@ -36,7 +37,3 @@ pub mod state;
 pub use crate::proto::connection::Connection;
 pub use codec::Codec;
 pub use frame::*;
-
-// TODO: move to their respective modules
-#[derive(Debug)]
-pub struct Response;

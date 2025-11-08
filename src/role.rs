@@ -1,5 +1,7 @@
 use http::HeaderMap;
 
+use crate::request::Request;
+use crate::response::Response;
 use crate::{
     Reason, Request, Response, StreamId,
     headers::Pseudo,
