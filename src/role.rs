@@ -27,11 +27,11 @@ impl Role {
         matches!(self, Self::Client)
     }
 
-    pub fn init_stream_id(&self) -> StreamId {
+    pub fn peer_init_stream_id(&self) -> StreamId {
         if self.is_server() {
-            2.into()
-        } else {
             1.into()
+        } else {
+            2.into()
         }
     }
 
