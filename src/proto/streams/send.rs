@@ -105,12 +105,20 @@ impl Send {
     }
 
     /// Schedule a stream to be sent
-    pub fn schedule_send(&mut self, stream: &mut Ptr) {
+    pub fn schedule_send(
+        &mut self,
+        stream: &mut Ptr,
+        task: &mut Option<Waker>,
+    ) {
         // If the stream is waiting to be opened, nothing more to do.
         if stream.is_send_ready() {
             tracing::trace!(?stream.id, "schedule_send");
             // Queue the stream
             self.pending_send.push(stream);
+
+            if let Some(task) = task.take() {
+                task.wake();
+            }
         }
     }
 
