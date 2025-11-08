@@ -340,6 +340,9 @@ struct Actions {
     /// Manages state transitions initiated by sending frames
     send: Send,
 
+    /// Task that calls `poll_complete`.
+    task: Option<Waker>,
+
     /// If the connection errors, a copy is kept for any StreamRefs.
     conn_error: Option<ProtoError>,
 }
@@ -349,6 +352,7 @@ impl Actions {
         Actions {
             recv: Recv::new(&config, &role),
             send: Send::new(&config, &role),
+            task: None,
             conn_error: None,
         }
     }
@@ -370,6 +374,7 @@ impl Actions {
                     .send_reset(reason, initiator, stream);
                 self.recv
                     .enqueue_reset_expiration(stream, counts);
+                stream.notify_recv();
                 Ok(())
             } else {
                 Err(ProtoError::library_go_away_data(
@@ -395,9 +400,10 @@ impl Actions {
         };
 
         if let Ok(next) = next_id
-            && id >= next {
-                return Err(Reason::PROTOCOL_ERROR);
-            }
+            && id >= next
+        {
+            return Err(Reason::PROTOCOL_ERROR);
+        }
         Ok(())
     }
 
