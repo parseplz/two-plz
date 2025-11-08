@@ -27,6 +27,7 @@ mod hpack;
 pub mod io;
 pub mod preface;
 pub mod proto;
+pub mod request;
 pub mod role;
 pub mod server;
 pub mod state;
@@ -38,6 +39,4 @@ pub use frame::*;
 
 // TODO: move to their respective modules
 #[derive(Debug)]
-struct Request;
-#[derive(Debug)]
-struct Response;
+pub struct Response;

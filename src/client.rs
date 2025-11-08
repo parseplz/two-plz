@@ -2,9 +2,10 @@ use bytes::BytesMut;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
-    Codec, Connection, Error, Request, Response, StreamId,
+    Codec, Connection, Error, Response, StreamId,
     builder::{BuildConnection, Builder},
     proto::config::ConnectionConfig,
+    request::Request,
     role::Role,
 };
 
