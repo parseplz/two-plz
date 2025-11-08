@@ -1,10 +1,21 @@
+use std::pin::Pin;
+use std::task::Context;
+use std::task::Poll;
+
+use crate::Reason;
 use crate::proto::ProtoError;
+use crate::proto::error::Initiator;
 use crate::proto::settings::SettingsAction;
 use crate::proto::settings::SettingsHandler;
 use crate::proto::streams::Streams;
+use crate::proto::streams::streams_ref::StreamRef;
 use crate::role::Role;
+use crate::state::read::ReadState;
+use crate::state::read::read_runner;
 
 use bytes::BytesMut;
+use futures::Stream;
+use futures::StreamExt;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{Headers, Reset, Settings};
@@ -190,9 +201,75 @@ where
         todo!()
     }
 
+    // ===== Polling =====
+    pub fn poll(&mut self, cx: &mut Context) -> Poll<Result<(), ProtoError>> {
+        loop {
+            match self.state {
+                ConnectionState::Open => {
+                    let result = match self.poll2(cx) {
+                        Poll::Ready(result) => result,
+                        Poll::Pending => {
+                            ////
+                            return Poll::Pending;
+                        }
+                    };
+                }
+                ConnectionState::Closing(reason, initiator) => todo!(),
+                ConnectionState::Closed(reason, initiator) => todo!(),
+            }
+        }
+    }
+
+    fn poll2(&mut self, cx: &mut Context) -> Poll<Result<(), ProtoError>> {
+        // This happens outside of the loop to prevent needing to do a clock
+        // check and then comparison of the queue possibly multiple times a
+        // second (and thus, the clock wouldn't have changed enough to matter).
+        self.clear_expired_reset_streams();
+
+        loop {
+            /* TODO: GOAWAY LOGIC */
+
+            /* TODO:
+             * ready!(self.poll_ready(cx))?;
+             * pending control frames*/
+
+            // read a frame
+            match ready!(Pin::new(&mut self.codec).poll_next(cx)?) {
+                Some(frame) => {
+                    let result = self.recv_frame(frame)?;
+                    match result {
+                        ReadAction::Continue => (),
+                        ReadAction::NeedsFlush => todo!(),
+                    }
+                }
+                None => {
+                    tracing::trace!("codec closed");
+                    return Poll::Ready(Ok(()));
+                }
+            }
+        }
+    }
+
+    fn poll_control_write(
+        &mut self,
+        cx: &mut Context,
+    ) -> Poll<Result<(), ProtoError>> {
+        // write pending pong
+        // ping
+        // settings
+        // refusal
+        Poll::Ready(Ok(()))
+    }
+
+    fn clear_expired_reset_streams(&mut self) {
+        //self.inner
+        //    .streams
+        //    .clear_expired_reset_streams();
+    }
+
     // ===== Test =====
     #[cfg(feature = "test-util")]
-    pub fn read_frame(&mut self) -> Result<Frame, proto::ProtoError> {
+    pub fn read_frame(&mut self) -> Result<Frame, ProtoError> {
         self.codec.read_frame()
     }
 }
