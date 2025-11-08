@@ -73,6 +73,43 @@ where
         self.codec.buffer(item)
     }
 
+    // ======== FRAMES ============
+    pub fn recv_frame(
+        &mut self,
+        frame: Frame,
+    ) -> Result<ReadAction, ProtoError> {
+        match frame {
+            Frame::Data(data) => todo!(),
+            Frame::Headers(headers) => self.streams.recv_header(headers),
+            Frame::Priority(priority) => todo!(),
+            Frame::Reset(reset) => todo!(),
+            Frame::Settings(settings) => {
+                let _ = self.handle_settings(settings);
+                Ok(())
+            }
+            Frame::PushPromise(push_promise) => todo!(),
+            Frame::Ping(ping) => {
+                let action = self.ping_handler.handle(ping);
+                // TODO
+                //if action.is_shutdown() {
+                //    todo!()
+                //}
+                todo!()
+            }
+            Frame::GoAway(go_away) => todo!(),
+            Frame::WindowUpdate(window_update) => {
+                let id = window_update.stream_id();
+                let inc = window_update.size_increment();
+                if id.is_zero() {
+                    self.recv_connection_window_update(inc)
+                } else {
+                    self.recv_stream_window_update(id, inc)
+                }
+            }
+        };
+        Ok(ReadAction::Continue)
+    }
+
     // ===== Header =====
     pub fn handle_header(&mut self, frame: Headers) -> Result<(), ProtoError> {
         self.streams.recv_header(frame)
