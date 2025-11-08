@@ -1,9 +1,14 @@
+use bytes::Bytes;
+use bytes::BytesMut;
 use http::HeaderMap;
+use http::Method;
+use http::Version;
 
 use crate::request::Request;
 use crate::response::Response;
+use crate::server::ServerConnection;
 use crate::{
-    Reason, Request, Response, StreamId,
+    Reason, StreamId,
     headers::Pseudo,
     proto::{ProtoError, streams::recv::Open},
 };
@@ -76,7 +81,15 @@ impl Role {
         pseudo: Pseudo,
         fields: HeaderMap,
         stream_id: StreamId,
+        body: Option<BytesMut>,
     ) -> Result<PollMessage, ProtoError> {
-        todo!()
+        match self {
+            Role::Client => Response::from_http_two(pseudo, fields, stream_id)
+                .map(PollMessage::Client),
+            Role::Server => {
+                Request::from_http_two(pseudo, fields, stream_id, body)
+                    .map(PollMessage::Server)
+            }
+        }
     }
 }
