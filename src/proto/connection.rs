@@ -59,6 +59,10 @@ where
         }
     }
 
+    pub fn next_accept(&mut self) -> Option<StreamRef<B>> {
+        self.streams.next_accept()
+    }
+
     // ===== Codec =====
     pub fn buffer(&mut self, item: Frame<BytesMut>) -> Result<(), UserError> {
         self.codec.buffer(item)
