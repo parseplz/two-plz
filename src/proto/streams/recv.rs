@@ -358,6 +358,7 @@ impl Recv {
         &mut self,
         frame: Headers,
         stream: &mut Ptr,
+        role: &Role,
     ) -> Result<(), ProtoError> {
         // Transition the state
         stream.state.recv_close()?;
@@ -366,7 +367,7 @@ impl Recv {
             .ensure_content_length_zero()
             .is_err()
         {
-            proto_err!(stream: "recv_trailers: content-length is not zero; stream={:?};",  stream.id);
+            proto_err!(stream: "recv_trailers| content-length is not zero| stream={:?};",  stream.id);
             return Err(ProtoError::library_reset(
                 stream.id,
                 Reason::PROTOCOL_ERROR,
@@ -376,6 +377,26 @@ impl Recv {
         stream
             .pending_recv
             .push_back(&mut self.buffer, Event::Trailers(frame.into_fields()));
+
+        // server push to pending accept
+        // client push to
+        let dest_queue = if role.is_server() {
+            &mut self.pending_accept
+        } else {
+            todo!()
+        };
+        // move the stream from pending complete to pending_accept
+        while let Some(mut stream) = self
+            .pending_complete
+            .pop_if(stream.store_mut(), |stream| {
+                stream.state.is_recv_streaming()
+            })
+        {
+            dest_queue.push(&mut stream);
+        }
+
+        // since trailer is EOS we can notify client
+        stream.notify_recv();
         Ok(())
     }
 
