@@ -1,23 +1,26 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use crate::Data;
 use crate::Headers;
 use crate::Reason;
 use crate::StreamId;
+use crate::proto::MAX_WINDOW_SIZE;
 use crate::proto::ProtoError;
+use crate::proto::WindowSize;
 use crate::proto::streams::send_buffer::SendBuffer;
-use crate::role::Role;
 use crate::proto::{
-        config::ConnectionConfig,
-        streams::{
-            Store,
-            action::Actions,
-            counts::Counts,
-            recv::{Open, RecvHeaderBlockError},
-            store::{Entry, Key, Resolve},
-            stream::Stream,
-        },
-    };
+    config::ConnectionConfig,
+    streams::{
+        Store,
+        action::Actions,
+        counts::Counts,
+        recv::{Open, RecvHeaderBlockError},
+        store::{Entry, Key, Resolve},
+        stream::Stream,
+    },
+};
+use crate::role::Role;
 use tracing::trace;
 
 /// Fields needed to manage state related to managing the set of streams. This

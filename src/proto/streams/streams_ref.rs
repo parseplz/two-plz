@@ -2,16 +2,11 @@ use std::sync::{Arc, Mutex};
 
 use crate::{
     proto::streams::{
-        Resolve,
-        inner::Inner,
-        opaque_streams_ref::OpaqueStreamRef,
-        send_buffer::SendBuffer,
-        store::Ptr,
+        Resolve, inner::Inner, opaque_streams_ref::OpaqueStreamRef,
+        send_buffer::SendBuffer, store::Ptr,
     },
     request::Request,
 };
-
-// ===== StreamRef =====
 
 /// Reference to the stream state
 #[derive(Debug)]

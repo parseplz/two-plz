@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-
 use crate::frame::Settings;
 
 #[derive(Clone, Debug)]

@@ -4,9 +4,7 @@ use crate::{
         config::ConnectionConfig,
         error::Initiator,
         streams::{
-            inner::Inner,
-            send_buffer::SendBuffer,
-            store::Resolve,
+            inner::Inner, send_buffer::SendBuffer, store::Resolve,
             streams_ref::StreamRef,
         },
     },
@@ -14,9 +12,7 @@ use crate::{
 
 use std::sync::{Arc, Mutex};
 
-use crate::{
-    Reason, Settings, StreamId, proto::ProtoError, role::Role,
-};
+use crate::{Reason, Settings, StreamId, proto::ProtoError, role::Role};
 
 #[derive(Debug)]
 pub(crate) struct Streams<B> {
@@ -156,6 +152,4 @@ impl<B> Streams<B> {
                 .map_err(ProtoError::library_go_away)
         }
     }
-
-    // ===== Misc =====
 }
