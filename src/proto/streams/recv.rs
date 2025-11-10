@@ -623,6 +623,21 @@ impl Recv {
         }
     }
 
+    // ====== Window Update =====
+    pub fn dec_connection_window(
+        &mut self,
+        size: WindowSize,
+    ) -> Result<(), ProtoError> {
+        if self.flow.window_size() < size {
+            return Err(ProtoError::library_go_away(
+                Reason::FLOW_CONTROL_ERROR,
+            ));
+        }
+        self.flow
+            .dec_window(size)
+            .map_err(ProtoError::library_go_away)
+    }
+
     // ===== Misc ======
     pub fn next_stream_id(&self) -> Result<StreamId, ProtoError> {
         if let Ok(id) = self.next_stream_id {
