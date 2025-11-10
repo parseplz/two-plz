@@ -137,6 +137,104 @@ impl Recv {
             .map(|ptr| ptr.key())
     }
 
+    // ===== Data =====
+    pub fn recv_data(
+        &mut self,
+        frame: Data,
+        stream: &mut Ptr,
+        role: &Role,
+    ) -> Result<(), ProtoError> {
+        let size = frame.payload().len();
+        // This should have been enforced at the codec::FramedRead layer, so
+        // this is just a sanity check.
+        assert!(size <= MAX_WINDOW_SIZE as usize);
+        let size = size as WindowSize;
+        let is_ignoring_frame = stream.state.is_local_error();
+
+        // check if stream in recv data state
+        if !is_ignoring_frame && !stream.state.is_recv_streaming() {
+            // TODO: There are cases where this can be a stream error of
+            // STREAM_CLOSED instead...
+            // Receiving a DATA frame when not expecting one is a protocol
+            // error.
+            return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+
+        if is_ignoring_frame {
+            return self.dec_connection_window(size);
+        }
+
+        self.dec_connection_window(size)?;
+        if stream.recv_flow.window_size() < size {
+            // http://httpwg.org/specs/rfc7540.html#WINDOW_UPDATE
+            // > A receiver MAY respond with a stream error (Section 5.4.2) or
+            // > connection error (Section 5.4.1) of type FLOW_CONTROL_ERROR if
+            // > it is unable to accept a frame.
+            //
+            // So, for violating the **stream** window, we can send either a
+            // stream or connection error. We've opted to send a stream
+            // error.
+            return Err(ProtoError::library_reset(
+                stream.id,
+                Reason::FLOW_CONTROL_ERROR,
+            ));
+        }
+
+        // check if content length decrement causes underflow
+        if stream
+            .dec_content_length(frame.payload().len())
+            .is_err()
+        {
+            return Err(ProtoError::library_reset(
+                stream.id,
+                Reason::PROTOCOL_ERROR,
+            ));
+        }
+
+        let is_eos = frame.is_end_stream();
+
+        // If EOS check if entire body is received and state transition cauess
+        // err
+        if is_eos {
+            if stream
+                .ensure_content_length_zero()
+                .is_err()
+            {
+                return Err(ProtoError::library_reset(
+                    stream.id,
+                    Reason::PROTOCOL_ERROR,
+                ));
+            }
+
+            if stream.state.recv_close().is_err() {
+                return Err(ProtoError::library_go_away(
+                    Reason::PROTOCOL_ERROR,
+                ));
+            }
+        }
+
+        // TODO: needed ?
+        //if !stream.is_recv {
+        //    self.release_connection_capacity(sz, &mut None);
+        //    return Ok(());
+        //}
+
+        // update stream flow control
+        stream
+            .recv_flow
+            .dec_window(size)
+            .map_err(ProtoError::library_go_away)?;
+
+        let event = Event::Data(frame.into_payload());
+
+        // Push the frame onto the recv buffer
+        stream
+            .pending_recv
+            .push_back(&mut self.buffer, event);
+
+        Ok(())
+    }
+
     // ===== Headers =====
     /// Check if the headers frame is in right format and parse the headers
     ///
