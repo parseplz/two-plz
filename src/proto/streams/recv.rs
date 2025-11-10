@@ -232,6 +232,22 @@ impl Recv {
             .pending_recv
             .push_back(&mut self.buffer, event);
 
+        if is_eos {
+            // for server
+            // move the streams from pending complete to pending_accept
+            if role.is_server() {
+                while let Some(mut stream) = self
+                    .pending_complete
+                    .pop_if(stream.store_mut(), |stream| {
+                        stream.state.is_recv_streaming()
+                    })
+                {
+                    self.pending_accept.push(&mut stream);
+                }
+            }
+            // notify the client
+            stream.notify_recv();
+        }
         Ok(())
     }
 
