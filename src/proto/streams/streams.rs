@@ -72,10 +72,10 @@ impl<B> Streams<B> {
     }
 
     // ===== Data =====
-    //pub fn recv_data(&mut self, frame: frame::Data) -> Result<(), ProtoError> {
-    //    let mut me = self.inner.lock().unwrap();
-    //    me.recv_data(self.send_buffer, frame)
-    //}
+    pub fn recv_data(&mut self, frame: frame::Data) -> Result<(), ProtoError> {
+        let mut me = self.inner.lock().unwrap();
+        me.recv_data(&self.send_buffer, frame)
+    }
 
     // ===== Header =====
     pub fn recv_header(
