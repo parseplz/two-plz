@@ -282,7 +282,7 @@ impl Recv {
         }
 
         let stream_id = frame.stream_id();
-        let is_end = frame.is_end_stream();
+        let is_eos = frame.is_end_stream();
         let (pseudo, fields) = frame.into_parts();
 
         // check extended protocol and response headers in request
@@ -306,19 +306,21 @@ impl Recv {
                 .pending_recv
                 .push_back(&mut self.buffer, Event::Headers(message));
 
-            if is_end {
-                // TODO
-                // client
-                // stream.notify_recv();
-                // Only servers can receive a headers frame that initiates the stream.
-                // This is verified in `Streams` before calling this function.
+            if is_eos {
+                // Only servers can receive a headers frame that initiates the
+                // stream. This is verified in `Streams` before calling this
+                // function.
                 if counts.role().is_server() {
-                    // Correctness: never push a stream to `pending_accept` without having the
-                    // corresponding headers frame pushed to `stream.pending_recv`.
+                    // Correctness: never push a stream to `pending_accept`
+                    // without having the corresponding headers frame pushed to
+                    // `stream.pending_recv`.
                     self.pending_accept.push(stream);
+                } else {
+                    // for client we notify the response has arrived
+                    stream.notify_recv();
                 }
             } else {
-                // add to pending complete
+                // if not EOS, add to pending complete
                 self.pending_complete.push(stream);
             }
         }
@@ -491,21 +493,17 @@ impl Recv {
             .pending_recv
             .push_back(&mut self.buffer, Event::Trailers(frame.into_fields()));
 
-        // server push to pending accept
-        // client push to
-        let dest_queue = if role.is_server() {
-            &mut self.pending_accept
-        } else {
-            todo!()
-        };
-        // move the stream from pending complete to pending_accept
-        while let Some(mut stream) = self
-            .pending_complete
-            .pop_if(stream.store_mut(), |stream| {
-                stream.state.is_recv_streaming()
-            })
-        {
-            dest_queue.push(&mut stream);
+        if role.is_server() {
+            // for server
+            // move the streams from pending complete to pending_accept
+            while let Some(mut stream) = self
+                .pending_complete
+                .pop_if(stream.store_mut(), |stream| {
+                    stream.state.is_recv_streaming()
+                })
+            {
+                self.pending_accept.push(&mut stream);
+            }
         }
 
         // since trailer is EOS we can notify client
@@ -652,7 +650,6 @@ impl Recv {
     }
 
     pub fn take_request(&mut self, stream: &mut Ptr) -> Request {
-        
         while let Some(event) = stream
             .pending_recv
             .pop_front(&mut self.buffer)
