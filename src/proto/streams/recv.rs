@@ -1,13 +1,15 @@
 use std::{cmp::Ordering, time::Duration};
 
+use bytes::Bytes;
 use http::HeaderMap;
 use tracing::trace;
 
 use crate::{
-    DEFAULT_INITIAL_WINDOW_SIZE, Headers, Reason, Settings, StreamId, frame,
+    DEFAULT_INITIAL_WINDOW_SIZE, Data, Headers, Reason, Settings, StreamId,
+    frame,
     headers::{self, Pseudo},
     proto::{
-        ProtoError, WindowSize,
+        MAX_WINDOW_SIZE, ProtoError, WindowSize,
         config::ConnectionConfig,
         streams::{
             Counts, Store,
@@ -99,7 +101,7 @@ pub(super) struct Recv {
 #[derive(Debug)]
 pub(super) enum Event {
     Headers(PollMessage),
-    Body,
+    Data(Bytes),
     Trailers(HeaderMap),
 }
 
