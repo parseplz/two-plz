@@ -274,7 +274,7 @@ impl Next for NextComplete {
     }
 
     fn set_queued(stream: &mut Stream, val: bool) {
-        stream.is_pending_accept = val
+        stream.is_pending_complete = val
     }
 }
 
