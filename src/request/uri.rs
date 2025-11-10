@@ -34,7 +34,7 @@ impl UriBuilder {
         self
     }
 
-    pub fn build(mut self) -> Uri {
+    pub fn build(self) -> Uri {
         Uri {
             authority: self.authority.unwrap_or_default(),
             scheme: self.scheme.unwrap(),

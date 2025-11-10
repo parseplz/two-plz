@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, time::Duration};
 
-use http::{HeaderMap, header::HOST};
+use http::HeaderMap;
 use tracing::trace;
 
 use crate::{
@@ -276,7 +276,7 @@ impl Recv {
             stream.id
         );
         // server
-        return if counts.role().is_server() && is_initial {
+        if counts.role().is_server() && is_initial {
             let mut response = Headers::new(
                 stream.id,
                 headers::Pseudo::response(
@@ -289,7 +289,7 @@ impl Recv {
             // client
         } else {
             Err(RecvHeaderBlockError::Oversize(None))
-        };
+        }
     }
 
     #[inline(always)]
@@ -521,7 +521,7 @@ impl Recv {
     }
 
     pub fn take_request(&mut self, stream: &mut Ptr) -> Request {
-        use crate::role::PollMessage::*;
+        
         while let Some(event) = stream
             .pending_recv
             .pop_front(&mut self.buffer)

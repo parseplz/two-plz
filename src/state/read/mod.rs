@@ -15,7 +15,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 pub fn read_runner<T, B>(
     conn: &mut Connection<T, B>,
     frame: Frame,
-) -> Result<ReadState<T, B>, ReadError>
+) -> Result<Option<ReadAction>, ReadError>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -23,8 +23,18 @@ where
     loop {
         state = state.next()?;
         if state.is_ended() {
-            break Ok(state);
+            break Ok(state.into());
         }
+    }
+}
+
+pub enum ReadAction {
+    NeedsFlush,
+}
+
+impl<'a, T, B> From<ReadState<'a, T, B>> for Option<ReadAction> {
+    fn from(value: ReadState<'a, T, B>) -> Self {
+        todo!()
     }
 }
 

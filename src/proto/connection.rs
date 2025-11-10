@@ -7,15 +7,12 @@ use crate::proto::ProtoError;
 use crate::proto::error::Initiator;
 use crate::proto::settings::SettingsAction;
 use crate::proto::settings::SettingsHandler;
-use crate::proto::streams::Streams;
+use crate::proto::streams::streams::Streams;
 use crate::proto::streams::streams_ref::StreamRef;
 use crate::role::Role;
-use crate::state::read::ReadState;
-use crate::state::read::read_runner;
 
 use bytes::BytesMut;
 use futures::Stream;
-use futures::StreamExt;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{Headers, Reset, Settings};

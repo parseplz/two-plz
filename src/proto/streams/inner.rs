@@ -1,0 +1,173 @@
+use std::sync::Arc;
+use std::sync::Mutex;
+
+use crate::Headers;
+use crate::Reason;
+use crate::StreamId;
+use crate::proto::ProtoError;
+use crate::proto::streams::send_buffer::SendBuffer;
+use crate::role::Role;
+use crate::proto::{
+        config::ConnectionConfig,
+        streams::{
+            Store,
+            action::Actions,
+            counts::Counts,
+            recv::{Open, RecvHeaderBlockError},
+            store::{Entry, Key, Resolve},
+            stream::Stream,
+        },
+    };
+use tracing::trace;
+
+/// Fields needed to manage state related to managing the set of streams. This
+/// is mostly split out to make ownership happy.
+#[derive(Debug)]
+pub struct Inner {
+    /// Tracks send & recv stream concurrency.
+    pub counts: Counts,
+
+    /// Connection level state and performs actions on streams
+    pub actions: Actions,
+
+    /// Stores stream state
+    pub store: Store,
+
+    /// The number of stream refs to this shared state.
+    pub refs: usize,
+}
+
+impl Inner {
+    pub fn new(role: Role, config: ConnectionConfig) -> Arc<Mutex<Inner>> {
+        Arc::new(Mutex::new(Inner {
+            counts: Counts::new(role.clone(), &config),
+            actions: Actions::new(role, config),
+            store: Store::new(),
+            refs: 1,
+        }))
+    }
+
+    pub fn recv_headers<B>(
+        &mut self,
+        send_buffer: &SendBuffer<B>,
+        frame: Headers,
+    ) -> Result<(), ProtoError> {
+        let id = frame.stream_id();
+        let role = self.counts.role();
+
+        // The GOAWAY process has begun. All streams with a greater ID than
+        // specified as part of GOAWAY should be ignored.
+        if id > self.actions.recv.max_stream_id() {
+            return Ok(());
+        }
+
+        // Insert stream in store
+        let key = match self.insert_or_create(id, &role)? {
+            Some(key) => key,
+            None => return Ok(()),
+        };
+
+        let stream = self.store.resolve(key);
+        if stream.state.is_local_error() {
+            // Locally reset streams must ignore frames "for some time".
+            // This is because the remote may have sent trailers before
+            // receiving the RST_STREAM frame.
+            trace!("recv_headers| ignoring trailers on|{:?}", stream.id);
+            return Ok(());
+        }
+
+        let actions = &mut self.actions;
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+
+        self.counts.transition(stream, |counts, stream| {
+            let res = if stream.state.is_recv_headers() {
+                match actions.recv.recv_headers(frame, stream, counts) {
+                    Ok(()) => Ok(()),
+                    Err(RecvHeaderBlockError::Oversize(resp)) => {
+                        // server => 431 error 
+                        if let Some(resp) = resp {
+                            let sent = actions.send.send_headers(
+                                resp, send_buffer, stream, counts, &mut actions.task);
+                            debug_assert!(sent.is_ok(), "oversize response should not fail");
+                            actions.send.schedule_implicit_reset(
+                                stream,
+                                Reason::PROTOCOL_ERROR,
+                                counts,
+                                &mut actions.task);
+                            actions.recv.enqueue_reset_expiration(stream, counts);
+                            Ok(())
+                        } else {
+                            // client => ProtoError
+                            Err(ProtoError::library_reset(stream.id, Reason::PROTOCOL_ERROR))
+                        }
+                    },
+                    Err(RecvHeaderBlockError::State(e)) => Err(e),
+                }
+            } else {
+                /// Trailers
+                if !frame.is_end_stream() {
+                    // Receiving trailers that don't set EOS is a "malformed"
+                    // message. Malformed messages are a stream error.
+                    proto_err!(stream: "trailers withour EOS| stream={:?}", stream.id);
+                    return Err(ProtoError::library_reset(stream.id, Reason::PROTOCOL_ERROR));
+                }
+                actions.recv.recv_trailers(frame, stream, &role)
+            };
+            actions.reset_on_recv_stream_err(send_buffer, stream, counts, res)
+        })
+    }
+
+    #[inline(always)]
+    fn insert_or_create(
+        &mut self,
+        id: StreamId,
+        role: &Role,
+    ) -> Result<Option<Key>, ProtoError> {
+        let key = match self.store.find_entry(id) {
+            Entry::Occupied(entry) => entry.key(),
+            Entry::Vacant(entry) => {
+                // Client: it's possible to send a request, and then send
+                // a RST_STREAM while the response HEADERS were in transit.
+                //
+                // Server: we can't reset a stream before having received
+                // the request headers, so don't allow.
+                if !role.is_server() {
+                    // This may be response headers for a stream we've already
+                    // forgotten about...
+                    if self
+                        .actions
+                        .is_forgotten_stream(role, id)
+                    {
+                        return Err(ProtoError::library_reset(
+                            id,
+                            Reason::STREAM_CLOSED,
+                        ));
+                    }
+                }
+
+                // check if the stream Id is the exepected and within the limit
+                // of total no of recv streams
+                match self.actions.recv.can_open(
+                    id,
+                    Open::Headers,
+                    &mut self.counts,
+                    role,
+                )? {
+                    Some(stream_id) => {
+                        let stream = Stream::new(
+                            stream_id,
+                            self.actions.send.init_window_sz(),
+                            self.actions.recv.init_window_sz(),
+                        );
+                        entry.insert(stream)
+                    }
+                    None => return Ok(None),
+                }
+            }
+        };
+        Ok(Some(key))
+    }
+
+    // ===== Data =====
+}

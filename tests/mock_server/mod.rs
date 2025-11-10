@@ -5,11 +5,11 @@ use tokio::{
     io::AsyncReadExt,
     net::{TcpListener, TcpStream},
 };
+use tokio_rustls::server::TlsStream;
 use tracing::{Level, info};
+use two_plz::{client::ClientBuilder, server::ServerConnection};
 use two_plz::{
-    builder::{ClientBuilder, ServerBuilder},
-    io::write_and_flush,
-    preface::PrefaceState,
+    io::write_and_flush, preface::PrefaceState, server::ServerBuilder,
 };
 
 mod encrypt;
@@ -21,7 +21,7 @@ use encrypt::{
 const CONNECTION_ESTABLISHED: [u8; 39] =
     *b"HTTP/1.1 200 Connection Established\r\n\r\n";
 
-//#[tokio::test]
+#[tokio::test]
 async fn mock_server() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_max_level(Level::DEBUG)
@@ -70,28 +70,35 @@ async fn mock_server() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_default();
     info!("[+] client alpn| {}", String::from_utf8_lossy(alpn));
 
-    let (conn, handler) = ServerBuilder::new()
-        .handshake(client_tls)
-        .await?;
+    let mut server: ServerConnection<TlsStream<TcpStream>, BytesMut> =
+        ServerBuilder::new()
+            .handshake(client_tls)
+            .await?;
+    info!("[+] hshake done");
+    while let Some(req) = server.accept().await {
+        let (request, responder) = req.unwrap();
+        dbg!(request);
+        info!("[+] conn");
+    }
 
     Ok(())
 }
 
-#[tokio::test]
-async fn mock_client() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt()
-        .with_max_level(Level::DEBUG)
-        .init();
-    let mut captain_crypto = CaptainCrypto::new()?;
-    let server_tcp = TcpStream::connect("www.google.com:443").await?;
-    let sni = ServerName::try_from("www.google.com")?;
-    let connector = captain_crypto.get_connector();
-    let server_tls = connector
-        .connect(sni, server_tcp)
-        .await?;
-    let (conn, handler) = ClientBuilder::new()
-        .handshake(server_tls)
-        .await?;
-
-    Ok(())
-}
+//#[tokio::test]
+//async fn mock_client() -> Result<(), Box<dyn std::error::Error>> {
+//    tracing_subscriber::fmt()
+//        .with_max_level(Level::DEBUG)
+//        .init();
+//    let mut captain_crypto = CaptainCrypto::new()?;
+//    let server_tcp = TcpStream::connect("www.google.com:443").await?;
+//    let sni = ServerName::try_from("www.google.com")?;
+//    let connector = captain_crypto.get_connector();
+//    let server_tls = connector
+//        .connect(sni, server_tcp)
+//        .await?;
+//    let (conn, handler) = ClientBuilder::new()
+//        .handshake(server_tls)
+//        .await?;
+//
+//    Ok(())
+//}

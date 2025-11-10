@@ -1,7 +1,6 @@
 use crate::codec::{Codec, UserError};
 use crate::frame::{Frame, Settings};
 use crate::role::Role;
-use crate::{StreamId, WindowUpdate};
 use bytes::BytesMut;
 use futures::StreamExt;
 use futures::future::poll_fn;

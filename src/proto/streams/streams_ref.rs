@@ -1,13 +1,12 @@
-use std::{
-    fmt,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use crate::{
-    Reason, StreamId,
     proto::streams::{
-        Actions, Counts, Inner, Resolve, SendBuffer,
-        store::{Key, Ptr},
+        Resolve,
+        inner::Inner,
+        opaque_streams_ref::OpaqueStreamRef,
+        send_buffer::SendBuffer,
+        store::Ptr,
     },
     request::Request,
 };
@@ -40,138 +39,5 @@ impl<B> StreamRef<B> {
         me.actions
             .recv
             .take_request(&mut stream)
-    }
-}
-
-// ===== OpaqueStreamRef =====
-
-pub(crate) struct OpaqueStreamRef {
-    inner: Arc<Mutex<Inner>>,
-    key: Key,
-}
-
-impl OpaqueStreamRef {
-    fn new(inner: Arc<Mutex<Inner>>, stream: &mut Ptr) -> OpaqueStreamRef {
-        stream.ref_inc();
-        OpaqueStreamRef {
-            inner,
-            key: stream.key(),
-        }
-    }
-}
-
-impl Clone for OpaqueStreamRef {
-    fn clone(&self) -> Self {
-        // Increment the ref count
-        let mut inner = self.inner.lock().unwrap();
-        inner.store.resolve(self.key).ref_inc();
-        inner.refs += 1;
-
-        OpaqueStreamRef {
-            inner: self.inner.clone(),
-            key: self.key,
-        }
-    }
-}
-
-impl Drop for OpaqueStreamRef {
-    fn drop(&mut self) {
-        let mut me = match self.inner.lock() {
-            Ok(inner) => inner,
-            Err(_) => {
-                if ::std::thread::panicking() {
-                    tracing::trace!("StreamRef::drop; mutex poisoned");
-                    return;
-                } else {
-                    panic!("StreamRef::drop; mutex poisoned");
-                }
-            }
-        };
-
-        let me = &mut *me;
-        me.refs -= 1;
-        let mut stream = me.store.resolve(self.key);
-
-        tracing::trace!("drop_stream_ref; stream={:?}", stream);
-
-        // decrement the stream's ref count by 1.
-        stream.ref_dec();
-
-        let actions = &mut me.actions;
-
-        // If the stream is not referenced and it is already
-        // closed (does not have to go through logic below
-        // of canceling the stream), we should notify the task
-        // (connection) so that it can close properly
-        //if stream.ref_count == 0 && stream.is_closed() {
-        //    if let Some(task) = actions.task.take() {
-        //        task.wake();
-        //    }
-        //}
-
-        me.counts
-            .transition(stream, |counts, stream| {
-                maybe_cancel(stream, actions, counts);
-
-                if stream.ref_count == 0 {
-                    // We won't be able to reach our push promises anymore
-                    let mut ppp = stream.pending_push_promises.take();
-                    while let Some(promise) = ppp.pop(stream.store_mut()) {
-                        counts.transition(promise, |counts, stream| {
-                            maybe_cancel(stream, actions, counts);
-                        });
-                    }
-                }
-            });
-    }
-}
-
-fn maybe_cancel(stream: &mut Ptr, actions: &mut Actions, counts: &mut Counts) {
-    if stream.is_canceled_interest() {
-        // Server is allowed to early respond without fully consuming the client input stream
-        // But per the RFC, must send a RST_STREAM(NO_ERROR) in such cases. https://www.rfc-editor.org/rfc/rfc7540#section-8.1
-        // Some other http2 implementation may interpret other error code as fatal if not respected (i.e: nginx https://trac.nginx.org/nginx/ticket/2376)
-        let reason = if counts.role().is_server()
-            && stream.state.is_send_closed()
-            && stream.state.is_recv_streaming()
-        {
-            Reason::NO_ERROR
-        } else {
-            Reason::CANCEL
-        };
-
-        actions.send.schedule_implicit_reset(
-            stream,
-            reason,
-            counts,
-            &mut actions.task,
-        );
-        actions
-            .recv
-            .enqueue_reset_expiration(stream, counts);
-    }
-}
-
-impl fmt::Debug for OpaqueStreamRef {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        use std::sync::TryLockError::*;
-
-        match self.inner.try_lock() {
-            Ok(me) => {
-                let stream = &me.store[self.key];
-                fmt.debug_struct("OpaqueStreamRef")
-                    .field("stream_id", &stream.id)
-                    .field("ref_count", &stream.ref_count)
-                    .finish()
-            }
-            Err(Poisoned(_)) => fmt
-                .debug_struct("OpaqueStreamRef")
-                .field("inner", &"<Poisoned>")
-                .finish(),
-            Err(WouldBlock) => fmt
-                .debug_struct("OpaqueStreamRef")
-                .field("inner", &"<Locked>")
-                .finish(),
-        }
     }
 }

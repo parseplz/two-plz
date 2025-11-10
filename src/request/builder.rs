@@ -1,6 +1,6 @@
 use super::*;
 use crate::request::uri::UriBuilder;
-use http::{HeaderMap, HeaderValue, Method, Version, uri::Scheme};
+use http::{HeaderMap, HeaderValue, Method, Version};
 
 #[derive(Default)]
 pub struct RequestBuilder {

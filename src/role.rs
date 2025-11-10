@@ -1,12 +1,8 @@
-use bytes::Bytes;
 use bytes::BytesMut;
 use http::HeaderMap;
-use http::Method;
-use http::Version;
 
 use crate::request::Request;
 use crate::response::Response;
-use crate::server::ServerConnection;
 use crate::{
     Reason, StreamId,
     headers::Pseudo,

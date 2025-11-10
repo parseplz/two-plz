@@ -1,6 +1,6 @@
 use crate::{Reason, request::uri::UriBuilder};
-use bytes::{Bytes, BytesMut};
-use http::{HeaderMap, HeaderValue, Method, Version, uri::Scheme};
+use bytes::BytesMut;
+use http::{HeaderMap, HeaderValue, Method, Version};
 mod builder;
 mod uri;
 
@@ -8,7 +8,6 @@ use crate::{
     StreamId,
     ext::Protocol,
     headers::Pseudo,
-    hpack::BytesStr,
     proto::ProtoError,
     request::{builder::RequestBuilder, uri::Uri},
 };
