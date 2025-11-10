@@ -50,6 +50,77 @@ impl Inner {
         }))
     }
 
+    // ===== Data =====
+    pub fn recv_data<B>(
+        &mut self,
+        send_buffer: &SendBuffer<B>,
+        frame: Data,
+    ) -> Result<(), ProtoError> {
+        let id = frame.stream_id();
+        let stream = match self.store.find_mut(&id) {
+            Some(stream) => stream,
+            None => {
+                // The GOAWAY process has begun. All streams with a greater ID
+                // than specified as part of GOAWAY should be ignored.
+                if id > self.actions.recv.max_stream_id() {
+                    return Ok(());
+                }
+
+                if self
+                    .actions
+                    .is_forgotten_stream(&self.counts.role(), id)
+                {
+                    let sz = frame.payload().len();
+                    // This should have been enforced at the codec::FramedRead
+                    // layer, so this is just a sanity check.
+                    assert!(sz <= MAX_WINDOW_SIZE as usize);
+                    let sz = sz as WindowSize;
+                    // consume connection flow control
+                    self.actions
+                        .recv
+                        .dec_connection_window(sz)?;
+                    return Err(ProtoError::library_reset(
+                        id,
+                        Reason::STREAM_CLOSED,
+                    ));
+                }
+
+                return Err(ProtoError::library_go_away(
+                    Reason::PROTOCOL_ERROR,
+                ));
+            }
+        };
+
+        let actions = &mut self.actions;
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+        let role = self.counts.role();
+
+        self.counts
+            .transition(stream, |counts, stream| {
+                let sz = frame.payload().len();
+                let res = actions
+                    .recv
+                    .recv_data(frame, stream, &role);
+
+                // Any stream error after receiving a DATA frame means
+                // we won't give the data to the user, and so they can't
+                // release the capacity. We do it automatically.
+                if let Err(ProtoError::Reset(..)) = res {
+                    actions
+                        .recv
+                        .dec_connection_window(sz as WindowSize)?;
+                }
+                actions.reset_on_recv_stream_err(
+                    send_buffer,
+                    stream,
+                    counts,
+                    res,
+                )
+            })
+    }
+
+    // ===== Headers =====
     pub fn recv_headers<B>(
         &mut self,
         send_buffer: &SendBuffer<B>,
@@ -171,6 +242,4 @@ impl Inner {
         };
         Ok(Some(key))
     }
-
-    // ===== Data =====
 }
