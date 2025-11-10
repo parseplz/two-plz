@@ -197,6 +197,7 @@ impl Stream {
     }
 
 
+    // ===== Content Length =====
     pub fn ensure_content_length_zero(&self) -> Result<(), ()> {
         match self.content_length {
             ContentLength::Remaining(0) => Ok(()),
@@ -206,6 +207,24 @@ impl Stream {
     }
 
 
+    /// Returns `Err` when the decrement cannot be completed due to overflow.
+    pub fn dec_content_length(&mut self, len: usize) -> Result<(), ()> {
+        match self.content_length {
+            ContentLength::Remaining(ref mut rem) => match rem.checked_sub(len as u64) {
+                Some(val) => *rem = val,
+                None => return Err(()),
+            },
+            ContentLength::Head => {
+                if len != 0 {
+                    return Err(());
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    // ===== task =====
     pub fn notify_recv(&mut self) {
         if let Some(task) = self.recv_task.take() {
             task.wake();
@@ -258,8 +277,6 @@ impl Next for NextComplete {
         stream.is_pending_accept = val
     }
 }
-
-
 
 // send
 impl Next for NextSend {
