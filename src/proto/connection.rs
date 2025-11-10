@@ -87,7 +87,7 @@ where
         frame: Frame,
     ) -> Result<ReadAction, ProtoError> {
         match frame {
-            Frame::Data(data) => todo!(),
+            Frame::Data(data) => self.streams.recv_data(data),
             Frame::Headers(headers) => self.streams.recv_header(headers),
             Frame::Priority(priority) => todo!(),
             Frame::Reset(reset) => todo!(),
