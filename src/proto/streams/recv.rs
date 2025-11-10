@@ -239,7 +239,7 @@ impl Recv {
                 while let Some(mut stream) = self
                     .pending_complete
                     .pop_if(stream.store_mut(), |stream| {
-                        stream.state.is_recv_streaming()
+                        stream.state.is_recv_end_stream()
                     })
                 {
                     self.pending_accept.push(&mut stream);
@@ -314,6 +314,7 @@ impl Recv {
                     // Correctness: never push a stream to `pending_accept`
                     // without having the corresponding headers frame pushed to
                     // `stream.pending_recv`.
+                    trace!("[+] added {:#?}| to pending accept", stream_id);
                     self.pending_accept.push(stream);
                 } else {
                     // for client we notify the response has arrived
@@ -321,6 +322,7 @@ impl Recv {
                 }
             } else {
                 // if not EOS, add to pending complete
+                trace!("[+] added {:?}| to pending complete", stream_id);
                 self.pending_complete.push(stream);
             }
         }
@@ -499,7 +501,7 @@ impl Recv {
             while let Some(mut stream) = self
                 .pending_complete
                 .pop_if(stream.store_mut(), |stream| {
-                    stream.state.is_recv_streaming()
+                    stream.state.is_recv_end_stream()
                 })
             {
                 self.pending_accept.push(&mut stream);
