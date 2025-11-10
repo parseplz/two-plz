@@ -160,10 +160,9 @@ impl Send {
 
         // Need to notify the connection when pushing onto pending_open since
         // queue_frame only notifies for pending_send.
-        if pending_open
-            && let Some(task) = task.take() {
-                task.wake();
-            }
+        if pending_open && let Some(task) = task.take() {
+            task.wake();
+        }
         Ok(())
     }
 
