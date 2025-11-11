@@ -20,6 +20,7 @@ pub struct Request {
     headers: HeaderMap<HeaderValue>,
     extension: Option<Protocol>,
     body: Option<BytesMut>,
+    trailer: Option<HeaderMap<HeaderValue>>,
 }
 
 impl Request {
@@ -119,5 +120,13 @@ impl Request {
         b.body = body;
 
         Ok(b.build())
+    }
+
+    pub fn set_trailer(&mut self, trailer: HeaderMap) {
+        self.trailer = Some(trailer);
+    }
+
+    pub fn set_body(&mut self, body: Option<BytesMut>) {
+        self.body = body;
     }
 }
