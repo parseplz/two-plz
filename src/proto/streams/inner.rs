@@ -1,6 +1,3 @@
-use std::sync::Arc;
-use std::sync::Mutex;
-
 use crate::Data;
 use crate::Headers;
 use crate::Reason;
@@ -20,7 +17,11 @@ use crate::proto::{
         stream::Stream,
     },
 };
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use crate::role::Role;
+use tracing::error;
 use tracing::trace;
 
 /// Fields needed to manage state related to managing the set of streams. This
@@ -199,7 +200,10 @@ impl Inner {
         role: &Role,
     ) -> Result<Option<Key>, ProtoError> {
         let key = match self.store.find_entry(id) {
-            Entry::Occupied(entry) => entry.key(),
+            Entry::Occupied(entry) => {
+                trace!("new entry| {:?}", id);
+                entry.key()
+            }
             Entry::Vacant(entry) => {
                 // Client: it's possible to send a request, and then send
                 // a RST_STREAM while the response HEADERS were in transit.
@@ -213,6 +217,7 @@ impl Inner {
                         .actions
                         .is_forgotten_stream(role, id)
                     {
+                        error!("insert_or_create| forgotten stream| {:?}", id);
                         return Err(ProtoError::library_reset(
                             id,
                             Reason::STREAM_CLOSED,
