@@ -16,6 +16,8 @@ use crate::role::Role;
 use bytes::BytesMut;
 use futures::Stream;
 use tokio::io::{AsyncRead, AsyncWrite};
+use tracing::debug;
+use tracing::trace;
 
 use crate::{Headers, Reset, Settings};
 use crate::{
@@ -51,6 +53,7 @@ pub struct Connection<T, B> {
     settings_handler: SettingsHandler,
     role: Role,
     state: ConnectionState,
+    span: tracing::Span,
 }
 
 impl<T, B> Connection<T, B>
@@ -70,6 +73,7 @@ where
             ),
             codec: stream,
             role: role.clone(),
+            span: tracing::debug_span!("connection| "),
             streams: Streams::new(role, config),
         }
     }
@@ -233,6 +237,8 @@ where
 
     // ===== Polling =====
     pub fn poll(&mut self, cx: &mut Context) -> Poll<Result<(), ProtoError>> {
+        let span = self.span.clone();
+        let _e = span.enter();
         loop {
             match self.state {
                 ConnectionState::Open => {
