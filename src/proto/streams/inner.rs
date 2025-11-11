@@ -1,6 +1,7 @@
 use crate::Data;
 use crate::Headers;
 use crate::Reason;
+use crate::Reset;
 use crate::StreamId;
 use crate::proto::MAX_WINDOW_SIZE;
 use crate::proto::ProtoError;
@@ -246,6 +247,52 @@ impl Inner {
             }
         };
         Ok(Some(key))
+    }
+
+    // ===== Reset =====
+    pub fn recv_reset<B>(
+        &mut self,
+        send_buffer: &SendBuffer<B>,
+        frame: Reset,
+    ) -> Result<(), ProtoError> {
+        let id = frame.stream_id();
+        if id.is_zero() {
+            return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+
+        // The GOAWAY process has begun. All streams with a greater ID than
+        // specified as part of GOAWAY should be ignored.
+        if id > self.actions.recv.max_stream_id() {
+            return Ok(());
+        }
+
+        let stream = match self.store.find_mut(&id) {
+            Some(stream) => stream,
+            None => {
+                // TODO: Are there other error cases?
+                self.actions
+                    .ensure_not_idle(self.counts.role(), id)
+                    .map_err(ProtoError::library_go_away)?;
+
+                return Ok(());
+            }
+        };
+
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+        let actions = &mut self.actions;
+
+        self.counts
+            .transition(stream, |counts, stream| {
+                actions
+                    .recv
+                    .recv_reset(frame, stream, counts)?;
+                actions
+                    .send
+                    .clear_queue(send_buffer, stream);
+                assert!(stream.state.is_closed());
+                Ok(())
+            })
     }
 
     // ===== window update =====

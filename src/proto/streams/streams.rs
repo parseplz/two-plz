@@ -113,7 +113,16 @@ impl<B> Streams<B> {
             .apply_remote_settings(settings, &mut me.store)
     }
 
-    // ==== Window Update =====
+    // ===== Reset =====
+    pub fn recv_reset(
+        &mut self,
+        frame: frame::Reset,
+    ) -> Result<(), ProtoError> {
+        let mut me = self.inner.lock().unwrap();
+        me.recv_reset(&self.send_buffer, frame)
+    }
+
+    // ===== Window Update =====
     pub fn should_send_connection_window_update(
         &mut self,
     ) -> Option<WindowSize> {

@@ -98,7 +98,7 @@ where
             Frame::Data(data) => return self.recv_data(data),
             Frame::Headers(headers) => self.streams.recv_header(headers),
             Frame::Priority(priority) => todo!(),
-            Frame::Reset(reset) => todo!(),
+            Frame::Reset(reset) => self.streams.recv_reset(reset),
             Frame::Settings(settings) => {
                 let _ = self.handle_settings(settings);
                 Ok(())
