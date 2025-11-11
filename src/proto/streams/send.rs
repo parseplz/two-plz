@@ -84,20 +84,16 @@ impl Send {
 
     /// Queue a frame to be sent to the remote
     pub fn queue_frame(&mut self, frame: Frame, stream: &mut Ptr) {
-        // Queue the frame in the buffer
-        stream
-            .pending_send
-            .push_back(&mut self.buffer, frame);
-        //self.schedule_send(stream);
         todo!()
     }
 
     /// Clear the send queue for a stream
-    pub fn clear_queue(&mut self, stream: &mut Ptr) {
-        while let Some(frame) = stream
-            .pending_send
-            .pop_front(&mut self.buffer)
-        {
+    pub fn clear_queue<B>(
+        &mut self,
+        buffer: &mut Buffer<Frame<B>>,
+        stream: &mut Ptr,
+    ) {
+        while let Some(frame) = stream.pending_send.pop_front(buffer) {
             tracing::trace!(?frame, "dropping");
         }
     }
