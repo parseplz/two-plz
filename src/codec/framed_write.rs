@@ -21,43 +21,9 @@ macro_rules! limited_write_buf {
 
 #[derive(Debug)]
 pub struct FramedWrite<T, B> {
-    /// Upstream `AsyncWrite`
     inner: T,
     final_flush_done: bool,
-
     encoder: Encoder<B>,
-}
-
-#[derive(Debug)]
-struct Encoder<B> {
-    /// HPACK encoder
-    hpack: hpack::Encoder,
-
-    /// Write buffer
-    ///
-    /// TODO: Should this be a ring buffer?
-    buf: Cursor<BytesMut>,
-
-    /// Next frame to encode
-    next: Option<Next<B>>,
-
-    /// Last data frame
-    last_data_frame: Option<frame::Data<B>>,
-
-    /// Max frame size, this is specified by the peer
-    max_frame_size: FrameSize,
-
-    /// Chain payloads bigger than this.
-    chain_threshold: usize,
-
-    /// Min buffer required to attempt to write a frame
-    min_buffer_capacity: usize,
-}
-
-#[derive(Debug)]
-enum Next<B> {
-    Data(frame::Data<B>),
-    Continuation(frame::Continuation),
 }
 
 /// Initialize the connection with this amount of write buffer.
@@ -168,7 +134,6 @@ where
         tracing::trace!("flushing buffer");
         // Flush the upstream
         ready!(Pin::new(&mut self.inner).poll_flush(cx))?;
-
         Poll::Ready(Ok(()))
     }
 
@@ -182,10 +147,74 @@ where
     }
 }
 
-#[must_use]
-enum ControlFlow {
-    Continue,
-    Break,
+impl<T, B> FramedWrite<T, B> {
+    /// Returns the max frame size that can be sent
+    pub fn max_frame_size(&self) -> usize {
+        self.encoder.max_frame_size()
+    }
+
+    /// Set the peer's max frame size.
+    pub fn set_max_frame_size(&mut self, val: usize) {
+        assert!(val <= frame::MAX_MAX_FRAME_SIZE as usize);
+        self.encoder.max_frame_size = val as FrameSize;
+    }
+
+    /// Set the peer's header table size.
+    pub fn set_header_table_size(&mut self, val: usize) {
+        self.encoder.hpack.update_max_size(val);
+    }
+
+    /// Retrieve the last data frame that has been sent
+    pub fn take_last_data_frame(&mut self) -> Option<frame::Data<B>> {
+        self.encoder.last_data_frame.take()
+    }
+
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+
+    // for testing
+    pub fn buf_mut(&mut self) -> &mut BytesMut {
+        self.encoder.buf_mut()
+    }
+}
+
+impl<T: AsyncRead + Unpin, B> AsyncRead for FramedWrite<T, B> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf,
+    ) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner).poll_read(cx, buf)
+    }
+}
+
+// We never project the Pin to `B`.
+impl<T: Unpin, B> Unpin for FramedWrite<T, B> {}
+
+// ===== Encoder =====
+
+#[derive(Debug)]
+struct Encoder<B> {
+    hpack: hpack::Encoder,
+    /// Write buffer
+    /// TODO: Should this be a ring buffer?
+    buf: Cursor<BytesMut>,
+
+    /// Next frame to encode
+    next: Option<Next<B>>,
+
+    /// Last data frame
+    last_data_frame: Option<frame::Data<B>>,
+
+    /// Max frame size, this is specified by the peer
+    max_frame_size: FrameSize,
+
+    /// Chain payloads bigger than this.
+    chain_threshold: usize,
+
+    /// Min buffer required to attempt to write a frame
+    min_buffer_capacity: usize,
 }
 
 impl<B> Encoder<B>
@@ -342,50 +371,17 @@ impl<B> Encoder<B> {
     }
 }
 
-impl<T, B> FramedWrite<T, B> {
-    /// Returns the max frame size that can be sent
-    pub fn max_frame_size(&self) -> usize {
-        self.encoder.max_frame_size()
-    }
-
-    /// Set the peer's max frame size.
-    pub fn set_max_frame_size(&mut self, val: usize) {
-        assert!(val <= frame::MAX_MAX_FRAME_SIZE as usize);
-        self.encoder.max_frame_size = val as FrameSize;
-    }
-
-    /// Set the peer's header table size.
-    pub fn set_header_table_size(&mut self, val: usize) {
-        self.encoder.hpack.update_max_size(val);
-    }
-
-    /// Retrieve the last data frame that has been sent
-    pub fn take_last_data_frame(&mut self) -> Option<frame::Data<B>> {
-        self.encoder.last_data_frame.take()
-    }
-
-    pub fn get_mut(&mut self) -> &mut T {
-        &mut self.inner
-    }
-
-    // for testing
-    pub fn buf_mut(&mut self) -> &mut BytesMut {
-        self.encoder.buf_mut()
-    }
+#[derive(Debug)]
+enum Next<B> {
+    Data(frame::Data<B>),
+    Continuation(frame::Continuation),
 }
 
-impl<T: AsyncRead + Unpin, B> AsyncRead for FramedWrite<T, B> {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf,
-    ) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.inner).poll_read(cx, buf)
-    }
+#[must_use]
+enum ControlFlow {
+    Continue,
+    Break,
 }
-
-// We never project the Pin to `B`.
-impl<T: Unpin, B> Unpin for FramedWrite<T, B> {}
 
 #[cfg(feature = "unstable")]
 mod unstable {
