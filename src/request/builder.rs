@@ -10,6 +10,7 @@ pub struct RequestBuilder {
     pub headers: HeaderMap<HeaderValue>,
     pub extension: Option<Protocol>,
     pub body: Option<BytesMut>,
+    pub trailer: Option<HeaderMap<HeaderValue>>,
 }
 
 impl RequestBuilder {
@@ -45,6 +46,7 @@ impl RequestBuilder {
             headers: self.headers,
             extension: self.extension,
             body: self.body,
+            trailer: self.trailer,
         }
     }
 }
