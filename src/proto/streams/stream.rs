@@ -198,6 +198,15 @@ impl Stream {
 
 
     // ===== Content Length =====
+    pub fn content_length(&self) -> Option<u64> {
+        if let ContentLength::Remaining(total, _) = self.content_length {
+            Some(total) 
+        } else { 
+            None
+        }
+    }
+
+
     pub fn ensure_content_length_zero(&self) -> Result<(), ()> {
         match self.content_length {
             ContentLength::Remaining(_,0) => Ok(()),
