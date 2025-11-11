@@ -1,6 +1,7 @@
 use crate::{
     frame,
     proto::{
+        WindowSize,
         config::ConnectionConfig,
         error::Initiator,
         streams::{
@@ -113,6 +114,23 @@ impl<B> Streams<B> {
     }
 
     // ==== Window Update =====
+    pub fn should_send_connection_window_update(
+        &mut self,
+    ) -> Option<WindowSize> {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        me.should_send_connection_window_update()
+    }
+
+    pub fn should_send_stream_window_update(
+        &mut self,
+        stream_id: StreamId,
+    ) -> Option<WindowSize> {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        me.should_send_stream_window_update(stream_id)
+    }
+
     pub fn recv_connection_window_update(
         &mut self,
         size: u32,
