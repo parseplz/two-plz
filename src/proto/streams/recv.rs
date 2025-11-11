@@ -1,8 +1,11 @@
-use std::{cmp::Ordering, time::Duration};
+use std::{
+    cmp::Ordering,
+    time::{Duration, Instant},
+};
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use http::HeaderMap;
-use tracing::trace;
+use tracing::{debug, trace};
 
 use crate::{
     DEFAULT_INITIAL_WINDOW_SIZE, Data, Headers, Reason, Settings, StreamId,
@@ -666,24 +669,53 @@ impl Recv {
     }
 
     pub fn take_request(&mut self, stream: &mut Ptr) -> Request {
+        let mut request =
+            if let Some(Event::Headers(PollMessage::Server(request))) = stream
+                .pending_recv
+                .pop_front(&mut self.buffer)
+            {
+                request
+            } else {
+                unreachable!("server stream queue must start with Headers")
+            };
+
+        // Initialize body buffer
+        let mut body: Option<BytesMut> = None;
+
+        // Process remaining events
         while let Some(event) = stream
             .pending_recv
             .pop_front(&mut self.buffer)
         {
-            dbg!(event);
+            match event {
+                Event::Headers(_) => {
+                    unreachable!("header already popped")
+                }
+                Event::Data(data) => {
+                    let buf = body.get_or_insert_with(|| {
+                        let capacity = stream
+                            .content_length()
+                            .map(|size| size as usize)
+                            // assume atleast two data frames of same size
+                            // are received
+                            .unwrap_or_else(|| data.len() * 2);
+
+                        BytesMut::with_capacity(capacity)
+                    });
+
+                    buf.reserve(data.len());
+                    buf.extend_from_slice(&data);
+                }
+                Event::Trailers(header_map) => {
+                    request.set_trailer(header_map);
+                }
+            }
         }
 
-        todo!()
+        request.set_body(body);
+        request
+    }
 
-        //match stream
-        //    .pending_recv
-        //    .pop_front(&mut self.buffer)
-        //{
-        //    Some(Event::Headers(Server(request))) => request,
-        //    _ => {
-        //        unreachable!("server stream queue must start with Headers")
-        //    }
-        //}
     pub fn clear_expired_reset_streams(
         &mut self,
         store: &mut Store,
