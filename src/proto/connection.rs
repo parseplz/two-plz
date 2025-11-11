@@ -268,8 +268,11 @@ where
                 Some(frame) => {
                     let result = self.recv_frame(frame)?;
                     match result {
-                        ReadAction::Continue => (),
-                        ReadAction::NeedsFlush => todo!(),
+                        ReadAction::Continue => continue,
+                        ReadAction::NeedsFlush => {
+                            self.codec.flush(cx);
+                            return Poll::Ready(Ok(()));
+                        }
                     }
                 }
                 None => {
