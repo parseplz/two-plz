@@ -292,9 +292,8 @@ where
     }
 
     fn clear_expired_reset_streams(&mut self) {
-        //self.inner
-        //    .streams
-        //    .clear_expired_reset_streams();
+        self.streams
+            .clear_expired_reset_streams();
     }
 
     // ===== Test =====

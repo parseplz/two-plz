@@ -170,4 +170,13 @@ impl<B> Streams<B> {
                 .map_err(ProtoError::library_go_away)
         }
     }
+
+    // ===== Misc =====
+    pub fn clear_expired_reset_streams(&mut self) {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        me.actions
+            .recv
+            .clear_expired_reset_streams(&mut me.store, &mut me.counts);
+    }
 }
