@@ -2,6 +2,7 @@ use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
 
+use crate::Data;
 use crate::Reason;
 use crate::WindowUpdate;
 use crate::proto::ProtoError;
@@ -94,37 +95,7 @@ where
         frame: Frame,
     ) -> Result<ReadAction, ProtoError> {
         match frame {
-            Frame::Data(data) => {
-                let stream_id = data.stream_id();
-                self.streams.recv_data(data)?;
-                let mut need_flush = false;
-                // check connection and stream window_update
-                // size of window update = 13 bytes
-                // max frame size = 16kb
-                // so we can buffer multiple frames
-                if let Some(size) = self
-                    .streams
-                    .should_send_connection_window_update()
-                {
-                    need_flush = true;
-                    let frame = WindowUpdate::new(StreamId::ZERO, size);
-                    // safe to unwrap
-                    self.buffer(frame.into()).unwrap();
-                }
-                if let Some(size) = self
-                    .streams
-                    .should_send_stream_window_update(stream_id)
-                {
-                    need_flush = true;
-                    let frame = WindowUpdate::new(stream_id, size);
-                    // safe to unwrap
-                    self.buffer(frame.into()).unwrap();
-                }
-                if need_flush {
-                    return Ok(ReadAction::NeedsFlush);
-                }
-                Ok(())
-            }
+            Frame::Data(data) => return self.recv_data(data),
             Frame::Headers(headers) => self.streams.recv_header(headers),
             Frame::Priority(priority) => todo!(),
             Frame::Reset(reset) => todo!(),
@@ -152,6 +123,37 @@ where
                 }
             }
         };
+
+    // ===== Data =====
+    pub fn recv_data(&mut self, data: Data) -> Result<ReadAction, ProtoError> {
+        let stream_id = data.stream_id();
+        self.streams.recv_data(data)?;
+        let mut need_flush = false;
+        // check connection and stream window_update
+        // size of window update = 13 bytes
+        // max frame size = 16kb
+        // so we can buffer multiple frames
+        if let Some(size) = self
+            .streams
+            .should_send_connection_window_update()
+        {
+            need_flush = true;
+            let frame = WindowUpdate::new(StreamId::ZERO, size);
+            // safe to unwrap
+            self.buffer(frame.into()).unwrap();
+        }
+        if let Some(size) = self
+            .streams
+            .should_send_stream_window_update(stream_id)
+        {
+            need_flush = true;
+            let frame = WindowUpdate::new(stream_id, size);
+            // safe to unwrap
+            self.buffer(frame.into()).unwrap();
+        }
+        if need_flush {
+            return Ok(ReadAction::NeedsFlush);
+        }
         Ok(ReadAction::Continue)
     }
 
