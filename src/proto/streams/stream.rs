@@ -200,8 +200,8 @@ impl Stream {
     // ===== Content Length =====
     pub fn ensure_content_length_zero(&self) -> Result<(), ()> {
         match self.content_length {
-            ContentLength::Remaining(0) => Ok(()),
-            ContentLength::Remaining(_) => Err(()),
+            ContentLength::Remaining(_,0) => Ok(()),
+            ContentLength::Remaining(..) => Err(()),
             _ => Ok(()),
         }
     }
@@ -210,7 +210,7 @@ impl Stream {
     /// Returns `Err` when the decrement cannot be completed due to overflow.
     pub fn dec_content_length(&mut self, len: usize) -> Result<(), ()> {
         match self.content_length {
-            ContentLength::Remaining(ref mut rem) => match rem.checked_sub(len as u64) {
+            ContentLength::Remaining(_, ref mut rem) => match rem.checked_sub(len as u64) {
                 Some(val) => *rem = val,
                 None => return Err(()),
             },
@@ -385,7 +385,7 @@ impl Next for NextResetExpire {
 pub enum ContentLength {
     Head,
     Omitted,
-    Remaining(u64),
+    Remaining(u64,u64),
 }
 
 impl ContentLength {

@@ -352,7 +352,8 @@ impl Recv {
                     )
                 })?;
 
-            stream.content_length = ContentLength::Remaining(content_length);
+            stream.content_length =
+                ContentLength::Remaining(content_length, content_length);
             // END_STREAM on headers frame with non-zero content-length is malformed.
             // https://datatracker.ietf.org/doc/html/rfc9113#section-8.1.1
             if frame.is_end_stream()
