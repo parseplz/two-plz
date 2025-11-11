@@ -242,4 +242,39 @@ impl Inner {
         };
         Ok(Some(key))
     }
+
+    // ===== window update =====
+    pub fn should_send_connection_window_update(
+        &mut self,
+    ) -> Option<WindowSize> {
+        if let Some(size) = self
+            .actions
+            .recv
+            .should_send_connection_window_update()
+        {
+            let size = size as WindowSize;
+            self.actions
+                .recv
+                .inc_connection_window(size);
+            return Some(size);
+        }
+        None
+    }
+
+    pub fn should_send_stream_window_update(
+        &mut self,
+        stream_id: StreamId,
+    ) -> Option<WindowSize> {
+        if let Some(mut stream) = self.store.find_mut(&stream_id) {
+            if let Some(size) = stream
+                .recv_flow
+                .should_send_window_update()
+            {
+                let size = size as WindowSize;
+                stream.recv_flow.inc_window(size);
+                return Some(size);
+            }
+        }
+        None
+    }
 }
