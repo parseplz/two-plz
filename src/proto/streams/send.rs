@@ -260,7 +260,8 @@ impl Send {
         }
 
         // Clear all pending outbound frames.
-        self.clear_queue(stream);
+        // TODO
+        //self.clear_queue(stream);
 
         // add reset to the send queue
         let frame = frame::Reset::new(stream.id, reason);

@@ -122,7 +122,9 @@ where
                     self.recv_stream_window_update(id, inc)
                 }
             }
-        };
+        }?;
+        Ok(ReadAction::Continue)
+    }
 
     // ===== Data =====
     pub fn recv_data(&mut self, data: Data) -> Result<ReadAction, ProtoError> {
@@ -160,15 +162,6 @@ where
     // ===== Header =====
     pub fn handle_header(&mut self, frame: Headers) -> Result<(), ProtoError> {
         self.streams.recv_header(frame)
-    }
-
-    // ===== Ping =====
-    pub fn handle_ping(&mut self, frame: Ping) -> PingAction {
-        self.ping_handler.handle(frame)
-    }
-
-    pub fn pending_pong(&mut self) -> Option<Ping> {
-        self.ping_handler.pending_pong()
     }
 
     // ===== Settings =====
@@ -214,6 +207,15 @@ where
             .take_remote_settings()
     }
 
+    // ===== Ping =====
+    pub fn handle_ping(&mut self, frame: Ping) -> PingAction {
+        self.ping_handler.handle(frame)
+    }
+
+    pub fn pending_pong(&mut self) -> Option<Ping> {
+        self.ping_handler.pending_pong()
+    }
+
     // ==== Window Update =====
     pub fn recv_connection_window_update(
         &mut self,
@@ -230,11 +232,6 @@ where
     ) -> Result<(), ProtoError> {
         self.streams
             .recv_stream_window_update(id, size)
-    }
-
-    // ==== Reset =====
-    pub fn recv_reset(&mut self, frame: Reset) -> Result<(), ProtoError> {
-        todo!()
     }
 
     // ===== Polling =====

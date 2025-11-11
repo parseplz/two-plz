@@ -585,20 +585,16 @@ impl Recv {
         if counts.can_inc_num_remote_reset_streams() {
             counts.inc_num_remote_reset_streams();
         } else {
-            tracing::warn!(
-                "recv_reset; remotely-reset pending-accept streams reached limit ({:?})",
-                counts.max_remote_reset_streams(),
-            );
             return Err(ProtoError::library_go_away_data(
                 Reason::ENHANCE_YOUR_CALM,
                 "too_many_resets",
             ));
         }
 
-        // Notify the stream
         stream
             .state
             .recv_reset(frame, stream.is_pending_send);
+        // Notify the stream
 
         Ok(())
     }
