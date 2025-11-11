@@ -6,7 +6,7 @@ use tracing::trace;
 
 use crate::{
     DEFAULT_INITIAL_WINDOW_SIZE, Data, Headers, Reason, Settings, StreamId,
-    frame,
+    WindowUpdate, frame,
     headers::{self, Pseudo},
     proto::{
         MAX_WINDOW_SIZE, ProtoError, WindowSize,
@@ -636,6 +636,19 @@ impl Recv {
         self.flow
             .dec_window(size)
             .map_err(ProtoError::library_go_away)
+    }
+
+    pub fn inc_connection_window(
+        &mut self,
+        size: WindowSize,
+    ) -> Result<(), ProtoError> {
+        self.flow
+            .inc_window(size)
+            .map_err(ProtoError::library_go_away)
+    }
+
+    pub fn should_send_connection_window_update(&self) -> Option<WindowSize> {
+        self.flow.should_send_window_update()
     }
 
     // ===== Misc ======
