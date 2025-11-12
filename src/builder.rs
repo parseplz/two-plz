@@ -1,4 +1,4 @@
-use bytes::{Buf, BytesMut};
+use bytes::{Buf, Bytes, BytesMut};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::Codec;
@@ -16,11 +16,7 @@ use std::marker::PhantomData;
 use std::time::Duration;
 
 pub trait BuildConnection {
-    //type Connection<T, B>: Sized;
-    type Connection<T, B>
-    where
-        T: AsyncRead + AsyncWrite + Unpin,
-        B: Buf;
+    type Connection<T>: Sized;
 
     fn is_server() -> bool;
 
@@ -28,14 +24,13 @@ pub trait BuildConnection {
 
     fn init_stream_id() -> StreamId;
 
-    fn build<T, B>(
+    fn build<T>(
         role: Role,
         config: ConnectionConfig,
-        codec: Codec<T, B>,
-    ) -> Self::Connection<T, B>
+        codec: Codec<T, Bytes>,
+    ) -> Self::Connection<T>
     where
-        T: AsyncRead + AsyncWrite + Unpin,
-        B: Buf;
+        T: AsyncRead + AsyncWrite + Unpin;
 }
 
 pub struct Builder<R> {
@@ -265,10 +260,10 @@ where
     //}
     //
 
-    pub async fn handshake<T, B>(
+    pub async fn handshake<T>(
         self,
         io: T,
-    ) -> Result<R::Connection<T, B>, PrefaceError>
+    ) -> Result<R::Connection<T>, PrefaceError>
     where
         T: AsyncRead + AsyncWrite + Unpin,
     {

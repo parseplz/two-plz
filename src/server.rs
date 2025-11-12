@@ -19,11 +19,7 @@ pub struct Server;
 pub type ServerBuilder = Builder<Server>;
 
 impl BuildConnection for Server {
-    type Connection<T, B>
-        = ServerConnection<T, B>
-    where
-        T: AsyncRead + AsyncWrite + Unpin,
-        B: Buf;
+    type Connection<T> = ServerConnection<T>;
 
     fn is_server() -> bool {
         true
@@ -37,14 +33,13 @@ impl BuildConnection for Server {
         2.into()
     }
 
-    fn build<T, B>(
+    fn build<T>(
         role: Role,
         config: ConnectionConfig,
-        codec: Codec<T, B>,
-    ) -> Self::Connection<T, B>
+        codec: Codec<T, Bytes>,
+    ) -> Self::Connection<T>
     where
         T: AsyncRead + AsyncWrite + Unpin,
-        B: Buf,
     {
         ServerConnection {
             connection: Connection::new(role, config, codec),
@@ -57,25 +52,25 @@ impl BuildConnection for Server {
 // Request => complete request
 // SendResponse.send_response(Response)
 
-pub struct ServerConnection<T, B: Buf> {
-    connection: Connection<T, B>,
+pub struct ServerConnection<T> {
+    connection: Connection<T>,
 }
 
-impl<T, B> ServerConnection<T, B>
+impl<T> ServerConnection<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
-    B: Buf,
 {
     pub async fn accept(
         &mut self,
-    ) -> Option<Result<(Request, SendResponse<B>), crate::Error>> {
+    ) -> Option<Result<(Request, SendResponse<Bytes>), crate::Error>> {
         poll_fn(move |cx| self.poll_accept(cx)).await
     }
 
     pub fn poll_accept(
         &mut self,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<(Request, SendResponse<B>), crate::Error>>> {
+    ) -> Poll<Option<Result<(Request, SendResponse<Bytes>), crate::Error>>>
+    {
         //TODO .map_err(Into::into);
         if self.connection.poll(cx).is_ready() {
             // If the socket is closed, don't return anything

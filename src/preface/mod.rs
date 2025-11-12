@@ -1,7 +1,7 @@
 use crate::codec::{Codec, UserError};
 use crate::frame::{Frame, Settings};
 use crate::role::Role;
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
 use futures::future::poll_fn;
 use tokio::io::AsyncWriteExt;
@@ -37,7 +37,7 @@ server state
 const PREFACE: [u8; 24] = *b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 pub struct PrefaceConn<T> {
-    pub stream: Codec<T, BytesMut>,
+    pub stream: Codec<T, Bytes>,
     pub role: Role,
     local_settings: Settings,
     remote_settings: Option<Settings>,
