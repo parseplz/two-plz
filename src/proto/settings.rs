@@ -74,9 +74,38 @@ impl SettingsHandler {
         }
     }
 
-    pub fn take_remote_settings(&mut self) -> Settings {
-        // safe to unwrap
-        self.remote.take().unwrap()
+    pub fn poll_remote_settings<T, B, C>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, B>,
+        streams: &mut Streams<C>,
+    ) -> Poll<Result<(), ProtoError>>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+        C: Buf,
+    {
+        if let Some(settings) = self.remote.clone() {
+            if !dst.poll_ready(cx)?.is_ready() {
+                return Poll::Pending;
+            }
+            // Create an ACK settings frame
+            let frame = Settings::ack();
+            // Buffer the settings frame
+            dst.buffer(frame.into())
+                .expect("invalid settings frame");
+            streams.apply_remote_settings(&settings)?;
+
+            if let Some(val) = settings.header_table_size() {
+                dst.set_send_header_table_size(val as usize);
+            }
+
+            if let Some(val) = settings.max_frame_size() {
+                dst.set_max_send_frame_size(val as usize);
+            }
+        }
+        self.remote = None;
+        Poll::Ready(Ok(()))
     }
 
     pub fn add_pending_ack(&mut self, frame: Settings) {
