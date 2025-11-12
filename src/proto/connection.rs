@@ -14,6 +14,7 @@ use crate::proto::streams::streams::Streams;
 use crate::proto::streams::streams_ref::StreamRef;
 use crate::role::Role;
 
+use bytes::Bytes;
 use bytes::BytesMut;
 use futures::Stream;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -47,9 +48,9 @@ enum ConnectionState {
     Closed(Reason, Initiator),
 }
 
-pub struct Connection<T, B> {
+pub struct Connection<T> {
     pub codec: Codec<T, BytesMut>,
-    streams: Streams<B>,
+    streams: Streams<Bytes>,
     ping_handler: PingHandler,
     settings_handler: SettingsHandler,
     role: Role,
@@ -57,7 +58,7 @@ pub struct Connection<T, B> {
     span: tracing::Span,
 }
 
-impl<T, B> Connection<T, B>
+impl<T> Connection<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -80,7 +81,7 @@ where
     }
 
     // ===== Server =====
-    pub fn next_accept(&mut self) -> Option<StreamRef<B>> {
+    pub fn next_accept(&mut self) -> Option<StreamRef<Bytes>> {
         self.streams.next_accept()
     }
 
