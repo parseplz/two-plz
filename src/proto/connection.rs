@@ -5,6 +5,7 @@ use std::task::Poll;
 use crate::Data;
 use crate::Reason;
 use crate::WindowUpdate;
+use crate::frame;
 use crate::proto::ProtoError;
 use crate::proto::error::Initiator;
 use crate::proto::settings::SettingsAction;
@@ -52,6 +53,11 @@ pub struct Connection<T> {
     role: Role,
     state: ConnectionState,
     span: tracing::Span,
+    /// An error to report back once complete.
+    ///
+    /// This exists separately from State in order to support
+    /// graceful shutdown.
+    error: Option<frame::GoAway>,
 }
 
 impl<T> Connection<T>
@@ -306,6 +312,32 @@ where
     fn clear_expired_reset_streams(&mut self) {
         self.streams
             .clear_expired_reset_streams();
+    }
+
+    fn take_error(
+        &mut self,
+        ours: Reason,
+        initiator: Initiator,
+    ) -> Result<(), ProtoError> {
+        let (debug_data, theirs) = self
+            .error
+            .take()
+            .as_ref()
+            .map_or((Bytes::new(), Reason::NO_ERROR), |frame| {
+                (frame.debug_data().clone(), frame.reason())
+            });
+
+        match (ours, theirs) {
+            (Reason::NO_ERROR, Reason::NO_ERROR) => Ok(()),
+            (ours, Reason::NO_ERROR) => {
+                Err(ProtoError::GoAway(Bytes::new(), ours, initiator))
+            }
+            // If both sides reported an error, give their
+            // error back to th user. We assume our error
+            // was a consequence of their error, and less
+            // important.
+            (_, theirs) => Err(ProtoError::remote_go_away(debug_data, theirs)),
+        }
     }
 
     // ===== Test =====
