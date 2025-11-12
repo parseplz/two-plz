@@ -198,19 +198,6 @@ where
             .apply_local_settings(&settings)
     }
 
-    pub fn apply_remote_settings(
-        &mut self,
-        settings: Settings,
-    ) -> Result<(), ProtoError> {
-        self.streams
-            .apply_remote_settings(&settings)
-    }
-
-    pub fn take_remote_settings(&mut self) -> Settings {
-        self.settings_handler
-            .take_remote_settings()
-    }
-
     // ===== Ping =====
     pub fn handle_ping(&mut self, frame: Ping) -> PingAction {
         self.ping_handler.handle(frame)
