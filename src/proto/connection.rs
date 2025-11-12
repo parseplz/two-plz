@@ -299,7 +299,23 @@ where
         // write pending pong
         // ping
         // settings
+        ready!(self.poll_settings(cx))?;
         // refusal
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_settings(
+        &mut self,
+        cx: &mut Context,
+    ) -> Poll<Result<(), ProtoError>> {
+        ready!(
+            self.settings_handler
+                .poll_remote_settings(cx, &mut self.codec, &mut self.streams)
+        )?;
+        ready!(
+            self.settings_handler
+                .poll_local_settings(cx, &mut self.codec)
+        )?;
         Poll::Ready(Ok(()))
     }
 
