@@ -1,8 +1,18 @@
-use crate::{Reason, frame::Settings, proto};
+use std::task::{Context, Poll};
+
+use bytes::{Buf, BytesMut};
+use tokio::io::AsyncWrite;
+
+use crate::{
+    Codec, Reason,
+    codec::UserError,
+    frame::Settings,
+    proto::{self, ProtoError, streams::streams::Streams},
+};
 
 pub enum SettingsAction {
     /// send a SETTINGS ACK for remote SETTINGS
-    SendAck,
+    Ok,
     /// SETTINGS ACK received from peer apply local settings
     ApplyLocal(Settings),
 }
@@ -60,7 +70,7 @@ impl SettingsHandler {
             }
         } else {
             self.remote = Some(frame);
-            Ok(SettingsAction::SendAck)
+            Ok(SettingsAction::Ok)
         }
     }
 
