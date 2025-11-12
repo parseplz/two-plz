@@ -79,6 +79,7 @@ where
             role: role.clone(),
             span: tracing::debug_span!("connection| "),
             streams: Streams::new(role, config),
+            error: None,
         }
     }
 
@@ -243,8 +244,14 @@ where
                         }
                     };
                 }
-                ConnectionState::Closing(reason, initiator) => todo!(),
-                ConnectionState::Closed(reason, initiator) => todo!(),
+                ConnectionState::Closing(reason, initiator) => {
+                    tracing::trace!("connection closing after flush");
+                    ready!(self.codec.shutdown(cx))?;
+                    self.state = ConnectionState::Closed(reason, initiator);
+                }
+                ConnectionState::Closed(reason, initiator) => {
+                    return Poll::Ready(self.take_error(reason, initiator));
+                }
             }
         }
     }
