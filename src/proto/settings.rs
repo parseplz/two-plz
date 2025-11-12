@@ -15,9 +15,6 @@ pub(crate) struct SettingsHandler {
     /// the socket first then the settings applied **before** receiving any
     /// further frames.
     remote: Option<Settings>,
-    /// Whether the connection has received the initial SETTINGS frame from the
-    /// remote peer.
-    has_received_remote_initial_settings: bool,
 }
 
 #[derive(Debug)]
@@ -38,7 +35,6 @@ impl SettingsHandler {
             // the handshake process.
             local: Local::WaitingAck(local),
             remote: None,
-            has_received_remote_initial_settings: false,
         }
     }
 
