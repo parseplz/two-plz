@@ -1,5 +1,4 @@
-use bytes::BytesMut;
-use http::{HeaderMap, HeaderValue, StatusCode, Version};
+use http::{HeaderMap, StatusCode};
 
 use crate::{StreamId, headers::Pseudo, message::TwoTwo, proto::ProtoError};
 

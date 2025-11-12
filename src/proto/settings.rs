@@ -1,11 +1,10 @@
 use std::task::{Context, Poll};
 
-use bytes::{Buf, Bytes, BytesMut};
+use bytes::{Buf, Bytes};
 use tokio::io::AsyncWrite;
 
 use crate::{
     Codec, Reason,
-    codec::UserError,
     frame::Settings,
     proto::{self, ProtoError, streams::streams::Streams},
 };

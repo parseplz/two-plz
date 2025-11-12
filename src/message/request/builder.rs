@@ -1,5 +1,5 @@
 use super::*;
-use http::{HeaderMap, HeaderValue, Method, Version};
+use http::{HeaderMap, HeaderValue, Method};
 
 #[derive(Default)]
 pub struct RequestBuilder {

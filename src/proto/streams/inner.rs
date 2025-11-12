@@ -317,8 +317,8 @@ impl Inner {
         &mut self,
         stream_id: StreamId,
     ) -> Option<WindowSize> {
-        if let Some(mut stream) = self.store.find_mut(&stream_id) {
-            if let Some(size) = stream
+        if let Some(mut stream) = self.store.find_mut(&stream_id)
+            && let Some(size) = stream
                 .recv_flow
                 .should_send_window_update()
             {
@@ -326,7 +326,6 @@ impl Inner {
                 stream.recv_flow.inc_window(size);
                 return Some(size);
             }
-        }
         None
     }
 }

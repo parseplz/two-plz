@@ -1,5 +1,5 @@
 use bytes::BytesMut;
-use http::{HeaderMap, HeaderValue, StatusCode, Version};
+use http::{HeaderMap, HeaderValue, StatusCode};
 
 use crate::message::response::{Response, ResponseLine};
 

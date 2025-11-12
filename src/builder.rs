@@ -1,4 +1,4 @@
-use bytes::{Buf, Bytes, BytesMut};
+use bytes::{Buf, Bytes};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::Codec;

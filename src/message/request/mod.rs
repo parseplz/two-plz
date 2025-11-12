@@ -1,6 +1,6 @@
 use crate::{Reason, message::TwoTwo};
 use bytes::BytesMut;
-use http::{HeaderMap, HeaderValue, Method, StatusCode, Version};
+use http::{HeaderMap, Method, StatusCode};
 mod builder;
 mod uri;
 use builder::RequestBuilder;

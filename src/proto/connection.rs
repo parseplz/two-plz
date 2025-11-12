@@ -6,7 +6,6 @@ use crate::Data;
 use crate::Reason;
 use crate::WindowUpdate;
 use crate::proto::ProtoError;
-use crate::proto::WindowSize;
 use crate::proto::error::Initiator;
 use crate::proto::settings::SettingsAction;
 use crate::proto::settings::SettingsHandler;
@@ -15,13 +14,10 @@ use crate::proto::streams::streams_ref::StreamRef;
 use crate::role::Role;
 
 use bytes::Bytes;
-use bytes::BytesMut;
 use futures::Stream;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tracing::debug;
-use tracing::trace;
 
-use crate::{Headers, Reset, Settings};
+use crate::{Headers, Settings};
 use crate::{
     codec::{Codec, UserError},
     frame::{Frame, Ping, StreamId},

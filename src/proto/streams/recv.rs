@@ -5,11 +5,10 @@ use std::{
 
 use bytes::{Bytes, BytesMut};
 use http::HeaderMap;
-use tracing::{debug, trace};
+use tracing::trace;
 
 use crate::{
-    DEFAULT_INITIAL_WINDOW_SIZE, Data, Headers, Reason, Settings, StreamId,
-    WindowUpdate, frame,
+    DEFAULT_INITIAL_WINDOW_SIZE, Data, Headers, Reason, Settings, StreamId, frame,
     headers::{self, Pseudo},
     message::request::Request,
     proto::{

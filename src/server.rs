@@ -6,7 +6,7 @@ use crate::{
     proto::{config::ConnectionConfig, streams::streams_ref::StreamRef},
     role::Role,
 };
-use bytes::{Buf, Bytes, BytesMut};
+use bytes::{Buf, Bytes};
 use futures::future::poll_fn;
 use std::{
     io::Error,
