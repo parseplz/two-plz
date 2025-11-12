@@ -1,4 +1,4 @@
-use bytes::BytesMut;
+use bytes::{Buf, BytesMut};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
@@ -15,7 +15,11 @@ pub struct Client;
 pub type ClientBuilder = Builder<Client>;
 
 impl BuildConnection for Client {
-    type Connection<T, B> = ClientConnection<T, B>;
+    type Connection<T, B>
+        = ClientConnection<T, B>
+    where
+        T: AsyncRead + AsyncWrite + Unpin,
+        B: Buf;
 
     fn is_server() -> bool {
         false
@@ -32,10 +36,11 @@ impl BuildConnection for Client {
     fn build<T, B>(
         role: Role,
         config: ConnectionConfig,
-        codec: Codec<T, BytesMut>,
+        codec: Codec<T, B>,
     ) -> Self::Connection<T, B>
     where
         T: AsyncRead + AsyncWrite + Unpin,
+        B: Buf,
     {
         ClientConnection {
             conn: Connection::new(role, config, codec),
@@ -49,7 +54,7 @@ impl BuildConnection for Client {
 // RecvResponse.recv_response().await => Response
 // Response => compelete response
 
-pub struct ClientConnection<T, B> {
+pub struct ClientConnection<T, B: Buf> {
     pub conn: Connection<T, B>,
 }
 

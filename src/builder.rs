@@ -1,4 +1,4 @@
-use bytes::BytesMut;
+use bytes::{Buf, BytesMut};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::Codec;
@@ -16,7 +16,11 @@ use std::marker::PhantomData;
 use std::time::Duration;
 
 pub trait BuildConnection {
-    type Connection<T, B>: Sized;
+    //type Connection<T, B>: Sized;
+    type Connection<T, B>
+    where
+        T: AsyncRead + AsyncWrite + Unpin,
+        B: Buf;
 
     fn is_server() -> bool;
 
@@ -27,10 +31,11 @@ pub trait BuildConnection {
     fn build<T, B>(
         role: Role,
         config: ConnectionConfig,
-        codec: Codec<T, BytesMut>,
+        codec: Codec<T, B>,
     ) -> Self::Connection<T, B>
     where
-        T: AsyncRead + AsyncWrite + Unpin;
+        T: AsyncRead + AsyncWrite + Unpin,
+        B: Buf;
 }
 
 pub struct Builder<R> {

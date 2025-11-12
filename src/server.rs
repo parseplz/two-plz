@@ -6,7 +6,7 @@ use crate::{
     response::Response,
     role::Role,
 };
-use bytes::{Buf, BytesMut};
+use bytes::{Buf, Bytes, BytesMut};
 use futures::future::poll_fn;
 use std::{
     io::Error,
@@ -19,7 +19,11 @@ pub struct Server;
 pub type ServerBuilder = Builder<Server>;
 
 impl BuildConnection for Server {
-    type Connection<T, B> = ServerConnection<T, B>;
+    type Connection<T, B>
+        = ServerConnection<T, B>
+    where
+        T: AsyncRead + AsyncWrite + Unpin,
+        B: Buf;
 
     fn is_server() -> bool {
         true
@@ -36,10 +40,11 @@ impl BuildConnection for Server {
     fn build<T, B>(
         role: Role,
         config: ConnectionConfig,
-        codec: Codec<T, BytesMut>,
+        codec: Codec<T, B>,
     ) -> Self::Connection<T, B>
     where
         T: AsyncRead + AsyncWrite + Unpin,
+        B: Buf,
     {
         ServerConnection {
             connection: Connection::new(role, config, codec),
@@ -52,7 +57,7 @@ impl BuildConnection for Server {
 // Request => complete request
 // SendResponse.send_response(Response)
 
-pub struct ServerConnection<T, B> {
+pub struct ServerConnection<T, B: Buf> {
     connection: Connection<T, B>,
 }
 
