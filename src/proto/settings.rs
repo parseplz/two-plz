@@ -108,7 +108,32 @@ impl SettingsHandler {
         Poll::Ready(Ok(()))
     }
 
-    pub fn add_pending_ack(&mut self, frame: Settings) {
-        self.local = Local::WaitingAck(frame);
+    pub fn poll_local_settings<T, B>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, B>,
+    ) -> Poll<Result<(), ProtoError>>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+    {
+        match &self.local {
+            Local::ToSend(settings) => {
+                if !dst.poll_ready(cx)?.is_ready() {
+                    return Poll::Pending;
+                }
+                // Buffer the settings frame
+                dst.buffer(settings.clone().into())
+                    .expect("invalid settings frame");
+                tracing::trace!(
+                    "local settings sent; waiting for ack: {:?}",
+                    settings
+                );
+
+                self.local = Local::WaitingAck(settings.clone());
+            }
+            Local::WaitingAck(..) | Local::Synced => {}
+        }
+        Poll::Ready(Ok(()))
     }
 }
