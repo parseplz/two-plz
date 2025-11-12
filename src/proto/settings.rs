@@ -1,6 +1,6 @@
 use std::task::{Context, Poll};
 
-use bytes::{Buf, BytesMut};
+use bytes::{Buf, Bytes, BytesMut};
 use tokio::io::AsyncWrite;
 
 use crate::{
@@ -74,16 +74,15 @@ impl SettingsHandler {
         }
     }
 
-    pub fn poll_remote_settings<T, B, C>(
+    pub fn poll_remote_settings<T, B>(
         &mut self,
         cx: &mut Context,
         dst: &mut Codec<T, B>,
-        streams: &mut Streams<C>,
+        streams: &mut Streams<Bytes>,
     ) -> Poll<Result<(), ProtoError>>
     where
         T: AsyncWrite + Unpin,
         B: Buf,
-        C: Buf,
     {
         if let Some(settings) = self.remote.clone() {
             if !dst.poll_ready(cx)?.is_ready() {
