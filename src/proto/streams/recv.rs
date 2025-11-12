@@ -216,12 +216,6 @@ impl Recv {
             }
         }
 
-        // TODO: needed ?
-        //if !stream.is_recv {
-        //    self.release_connection_capacity(sz, &mut None);
-        //    return Ok(());
-        //}
-
         // update stream flow control
         stream
             .recv_flow
@@ -582,13 +576,23 @@ impl Recv {
         stream: &mut Stream,
         counts: &mut Counts,
     ) -> Result<(), ProtoError> {
-        if counts.can_inc_num_remote_reset_streams() {
-            counts.inc_num_remote_reset_streams();
-        } else {
-            return Err(ProtoError::library_go_away_data(
-                Reason::ENHANCE_YOUR_CALM,
-                "too_many_resets",
-            ));
+        // Reseting a stream that the user hasn't accepted is possible,
+        // but should be done with care. These streams will continue
+        // to take up memory in the accept queue, but will no longer be
+        // counted as "concurrent" streams.
+        //
+        // So, we have a separate limit for these.
+        //
+        // See https://github.com/hyperium/hyper/issues/2877
+        if stream.is_pending_accept {
+            if counts.can_inc_num_remote_reset_streams() {
+                counts.inc_num_remote_reset_streams();
+            } else {
+                return Err(ProtoError::library_go_away_data(
+                    Reason::ENHANCE_YOUR_CALM,
+                    "too_many_resets",
+                ));
+            }
         }
 
         stream
