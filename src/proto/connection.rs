@@ -49,7 +49,7 @@ enum ConnectionState {
 }
 
 pub struct Connection<T> {
-    pub codec: Codec<T, BytesMut>,
+    pub codec: Codec<T, Bytes>,
     streams: Streams<Bytes>,
     ping_handler: PingHandler,
     settings_handler: SettingsHandler,
@@ -65,7 +65,7 @@ where
     pub fn new(
         role: Role,
         config: ConnectionConfig,
-        stream: Codec<T, BytesMut>,
+        codec: Codec<T, Bytes>,
     ) -> Self {
         Connection {
             state: ConnectionState::Open,
@@ -73,7 +73,7 @@ where
             settings_handler: SettingsHandler::new(
                 config.local_settings.clone(),
             ),
-            codec: stream,
+            codec,
             role: role.clone(),
             span: tracing::debug_span!("connection| "),
             streams: Streams::new(role, config),
@@ -86,7 +86,7 @@ where
     }
 
     // ===== Codec =====
-    pub fn buffer(&mut self, item: Frame<BytesMut>) -> Result<(), UserError> {
+    pub fn buffer(&mut self, item: Frame<Bytes>) -> Result<(), UserError> {
         self.codec.buffer(item)
     }
 
