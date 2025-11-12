@@ -100,7 +100,11 @@ where
             Frame::Priority(priority) => todo!(),
             Frame::Reset(reset) => self.streams.recv_reset(reset),
             Frame::Settings(settings) => {
-                let _ = self.handle_settings(settings);
+                if let SettingsAction::ApplyLocal(settings) =
+                    self.handle_settings(settings)?
+                {
+                    self.apply_local_settings(settings)?;
+                }
                 Ok(())
             }
             Frame::PushPromise(push_promise) => todo!(),
