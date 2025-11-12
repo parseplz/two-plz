@@ -1,19 +1,16 @@
 use bytes::BytesMut;
 use http::{HeaderMap, HeaderValue, StatusCode, Version};
 
-use crate::{
-    StreamId, headers::Pseudo, proto::ProtoError,
-    response::builder::ResponseBuilder,
-};
+use crate::{StreamId, headers::Pseudo, message::TwoTwo, proto::ProtoError};
 
 mod builder;
+use builder::ResponseBuilder;
+
+pub type Response = TwoTwo<ResponseLine>;
 
 #[derive(Debug)]
-pub struct Response {
-    version: Version,
+pub struct ResponseLine {
     status: StatusCode,
-    headers: HeaderMap<HeaderValue>,
-    pub body: Option<BytesMut>,
 }
 
 impl Response {
@@ -23,7 +20,6 @@ impl Response {
         stream_id: StreamId,
     ) -> Result<Response, ProtoError> {
         let mut b = ResponseBuilder::new();
-        b = b.version(Version::HTTP_2);
         if let Some(status) = pseudo.status {
             b = b.status(status);
         }

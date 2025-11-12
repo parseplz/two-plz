@@ -1,26 +1,26 @@
-use crate::{Reason, request::uri::UriBuilder};
+use crate::{Reason, message::TwoTwo};
 use bytes::BytesMut;
-use http::{HeaderMap, HeaderValue, Method, Version};
+use http::{HeaderMap, HeaderValue, Method, StatusCode, Version};
 mod builder;
 mod uri;
+use builder::RequestBuilder;
+use uri::Uri;
+use uri::UriBuilder;
 
-use crate::{
-    StreamId,
-    ext::Protocol,
-    headers::Pseudo,
-    proto::ProtoError,
-    request::{builder::RequestBuilder, uri::Uri},
-};
+use crate::{StreamId, ext::Protocol, headers::Pseudo, proto::ProtoError};
+
+pub type Request = TwoTwo<RequestLine>;
 
 #[derive(Debug)]
-pub struct Request {
+pub struct RequestLine {
     method: Method,
     uri: Uri,
-    version: Version,
-    headers: HeaderMap<HeaderValue>,
     extension: Option<Protocol>,
-    body: Option<BytesMut>,
-    trailer: Option<HeaderMap<HeaderValue>>,
+}
+
+#[derive(Debug)]
+struct ResponseLine {
+    status: StatusCode,
 }
 
 impl Request {
@@ -39,8 +39,6 @@ impl Request {
                 return Err(ProtoError::library_reset(stream_id, Reason::PROTOCOL_ERROR));
             }}
         }
-
-        b = b.version(Version::HTTP_2);
 
         // connect method check
         let is_connect;

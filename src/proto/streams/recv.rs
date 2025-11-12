@@ -11,6 +11,7 @@ use crate::{
     DEFAULT_INITIAL_WINDOW_SIZE, Data, Headers, Reason, Settings, StreamId,
     WindowUpdate, frame,
     headers::{self, Pseudo},
+    message::request::Request,
     proto::{
         MAX_WINDOW_SIZE, ProtoError, WindowSize,
         config::ConnectionConfig,
@@ -22,7 +23,6 @@ use crate::{
             stream::{NextAccept, NextComplete, NextResetExpire, Stream},
         },
     },
-    request::Request,
     role::{PollMessage, Role},
     stream_id::StreamIdOverflow,
 };

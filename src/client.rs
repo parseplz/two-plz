@@ -4,9 +4,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::{
     Codec, Connection, Error, StreamId,
     builder::{BuildConnection, Builder},
+    message::{request::Request, response::Response},
     proto::config::ConnectionConfig,
-    request::Request,
-    response::Response,
     role::Role,
 };
 

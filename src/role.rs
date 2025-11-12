@@ -1,11 +1,10 @@
 use bytes::BytesMut;
 use http::HeaderMap;
 
-use crate::request::Request;
-use crate::response::Response;
 use crate::{
     Reason, StreamId,
     headers::Pseudo,
+    message::{request::Request, response::Response},
     proto::{ProtoError, streams::recv::Open},
 };
 

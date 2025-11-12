@@ -1,12 +1,10 @@
 use super::*;
-use crate::request::uri::UriBuilder;
 use http::{HeaderMap, HeaderValue, Method, Version};
 
 #[derive(Default)]
 pub struct RequestBuilder {
     pub method: Method,
     pub uri: UriBuilder,
-    pub version: Version,
     pub headers: HeaderMap<HeaderValue>,
     pub extension: Option<Protocol>,
     pub body: Option<BytesMut>,
@@ -23,11 +21,6 @@ impl RequestBuilder {
         self
     }
 
-    pub fn version(mut self, v: Version) -> Self {
-        self.version = v;
-        self
-    }
-
     pub fn extension(mut self, p: Protocol) -> Self {
         self.extension = Some(p);
         self
@@ -39,12 +32,14 @@ impl RequestBuilder {
     }
 
     pub fn build(self) -> Request {
-        Request {
+        let info_line = RequestLine {
             method: self.method,
             uri: self.uri.build(),
-            version: self.version,
-            headers: self.headers,
             extension: self.extension,
+        };
+        Request {
+            info_line,
+            headers: self.headers,
             body: self.body,
             trailer: self.trailer,
         }

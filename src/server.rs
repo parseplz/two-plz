@@ -1,9 +1,9 @@
 use crate::{
     Codec, Connection, StreamId,
     builder::{BuildConnection, Builder},
+    message::request::Request,
+    message::response::Response,
     proto::{config::ConnectionConfig, streams::streams_ref::StreamRef},
-    request::Request,
-    response::Response,
     role::Role,
 };
 use bytes::{Buf, Bytes, BytesMut};
