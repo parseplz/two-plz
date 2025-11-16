@@ -252,6 +252,11 @@ impl Recv {
             // notify the client
             stream.notify_recv();
         }
+
+        // toggle check_connection_window_update
+        self.check_connection_window_update = true;
+        // add stream key to check for window update
+        self.check_stream_window_update = Some(stream.key);
         Ok(())
     }
 
