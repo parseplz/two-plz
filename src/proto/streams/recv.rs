@@ -8,7 +8,8 @@ use http::HeaderMap;
 use tracing::trace;
 
 use crate::{
-    DEFAULT_INITIAL_WINDOW_SIZE, Data, Headers, Reason, Settings, StreamId, frame,
+    DEFAULT_INITIAL_WINDOW_SIZE, Data, Headers, Reason, Settings, StreamId,
+    frame,
     headers::{self, Pseudo},
     message::request::Request,
     proto::{
@@ -98,6 +99,11 @@ pub(super) struct Recv {
 
     /// If extended connect protocol is enabled.
     is_extended_connect_protocol_enabled: bool,
+
+    /// Check whether connection window update needs to be sent
+    pub check_connection_window_update: bool,
+    /// Stream to check for sending pending window update
+    pub check_stream_window_update: Option<Key>,
 }
 
 #[derive(Debug)]
@@ -130,6 +136,8 @@ impl Recv {
             is_push_enabled: false,
             is_extended_connect_protocol_enabled: false,
             refused: None,
+            check_connection_window_update: false,
+            check_stream_window_update: None,
         }
     }
 
