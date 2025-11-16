@@ -1,5 +1,8 @@
+use bytes::{Buf, Bytes};
+use tokio::io::AsyncWrite;
+
 use crate::{
-    frame,
+    Codec, WindowUpdate, frame,
     proto::{
         WindowSize,
         config::ConnectionConfig,
@@ -11,7 +14,10 @@ use crate::{
     },
 };
 
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{Arc, Mutex},
+    task::{Context, Poll},
+};
 
 use crate::{Reason, Settings, StreamId, proto::ProtoError, role::Role};
 
@@ -123,21 +129,16 @@ impl<B> Streams<B> {
     }
 
     // ===== Window Update =====
-    pub fn should_send_connection_window_update(
+    pub fn poll_window_update<T>(
         &mut self,
-    ) -> Option<WindowSize> {
+        cx: &mut Context,
+        dst: &mut Codec<T, Bytes>,
+    ) -> Poll<std::io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+    {
         let mut me = self.inner.lock().unwrap();
-        let me = &mut *me;
-        me.should_send_connection_window_update()
-    }
-
-    pub fn should_send_stream_window_update(
-        &mut self,
-        stream_id: StreamId,
-    ) -> Option<WindowSize> {
-        let mut me = self.inner.lock().unwrap();
-        let me = &mut *me;
-        me.should_send_stream_window_update(stream_id)
+        me.poll_window_update(cx, dst)
     }
 
     pub fn recv_connection_window_update(
