@@ -139,31 +139,6 @@ where
         let stream_id = data.stream_id();
         self.streams.recv_data(data)?;
         let mut need_flush = false;
-        // check connection and stream window_update
-        // size of window update = 13 bytes
-        // max frame size = 16kb
-        // so we can buffer multiple frames
-        if let Some(size) = self
-            .streams
-            .should_send_connection_window_update()
-        {
-            need_flush = true;
-            let frame = WindowUpdate::new(StreamId::ZERO, size);
-            // safe to unwrap
-            self.buffer(frame.into()).unwrap();
-        }
-        if let Some(size) = self
-            .streams
-            .should_send_stream_window_update(stream_id)
-        {
-            need_flush = true;
-            let frame = WindowUpdate::new(stream_id, size);
-            // safe to unwrap
-            self.buffer(frame.into()).unwrap();
-        }
-        if need_flush {
-            return Ok(ReadAction::NeedsFlush);
-        }
         Ok(ReadAction::Continue)
     }
 
@@ -298,6 +273,8 @@ where
         // settings
         ready!(self.poll_settings(cx))?;
         // refusal
+        // window update
+        ready!(self.poll_window_update(cx))?;
         Poll::Ready(Ok(()))
     }
 
@@ -312,6 +289,17 @@ where
         ready!(
             self.settings_handler
                 .poll_local_settings(cx, &mut self.codec)
+        )?;
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_window_update(
+        &mut self,
+        cx: &mut Context,
+    ) -> Poll<Result<(), ProtoError>> {
+        ready!(
+            self.streams
+                .poll_window_update(cx, &mut self.codec)
         )?;
         Poll::Ready(Ok(()))
     }
