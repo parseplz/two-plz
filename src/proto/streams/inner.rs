@@ -1,8 +1,10 @@
+use crate::Codec;
 use crate::Data;
 use crate::Headers;
 use crate::Reason;
 use crate::Reset;
 use crate::StreamId;
+use crate::WindowUpdate;
 use crate::proto::MAX_WINDOW_SIZE;
 use crate::proto::ProtoError;
 use crate::proto::WindowSize;
@@ -20,8 +22,12 @@ use crate::proto::{
 };
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::task::Context;
+use std::task::Poll;
 
 use crate::role::Role;
+use bytes::Bytes;
+use tokio::io::AsyncWrite;
 use tracing::error;
 use tracing::trace;
 
@@ -296,36 +302,74 @@ impl Inner {
     }
 
     // ===== window update =====
-    pub fn should_send_connection_window_update(
+    pub fn poll_window_update<T>(
         &mut self,
-    ) -> Option<WindowSize> {
-        if let Some(size) = self
+        cx: &mut Context,
+        dst: &mut Codec<T, Bytes>,
+    ) -> Poll<std::io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+    {
+        if !self
             .actions
             .recv
-            .should_send_connection_window_update()
+            .check_connection_window_update
         {
-            let size = size as WindowSize;
+            return Poll::Ready(Ok(()));
+        }
+
+        if let Some(size) = self.should_send_connection_window_update() {
+            ready!(dst.poll_ready(cx))?;
+            let frame = WindowUpdate::new(StreamId::ZERO, size);
+            dst.buffer(frame.into())
+                .expect("invalid WINDOW_UPDATE frame");
             self.actions
                 .recv
                 .inc_connection_window(size);
-            return Some(size);
         }
-        None
+
+        if let Some((stream_id, size)) =
+            self.should_send_stream_window_update()
+        {
+            ready!(dst.poll_ready(cx))?;
+            let frame = WindowUpdate::new(stream_id, size);
+            dst.buffer(frame.into())
+                .expect("invalid WINDOW_UPDATE frame");
+            let mut stream = self.store.find_mut(&stream_id).unwrap();
+            stream.recv_flow.inc_window(size);
+        }
+
+        self.actions
+            .recv
+            .check_connection_window_update = false;
+        self.actions
+            .recv
+            .check_stream_window_update = None;
+
+        Poll::Ready(Ok(()))
+    }
+
+    pub fn should_send_connection_window_update(
+        &mut self,
+    ) -> Option<WindowSize> {
+        self.actions
+            .recv
+            .should_send_connection_window_update()
+            .map(|s| s as WindowSize)
     }
 
     pub fn should_send_stream_window_update(
         &mut self,
-        stream_id: StreamId,
-    ) -> Option<WindowSize> {
-        if let Some(mut stream) = self.store.find_mut(&stream_id)
-            && let Some(size) = stream
-                .recv_flow
-                .should_send_window_update()
-            {
-                let size = size as WindowSize;
-                stream.recv_flow.inc_window(size);
-                return Some(size);
-            }
-        None
+    ) -> Option<(StreamId, WindowSize)> {
+        self.actions
+            .recv
+            .check_stream_window_update
+            .as_ref()
+            .and_then(|key| {
+                self.store[*key]
+                    .recv_flow
+                    .should_send_window_update()
+                    .map(|size| (self.store[*key].id, size as WindowSize))
+            })
     }
 }
