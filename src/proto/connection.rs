@@ -94,10 +94,7 @@ where
     }
 
     // ======== FRAMES ============
-    pub fn recv_frame(
-        &mut self,
-        frame: Frame,
-    ) -> Result<ReadAction, ProtoError> {
+    pub fn recv_frame(&mut self, frame: Frame) -> Result<(), ProtoError> {
         match frame {
             Frame::Data(data) => self.streams.recv_data(data),
             Frame::Headers(headers) => self.streams.recv_header(headers),
@@ -116,9 +113,7 @@ where
             Frame::GoAway(go_away) => todo!(),
             Frame::WindowUpdate(wupdate) => self.recv_window_update(wupdate),
         }?;
-        Ok(ReadAction::Continue)
-    }
-
+        Ok(())
     }
 
     // ===== Settings =====
