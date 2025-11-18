@@ -210,6 +210,33 @@ impl Send {
         inc: WindowSize,
     ) -> Result<(), Reason> {
         self.flow.inc_window(inc)
+    fn try_assign_capacity(&mut self, stream: &mut Ptr) {
+        let stream_available = stream.send_flow.available();
+        // no available stream capacity push back
+        if stream_available == 0 {
+            return;
+        }
+
+        // min  connection_flow_available
+        //      stream_flow_available
+        //      remaining_data_len
+        let needed = min(
+            min(self.flow.available(), stream_available),
+            stream.remaining_data_len as u32,
+        );
+
+        // no flow is needed, possibly empty data frame
+        if needed == 0 {
+            self.pending_send.push(stream);
+            return;
+            // TODO: queue frame
+        }
+
+        // increase stream allocated connection window
+        stream.connection_window_allocated += needed;
+        // reduce connection window
+        self.flow.dec_window(needed);
+        // TODO: queue frame
     }
 
     pub fn recv_stream_window_update(
@@ -221,6 +248,7 @@ impl Send {
             return Ok(());
         }
         stream.send_flow.inc_window(inc)?;
+        // move stream from pending_capacity to pending_send
         Ok(())
     }
 
