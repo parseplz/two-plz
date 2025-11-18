@@ -121,15 +121,7 @@ where
                 todo!()
             }
             Frame::GoAway(go_away) => todo!(),
-            Frame::WindowUpdate(window_update) => {
-                let id = window_update.stream_id();
-                let inc = window_update.size_increment();
-                if id.is_zero() {
-                    self.recv_connection_window_update(inc)
-                } else {
-                    self.recv_stream_window_update(id, inc)
-                }
-            }
+            Frame::WindowUpdate(wupdate) => self.recv_window_update(wupdate),
         }?;
         Ok(ReadAction::Continue)
     }
@@ -187,21 +179,19 @@ where
     }
 
     // ==== Window Update =====
-    pub fn recv_connection_window_update(
+    fn recv_window_update(
         &mut self,
-        size: u32,
+        window_update: WindowUpdate,
     ) -> Result<(), ProtoError> {
-        self.streams
-            .recv_connection_window_update(size)
-    }
-
-    pub fn recv_stream_window_update(
-        &mut self,
-        id: StreamId,
-        size: u32,
-    ) -> Result<(), ProtoError> {
-        self.streams
-            .recv_stream_window_update(id, size)
+        let id = window_update.stream_id();
+        let size = window_update.size_increment();
+        if id.is_zero() {
+            self.streams
+                .recv_connection_window_update(size)
+        } else {
+            self.streams
+                .recv_stream_window_update(id, size)
+        }
     }
 
     // ===== Polling =====
