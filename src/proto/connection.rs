@@ -103,14 +103,7 @@ where
             Frame::Headers(headers) => self.streams.recv_header(headers),
             Frame::Priority(priority) => todo!(),
             Frame::Reset(reset) => self.streams.recv_reset(reset),
-            Frame::Settings(settings) => {
-                if let SettingsAction::ApplyLocal(settings) =
-                    self.handle_settings(settings)?
-                {
-                    self.apply_local_settings(settings)?;
-                }
-                Ok(())
-            }
+            Frame::Settings(settings) => self.recv_settings(settings),
             Frame::PushPromise(push_promise) => todo!(),
             Frame::Ping(ping) => {
                 let action = self.ping_handler.handle(ping);
@@ -140,11 +133,16 @@ where
     }
 
     // ===== Settings =====
-    pub fn handle_settings(
+    pub fn recv_settings(
         &mut self,
         local: Settings,
-    ) -> Result<SettingsAction, ProtoError> {
-        self.settings_handler.recv(local)
+    ) -> Result<(), ProtoError> {
+        if let SettingsAction::ApplyLocal(settings) =
+            self.settings_handler.recv(local)?
+        {
+            self.apply_local_settings(settings)?;
+        }
+        Ok(())
     }
 
     pub fn apply_local_settings(
