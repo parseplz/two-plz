@@ -264,7 +264,7 @@ where
         }
     }
 
-    fn poll_control_write(
+    fn poll_control_frames(
         &mut self,
         cx: &mut Context,
     ) -> Poll<Result<(), ProtoError>> {
