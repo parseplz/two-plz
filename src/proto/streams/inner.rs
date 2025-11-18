@@ -26,6 +26,7 @@ use std::task::Context;
 use std::task::Poll;
 
 use crate::role::Role;
+use bytes::Buf;
 use bytes::Bytes;
 use tokio::io::AsyncWrite;
 use tracing::error;
@@ -371,5 +372,32 @@ impl Inner {
                     .should_send_window_update()
                     .map(|size| (self.store[*key].id, size as WindowSize))
             })
+    }
+
+    pub fn poll_complete<T, B>(
+        &mut self,
+        send_buffer: &SendBuffer<B>,
+        cx: &mut Context,
+        dst: &mut Codec<T, Bytes>,
+    ) -> Poll<std::io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+    {
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+
+        ready!(self.actions.send.poll_complete(
+            cx,
+            send_buffer,
+            &mut self.store,
+            &mut self.counts,
+            dst
+        ))?;
+
+        // Nothing else to do, track the task
+        self.actions.task = Some(cx.waker().clone());
+
+        Poll::Ready(Ok(()))
     }
 }
