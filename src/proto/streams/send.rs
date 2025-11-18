@@ -208,11 +208,33 @@ impl Send {
     pub fn recv_connection_window_update(
         &mut self,
         inc: WindowSize,
+        store: &mut Store,
+        counts: &mut Counts,
     ) -> Result<(), Reason> {
-        self.flow.inc_window(inc)
+        self.flow.inc_window(inc)?;
+        self.assign_connection_capacity(inc, store, counts);
+        Ok(())
+    }
+
+    pub fn assign_connection_capacity<R>(
+        &mut self,
+        inc: WindowSize,
+        store: &mut R,
+        counts: &mut Counts,
+    ) where
+        R: Resolve,
+    {
+        while self.flow.available() > 0 {
+            let stream = match self.pending_capacity.pop(store) {
+                Some(stream) => stream,
+                None => return,
+            };
+        }
+    }
+
     fn try_assign_capacity(&mut self, stream: &mut Ptr) {
         let stream_available = stream.send_flow.available();
-        // no available stream capacity push back
+        // no available stream capacity return
         if stream_available == 0 {
             return;
         }
@@ -229,14 +251,12 @@ impl Send {
         if needed == 0 {
             self.pending_send.push(stream);
             return;
-            // TODO: queue frame
         }
 
         // increase stream allocated connection window
         stream.connection_window_allocated += needed;
         // reduce connection window
         self.flow.dec_window(needed);
-        // TODO: queue frame
     }
 
     pub fn recv_stream_window_update(
@@ -248,7 +268,7 @@ impl Send {
             return Ok(());
         }
         stream.send_flow.inc_window(inc)?;
-        // move stream from pending_capacity to pending_send
+        self.try_assign_capacity(stream);
         Ok(())
     }
 
