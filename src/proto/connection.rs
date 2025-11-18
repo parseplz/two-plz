@@ -178,7 +178,7 @@ where
     }
 
     // ===== Ping =====
-    pub fn handle_ping(&mut self, frame: Ping) -> PingAction {
+    pub fn recv_ping(&mut self, frame: Ping) -> PingAction {
         self.ping_handler.handle(frame)
     }
 
