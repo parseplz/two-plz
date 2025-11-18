@@ -48,6 +48,8 @@ pub struct Stream {
 
     // ===== Send =====
     pub send_flow: FlowControl,
+    pub remaining_data_len: usize,
+    pub connection_window_allocated: WindowSize,
 
     /// Next Send
     pub next_pending_send: Option<Key>,
@@ -106,6 +108,8 @@ impl Stream {
             is_counted: false,
             // === send ===
             send_flow: FlowControl::new(init_send_window),
+            remaining_data_len: 0,
+            connection_window_allocated: 0,
             // next send
             next_pending_send: None,
             is_pending_send: false,
