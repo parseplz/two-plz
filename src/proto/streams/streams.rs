@@ -40,7 +40,10 @@ pub(crate) struct Streams<B> {
     //_p: ::std::marker::PhantomData<P>,
 }
 
-impl<B> Streams<B> {
+impl<B> Streams<B>
+where
+    B: Buf,
+{
     pub fn new(role: Role, config: ConnectionConfig) -> Self {
         Streams {
             inner: Inner::new(role, config),
@@ -149,7 +152,7 @@ impl<B> Streams<B> {
         let me = &mut *me;
         me.actions
             .send
-            .recv_connection_window_update(size)
+            .recv_connection_window_update(size, &mut me.store, &mut me.counts)
             .map_err(ProtoError::library_go_away)
     }
 
@@ -181,7 +184,7 @@ impl<B> Streams<B> {
         }
     }
 
-    // ===== Misc =====
+    // ===== clear =====
     pub fn clear_expired_reset_streams(&mut self) {
         let mut me = self.inner.lock().unwrap();
         let me = &mut *me;
