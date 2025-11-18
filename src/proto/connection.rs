@@ -99,7 +99,7 @@ where
         frame: Frame,
     ) -> Result<ReadAction, ProtoError> {
         match frame {
-            Frame::Data(data) => return self.recv_data(data),
+            Frame::Data(data) => self.streams.recv_data(data),
             Frame::Headers(headers) => self.streams.recv_header(headers),
             Frame::Priority(priority) => todo!(),
             Frame::Reset(reset) => self.streams.recv_reset(reset),
@@ -119,17 +119,6 @@ where
         Ok(ReadAction::Continue)
     }
 
-    // ===== Data =====
-    pub fn recv_data(&mut self, data: Data) -> Result<ReadAction, ProtoError> {
-        let stream_id = data.stream_id();
-        self.streams.recv_data(data)?;
-        let mut need_flush = false;
-        Ok(ReadAction::Continue)
-    }
-
-    // ===== Header =====
-    pub fn handle_header(&mut self, frame: Headers) -> Result<(), ProtoError> {
-        self.streams.recv_header(frame)
     }
 
     // ===== Settings =====
