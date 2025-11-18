@@ -189,4 +189,17 @@ impl<B> Streams<B> {
             .recv
             .clear_expired_reset_streams(&mut me.store, &mut me.counts);
     }
+
+    // ===== polling =====
+    pub fn poll_complete<T>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, Bytes>,
+    ) -> Poll<std::io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+    {
+        let mut me = self.inner.lock().unwrap();
+        me.poll_complete(&self.send_buffer, cx, dst)
+    }
 }
