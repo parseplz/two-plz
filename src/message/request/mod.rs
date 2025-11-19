@@ -1,15 +1,44 @@
-use crate::{Reason, message::TwoTwo};
+use crate::Reason;
+use crate::StreamId;
+use crate::ext::Protocol;
+use crate::headers::Pseudo;
+use crate::message::InfoLine;
+use crate::message::TwoTwo;
+use crate::proto::ProtoError;
 use bytes::BytesMut;
 use http::{HeaderMap, Method, StatusCode};
 mod builder;
-mod uri;
+pub mod uri;
 use builder::RequestBuilder;
 use uri::Uri;
-use uri::UriBuilder;
-
-use crate::{StreamId, ext::Protocol, headers::Pseudo, proto::ProtoError};
 
 pub type Request = TwoTwo<RequestLine>;
+
+/*
+         foo://example.com:8042/over/there?name=ferret#nose
+         \_/   \______________/\_________/ \_________/ \__/
+          |           |            |            |        |
+       scheme     authority       path        query   fragment
+          |   _____________________|__
+         / \ /                        \
+         urn:example:animal:ferret:nose
+
+scheme      => anything
+authority   => - if present neglect host header
+               - convert from h11 omitted in origin-form and asterisk form
+               - origin-form    = absolute-path [ "?" query ]
+               - must be same as HOST header
+path        => not empty for http/s - if empty "/"
+               - except OPTIONS - "*" must
+               - CONNECT - omitted
+
+method , scheme , path => must
+
+Connect request:
+    method - connect
+    scheme and path - omitted
+    authority - host:port
+*/
 
 #[derive(Debug)]
 pub struct RequestLine {
@@ -30,10 +59,7 @@ impl Request {
         pseudo: Pseudo,
         headers: HeaderMap,
         stream_id: StreamId,
-        body: Option<BytesMut>,
     ) -> Result<Request, ProtoError> {
-        let mut b = RequestBuilder::new();
-
         // macro to return error
         macro_rules! malformed {
             ($($arg:tt)*) => {{
@@ -42,34 +68,36 @@ impl Request {
             }}
         }
 
-        // connect method check
+        // check status code in request
+        if pseudo.status.is_some() {
+            malformed!("malformed headers| :status field on request");
+        }
+
+        let mut b = RequestBuilder::new();
+
+        // method check
         let is_connect;
         if let Some(method) = pseudo.method {
             is_connect = method == Method::CONNECT;
             b = b.method(method);
         } else {
-            malformed!("malformed headers: missing method");
+            malformed!("malformed headers| missing method");
         }
 
-        // add protocol extension
+        // add protocol for CONNECT requests
         let has_protocol = pseudo.protocol.is_some();
         if has_protocol {
             if is_connect {
                 b = b.extension(pseudo.protocol.unwrap());
             } else {
                 malformed!(
-                    "malformed headers: :protocol on non-CONNECT request"
+                    "malformed headers| :protocol on non-CONNECT request"
                 );
             }
         }
 
-        // check status code in request
-        if pseudo.status.is_some() {
-            malformed!("malformed headers: :status field on request");
-        }
-
         /// Uri
-        let mut uri = UriBuilder::default();
+        let mut uri = Uri::default();
 
         // authority
         if let Some(authority) = pseudo.authority {
@@ -79,12 +107,12 @@ impl Request {
         // A :scheme is required, except CONNECT.
         if let Some(scheme) = pseudo.scheme {
             if is_connect && !has_protocol {
-                malformed!("malformed headers: :scheme in CONNECT");
+                malformed!("malformed headers| :scheme in CONNECT");
             }
             let maybe_scheme = scheme.parse();
             let scheme = maybe_scheme.or_else(|why| {
                 malformed!(
-                    "malformed headers: malformed scheme ({:?}): {}",
+                    "malformed headers| malformed scheme ({:?}): {}",
                     scheme,
                     why,
                 )
@@ -94,30 +122,29 @@ impl Request {
             // after validating is was a valid scheme, we just have to drop it
             // if there isn't an :authority.
             if uri.authority.is_some() {
-                uri.scheme = Some(scheme);
+                uri = uri.scheme(scheme);
             }
         } else if !is_connect || has_protocol {
-            malformed!("malformed headers: missing scheme");
+            malformed!("malformed headers| missing scheme");
         }
 
         // path
         if let Some(path) = pseudo.path {
             if is_connect && !has_protocol {
-                malformed!("malformed headers: :path in CONNECT");
+                malformed!("malformed headers| :path in CONNECT");
             }
 
             // This cannot be empty
             if path.is_empty() {
-                malformed!("malformed headers: missing path");
+                malformed!("malformed headers| missing path");
             }
             uri = uri.path(path);
         } else if is_connect && has_protocol {
-            malformed!("malformed headers: missing path in extended CONNECT");
+            malformed!("malformed headers| missing path in extended CONNECT");
         }
 
         b.headers = headers;
         b = b.uri(uri);
-        b.body = body;
 
         Ok(b.build())
     }
