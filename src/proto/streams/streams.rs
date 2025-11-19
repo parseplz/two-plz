@@ -40,10 +40,7 @@ pub(crate) struct Streams<B> {
     //_p: ::std::marker::PhantomData<P>,
 }
 
-impl<B> Streams<B>
-where
-    B: Buf,
-{
+impl Streams<Bytes> {
     pub fn new(role: Role, config: ConnectionConfig) -> Self {
         Streams {
             inner: Inner::new(role, config),
@@ -51,7 +48,7 @@ where
         }
     }
 
-    pub fn next_accept(&mut self) -> Option<StreamRef<B>> {
+    pub fn next_accept(&mut self) -> Option<StreamRef<Bytes>> {
         let mut me = self.inner.lock().unwrap();
         let me = &mut *me;
         me.actions
