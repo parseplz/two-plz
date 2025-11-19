@@ -257,6 +257,7 @@ impl Recv {
         self.check_connection_window_update = true;
         // add stream key to check for window update
         self.check_stream_window_update = Some(stream.key);
+        trace!("[+] check stream window update| {:?}", stream.id);
         Ok(())
     }
 
@@ -308,7 +309,7 @@ impl Recv {
         if !pseudo.is_informational() {
             let message = counts
                 .role()
-                .convert_poll_message(pseudo, fields, stream_id, None)?;
+                .convert_poll_message(pseudo, fields, stream_id)?;
 
             // add headers to stream
             stream

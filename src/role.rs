@@ -76,15 +76,12 @@ impl Role {
         pseudo: Pseudo,
         fields: HeaderMap,
         stream_id: StreamId,
-        body: Option<BytesMut>,
     ) -> Result<PollMessage, ProtoError> {
         match self {
+            Role::Server => Request::from_http_two(pseudo, fields, stream_id)
+                .map(PollMessage::Server),
             Role::Client => Response::from_http_two(pseudo, fields, stream_id)
                 .map(PollMessage::Client),
-            Role::Server => {
-                Request::from_http_two(pseudo, fields, stream_id, body)
-                    .map(PollMessage::Server)
-            }
         }
     }
 }
