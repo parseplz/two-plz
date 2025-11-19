@@ -169,11 +169,16 @@ where
                 .send
                 .recv_stream_window_update(&mut stream, size)
             {
+                let mut send_buffer = self.send_buffer.inner.lock().unwrap();
+                let send_buffer = &mut *send_buffer;
                 // send reset
                 me.actions.send.send_reset(
                     Reason::FLOW_CONTROL_ERROR,
                     Initiator::Library,
                     &mut stream,
+                    send_buffer,
+                    &mut me.counts,
+                    &mut me.actions.task,
                 )
             }
             Ok(())
