@@ -5,8 +5,6 @@ use crate::hpack::BytesStr;
 #[derive(Debug)]
 pub struct Authority(BytesStr);
 
-#[derive(Debug, Default)]
-pub struct PathAndQuery(BytesStr);
 impl Authority {
     pub fn into_inner(self) -> BytesStr {
         self.0
@@ -23,6 +21,25 @@ pub struct Uri {
     authority: Authority,
     scheme: Scheme,
     path_and_query: PathAndQuery,
+pub struct PathAndQuery(BytesStr);
+
+impl PathAndQuery {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn into_inner(self) -> BytesStr {
+        self.0
+    }
+
+    #[inline]
+    pub(crate) fn as_str(&self) -> &str {
+        let ret = &self.0[..];
+        if ret.is_empty() {
+            return "/";
+        }
+        ret
+    }
 }
 
 // ===== Builder =====
