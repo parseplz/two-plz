@@ -2,9 +2,9 @@ use crate::Codec;
 use crate::Data;
 use crate::Headers;
 use crate::Reason;
-use crate::Reset;
 use crate::StreamId;
 use crate::WindowUpdate;
+use crate::frame;
 use crate::proto::MAX_WINDOW_SIZE;
 use crate::proto::ProtoError;
 use crate::proto::WindowSize;
@@ -260,10 +260,11 @@ impl Inner {
     pub fn recv_reset<B>(
         &mut self,
         send_buffer: &SendBuffer<B>,
-        frame: Reset,
+        frame: frame::Reset,
     ) -> Result<(), ProtoError> {
         let id = frame.stream_id();
         if id.is_zero() {
+            proto_err!(conn: "recv_reset| invalid stream ID 0");
             return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
         }
 
@@ -280,7 +281,6 @@ impl Inner {
                 self.actions
                     .ensure_not_idle(self.counts.role(), id)
                     .map_err(ProtoError::library_go_away)?;
-
                 return Ok(());
             }
         };
@@ -296,7 +296,7 @@ impl Inner {
                     .recv_reset(frame, stream, counts)?;
                 actions
                     .send
-                    .clear_queue(send_buffer, stream);
+                    .handle_error(send_buffer, stream, counts);
                 assert!(stream.state.is_closed());
                 Ok(())
             })
