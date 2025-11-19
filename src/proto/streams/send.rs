@@ -83,8 +83,17 @@ impl Send {
     }
 
     /// Queue a frame to be sent to the remote
-    pub fn queue_frame(&mut self, frame: Frame, stream: &mut Ptr) {
-        todo!()
+    pub fn queue_frame(
+        &mut self,
+        frame: Frame,
+        buffer: &mut Buffer<Frame<Bytes>>,
+        stream: &mut Ptr,
+        task: &mut Option<Waker>,
+    ) {
+        stream
+            .pending_send
+            .push_back(buffer, frame);
+        self.schedule_send(stream, task);
     }
 
     /// Clear the send queue for a stream
