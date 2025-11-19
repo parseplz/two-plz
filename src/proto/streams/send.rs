@@ -343,6 +343,16 @@ impl Send {
         self.schedule_send(stream, task);
     }
 
+    pub fn handle_error<B>(
+        &mut self,
+        buffer: &mut Buffer<Frame<B>>,
+        stream: &mut Ptr,
+        counts: &mut Counts,
+    ) {
+        self.clear_queue(buffer, stream);
+        self.reclaim_all_capacity(stream, counts);
+    }
+
     // ===== Misc ====
     pub fn init_window_sz(&self) -> WindowSize {
         self.init_stream_window_sz
