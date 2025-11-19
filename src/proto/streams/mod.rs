@@ -13,12 +13,11 @@ mod state;
 mod store;
 mod stream;
 use crate::proto::streams::{
-            counts::Counts,
-            recv::Recv,
-            store::{Ptr, Resolve},
-        };
+    counts::Counts,
+    recv::Recv,
+    store::{Ptr, Resolve},
+};
 use store::Store;
 pub mod streams;
-
 
 use crate::proto::ProtoError;

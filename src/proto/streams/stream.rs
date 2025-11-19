@@ -1,17 +1,12 @@
-use std::task::Waker;
+use crate::proto::error::Initiator;
 use crate::proto::streams::buffer::Deque;
 use crate::proto::streams::flow_control::FlowControl;
 use crate::proto::streams::store::{self, Key, Next, Queue};
 use crate::{Reason, proto::streams::state::State};
-use crate::proto::error::Initiator;
+use std::task::Waker;
 use std::time::Instant;
 
-use crate::{
-    frame::StreamId,
-    proto::{
-        WindowSize,
-    },
-};
+use crate::{frame::StreamId, proto::WindowSize};
 
 // ===== Queues =====
 // recv
@@ -91,7 +86,6 @@ pub struct Stream {
     /// ===== Push Promise =====
     /// The stream's pending push promises
     pub pending_push_promises: Queue<NextAccept>,
-
 }
 
 impl Stream {
@@ -100,7 +94,6 @@ impl Stream {
         init_send_window: WindowSize,
         init_recv_window: WindowSize,
     ) -> Stream {
-
         Stream {
             id,
             state: State::default(),
@@ -193,40 +186,38 @@ impl Stream {
         self.reset_at.is_some()
     }
 
-
     pub(super) fn set_reset(&mut self, reason: Reason, initiator: Initiator) {
         self.state
             .set_reset(self.id, reason, initiator);
         self.notify_recv();
     }
 
-
     // ===== Content Length =====
     pub fn content_length(&self) -> Option<u64> {
         if let ContentLength::Remaining(total, _) = self.content_length {
-            Some(total) 
-        } else { 
+            Some(total)
+        } else {
             None
         }
     }
 
-
     pub fn ensure_content_length_zero(&self) -> Result<(), ()> {
         match self.content_length {
-            ContentLength::Remaining(_,0) => Ok(()),
+            ContentLength::Remaining(_, 0) => Ok(()),
             ContentLength::Remaining(..) => Err(()),
             _ => Ok(()),
         }
     }
 
-
     /// Returns `Err` when the decrement cannot be completed due to overflow.
     pub fn dec_content_length(&mut self, len: usize) -> Result<(), ()> {
         match self.content_length {
-            ContentLength::Remaining(_, ref mut rem) => match rem.checked_sub(len as u64) {
-                Some(val) => *rem = val,
-                None => return Err(()),
-            },
+            ContentLength::Remaining(_, ref mut rem) => {
+                match rem.checked_sub(len as u64) {
+                    Some(val) => *rem = val,
+                    None => return Err(()),
+                }
+            }
             ContentLength::Head => {
                 if len != 0 {
                     return Err(());
@@ -398,7 +389,7 @@ impl Next for NextResetExpire {
 pub enum ContentLength {
     Head,
     Omitted,
-    Remaining(u64,u64),
+    Remaining(u64, u64),
 }
 
 impl ContentLength {
