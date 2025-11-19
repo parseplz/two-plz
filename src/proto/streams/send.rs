@@ -313,6 +313,9 @@ impl Send {
         reason: Reason,
         initiator: Initiator,
         stream: &mut Ptr,
+        buffer: &mut Buffer<Frame<Bytes>>,
+        counts: &mut Counts,
+        task: &mut Option<Waker>,
     ) {
         let is_reset = stream.state.is_reset();
         let is_closed = stream.state.is_closed();
@@ -343,13 +346,12 @@ impl Send {
         }
 
         // Clear all pending outbound frames.
-        // TODO
-        //self.clear_queue(stream);
+        self.clear_queue(buffer, stream);
 
         // add reset to the send queue
         let frame = frame::Reset::new(stream.id, reason);
-        todo!()
-        //self.queue_frame(frame.into(), stream);
+        self.queue_frame(frame.into(), buffer, stream, task);
+        self.reclaim_all_capacity(stream, counts);
     }
 
     pub fn schedule_implicit_reset(
