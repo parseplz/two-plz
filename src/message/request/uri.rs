@@ -17,10 +17,6 @@ impl Authority {
 }
 
 #[derive(Debug)]
-pub struct Uri {
-    authority: Authority,
-    scheme: Scheme,
-    path_and_query: PathAndQuery,
 pub struct PathAndQuery(BytesStr);
 
 impl PathAndQuery {
@@ -42,15 +38,14 @@ impl PathAndQuery {
     }
 }
 
-// ===== Builder =====
-#[derive(Default)]
-pub struct UriBuilder {
+#[derive(Default, Debug)]
+pub struct Uri {
     pub authority: Option<Authority>,
     pub scheme: Option<Scheme>, // TODO! OWN variant
-    path_and_query: Option<PathAndQuery>,
+    pub path_and_query: Option<PathAndQuery>,
 }
 
-impl UriBuilder {
+impl Uri {
     pub fn authority(mut self, a: BytesStr) -> Self {
         self.authority = Some(Authority(a));
         self
@@ -61,11 +56,8 @@ impl UriBuilder {
         self
     }
 
-    pub fn build(self) -> Uri {
-        Uri {
-            authority: self.authority.unwrap_or_default(),
-            scheme: self.scheme.unwrap(),
-            path_and_query: self.path_and_query.unwrap_or_default(),
-        }
+    pub fn scheme(mut self, s: Scheme) -> Self {
+        self.scheme = Some(s);
+        self
     }
 }
