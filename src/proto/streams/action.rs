@@ -1,3 +1,5 @@
+use bytes::Bytes;
+
 use crate::Frame;
 use crate::Reason;
 use crate::StreamId;
@@ -39,9 +41,9 @@ impl Actions {
         }
     }
 
-    pub fn reset_on_recv_stream_err<B>(
+    pub fn reset_on_recv_stream_err(
         &mut self,
-        buffer: &mut Buffer<Frame<B>>,
+        buffer: &mut Bufferytes<Frame<Bytes>>,
         stream: &mut Ptr,
         counts: &mut Counts,
         res: Result<(), ProtoError>,
@@ -52,8 +54,14 @@ impl Actions {
             if counts.can_inc_num_local_error_resets() {
                 counts.inc_num_local_error_resets();
                 // Reset the stream.
-                self.send
-                    .send_reset(reason, initiator, stream);
+                self.send.send_reset(
+                    reason,
+                    initiator,
+                    stream,
+                    buffer,
+                    counts,
+                    &mut self.task,
+                );
                 self.recv
                     .enqueue_reset_expiration(stream, counts);
                 stream.notify_recv();
