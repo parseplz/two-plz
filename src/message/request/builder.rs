@@ -4,7 +4,7 @@ use http::{HeaderMap, HeaderValue, Method};
 #[derive(Default)]
 pub struct RequestBuilder {
     pub method: Method,
-    pub uri: UriBuilder,
+    pub uri: Uri,
     pub headers: HeaderMap<HeaderValue>,
     pub extension: Option<Protocol>,
     pub body: Option<BytesMut>,
@@ -26,7 +26,7 @@ impl RequestBuilder {
         self
     }
 
-    pub fn uri(mut self, u: UriBuilder) -> Self {
+    pub fn uri(mut self, u: Uri) -> Self {
         self.uri = u;
         self
     }
@@ -34,7 +34,7 @@ impl RequestBuilder {
     pub fn build(self) -> Request {
         let info_line = RequestLine {
             method: self.method,
-            uri: self.uri.build(),
+            uri: self.uri,
             extension: self.extension,
         };
         Request {
