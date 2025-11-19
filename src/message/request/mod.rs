@@ -18,9 +18,11 @@ pub struct RequestLine {
     extension: Option<Protocol>,
 }
 
-#[derive(Debug)]
-struct ResponseLine {
-    status: StatusCode,
+impl InfoLine for RequestLine {
+    fn into_pseudo(self) -> Pseudo {
+        let is_connect = self.method == Method::CONNECT;
+        Pseudo::request(self.method, self.uri, self.extension)
+    }
 }
 
 impl Request {

@@ -43,3 +43,6 @@ where
     }
 }
 
+pub trait InfoLine {
+    fn into_pseudo(self) -> Pseudo;
+}

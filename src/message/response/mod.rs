@@ -1,6 +1,11 @@
 use http::{HeaderMap, StatusCode};
 
-use crate::{StreamId, headers::Pseudo, message::TwoTwo, proto::ProtoError};
+use crate::{
+    StreamId,
+    headers::Pseudo,
+    message::{InfoLine, TwoTwo},
+    proto::ProtoError,
+};
 
 mod builder;
 use builder::ResponseBuilder;
@@ -9,7 +14,13 @@ pub type Response = TwoTwo<ResponseLine>;
 
 #[derive(Debug)]
 pub struct ResponseLine {
-    status: StatusCode,
+    pub status: StatusCode,
+}
+
+impl InfoLine for ResponseLine {
+    fn into_pseudo(self) -> Pseudo {
+        Pseudo::response(self.status)
+    }
 }
 
 impl Response {
