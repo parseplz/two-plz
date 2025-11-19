@@ -229,6 +229,21 @@ impl Send {
                 Some(stream) => stream,
                 None => return,
             };
+
+            // Streams pending capacity may have been reset before capacity
+            // became available. In that case, the stream won't want any
+            // capacity, and so we shouldn't "transition" on it, but just evict
+            // it and continue the loop.
+            if !stream.state.is_send_streaming() {
+                continue;
+            }
+
+            counts.transition(stream, |_, stream| {
+                // Try to assign capacity to the stream. This will also
+                // re-queue the stream if there isn't enough connection level
+                // capacity to fulfill the capacity request.
+                self.try_assign_capacity(stream);
+            })
         }
     }
 
