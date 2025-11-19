@@ -60,9 +60,9 @@ impl Inner {
     }
 
     // ===== Data =====
-    pub fn recv_data<B>(
+    pub fn recv_data(
         &mut self,
-        send_buffer: &SendBuffer<B>,
+        send_buffer: &SendBuffer<Bytes>,
         frame: Data,
     ) -> Result<(), ProtoError> {
         let id = frame.stream_id();
@@ -130,9 +130,9 @@ impl Inner {
     }
 
     // ===== Headers =====
-    pub fn recv_headers<B>(
+    pub fn recv_headers(
         &mut self,
-        send_buffer: &SendBuffer<B>,
+        send_buffer: &SendBuffer<Bytes>,
         frame: Headers,
     ) -> Result<(), ProtoError> {
         let id = frame.stream_id();
