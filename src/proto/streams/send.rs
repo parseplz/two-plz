@@ -364,6 +364,7 @@ impl Send {
             return;
         }
         stream.state.set_scheduled_reset(reason);
+        self.reclaim_all_capacity(stream, counts);
         self.schedule_send(stream, task);
     }
 
