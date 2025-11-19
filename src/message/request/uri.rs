@@ -2,11 +2,21 @@ use http::uri::Scheme;
 
 use crate::hpack::BytesStr;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Authority(BytesStr);
 
 #[derive(Debug, Default)]
 pub struct PathAndQuery(BytesStr);
+impl Authority {
+    pub fn into_inner(self) -> BytesStr {
+        self.0
+    }
+
+    #[inline]
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0[..]
+    }
+}
 
 #[derive(Debug)]
 pub struct Uri {
