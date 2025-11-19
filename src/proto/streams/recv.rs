@@ -612,6 +612,7 @@ impl Recv {
             .state
             .recv_reset(frame, stream.is_pending_send);
         // Notify the stream
+        stream.notify_recv();
 
         Ok(())
     }

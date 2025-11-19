@@ -272,6 +272,17 @@ impl Send {
         Ok(())
     }
 
+    fn reclaim_all_capacity(
+        &mut self,
+        stream: &mut Ptr<'_>,
+        counts: &mut Counts,
+    ) {
+        let allocated = stream.connection_window_allocated;
+        if allocated > 0 {
+            self.assign_connection_capacity(allocated, stream, counts);
+        }
+    }
+
     // ===== reset =====
     pub fn send_reset(
         &mut self,
