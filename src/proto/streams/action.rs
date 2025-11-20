@@ -43,7 +43,7 @@ impl Actions {
 
     pub fn reset_on_recv_stream_err(
         &mut self,
-        buffer: &mut Bufferytes<Frame<Bytes>>,
+        buffer: &mut Buffer<Frame<Bytes>>,
         stream: &mut Ptr,
         counts: &mut Counts,
         res: Result<(), ProtoError>,
