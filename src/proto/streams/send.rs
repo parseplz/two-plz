@@ -479,4 +479,131 @@ impl Send {
         }
         None
     }
+
+    fn pop_frame(
+        &mut self,
+        buffer: &mut Buffer<Frame<Bytes>>,
+        store: &mut Store,
+        max_frame_size: usize,
+        counts: &mut Counts,
+    ) -> Option<Frame<Bytes>> {
+        loop {
+            match self.pending_send.pop(store) {
+                Some(mut stream) => {
+                    // It's possible that this stream, besides having data to
+                    // send, is also queued to send a reset, and thus is
+                    // already in the queue to wait for "some time" after a
+                    // reset.
+                    //
+                    // To be safe, we just always ask the stream.
+                    let is_pending_reset =
+                        stream.is_pending_reset_expiration();
+
+                    let frame = match stream.pending_send.pop_front(buffer) {
+                        Some(Frame::Data(mut frame)) => {
+                            // Get the amount of capacity remaining for stream's
+                            // window.
+                            let stream_available =
+                                stream.send_flow.available();
+
+                            // Zero length data frames always have capacity to
+                            // be sent.
+                            if stream.remaining_data_len > 0
+                                && stream_available == 0
+                            {
+                                // Ensure that the stream is waiting for
+                                // connection level capacity
+                                //
+                                // TODO: uncomment
+                                // debug_assert!(stream.is_pending_send_capacity);
+
+                                // The stream has no more capacity, this can
+                                // happen if the remote reduced the stream
+                                // window. In this case, we need to buffer the
+                                // frame and wait for a window update...
+                                stream
+                                    .pending_send
+                                    .push_front(buffer, frame.into());
+                                continue;
+                            }
+
+                            //     | remaining_data_len
+                            // min | max_frame_size
+                            //     | stream flow available
+                            let len = min(
+                                min(stream.remaining_data_len, max_frame_size),
+                                stream_available as usize,
+                            );
+
+                            // There *must* be be enough connection level
+                            // capacity at this point.
+                            debug_assert!(
+                                len <= self.flow.available() as usize
+                            );
+                            // consume
+                            //      - stream flow control
+                            //      - connection window allocated
+                            //      - remaining_data_len
+                            let _res = stream.send_flow.dec_window(len as u32);
+                            stream.connection_window_allocated -= len as u32;
+                            stream.remaining_data_len -= len;
+
+                            // split the buf
+                            let data = frame.payload_mut().split_to(len);
+                            let mut data_frame =
+                                frame::Data::new(stream.id, data);
+                            let eos = stream.remaining_data_len > 0;
+                            data_frame.set_end_stream(eos);
+                            Frame::Data(data_frame)
+                        }
+                        Some(frame) => frame.map(|_| {
+                            unreachable!(
+                                "Frame::map closure will only be called \
+                                 on DATA frames."
+                            )
+                        }),
+                        None => {
+                            if let Some(reason) =
+                                stream.state.get_scheduled_reset()
+                            {
+                                stream.set_reset(reason, Initiator::Library);
+
+                                let frame =
+                                    frame::Reset::new(stream.id, reason);
+                                Frame::Reset(frame)
+                            } else {
+                                // If the stream receives a RESET from the
+                                // peer, it may have had data buffered to be
+                                // sent, but all the frames are cleared in
+                                // clear_queue(). Instead of doing O(N)
+                                // traversal through queue to remove, lets just
+                                // ignore the stream here.
+                                debug_assert!(stream.state.is_closed());
+                                counts.transition_after(
+                                    stream,
+                                    is_pending_reset,
+                                );
+                                continue;
+                            }
+                        }
+                    };
+                    if stream.state.is_idle() {
+                        self.last_opened_id = stream.id;
+                    }
+                    if !stream.pending_send.is_empty()
+                        || stream.state.is_scheduled_reset()
+                    {
+                        // TODO: Only requeue the sender IF it is ready to send
+                        // the next frame. i.e. don't requeue it if the next
+                        // frame is a data frame and the stream does not have
+                        // any more capacity.
+                        self.pending_send.push(&mut stream);
+                    }
+                    counts.transition_after(stream, is_pending_reset);
+                    return Some(frame);
+                }
+                None => return None,
+            }
+        }
+    }
 }
