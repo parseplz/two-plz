@@ -17,11 +17,11 @@ impl<T> TwoTwo<T>
 where
     T: InfoLine,
 {
-    fn take_body(&mut self) -> Option<BytesMut> {
+    pub fn take_body(&mut self) -> Option<BytesMut> {
         self.body.take()
     }
 
-    fn take_trailer(&mut self) -> Option<HeaderMap<HeaderValue>> {
+    pub fn take_trailer(&mut self) -> Option<HeaderMap<HeaderValue>> {
         self.trailer.take()
     }
 
