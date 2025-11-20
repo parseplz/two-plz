@@ -1,13 +1,20 @@
+use crate::codec::UserError;
+use crate::proto::streams::store::{Resolve, Store};
 use crate::{
     Codec, Connection, StreamId,
     builder::{BuildConnection, Builder},
-    message::request::Request,
-    message::response::Response,
+    frame,
+    headers::Pseudo,
+    message::{
+        request::Request,
+        response::{Response, ResponseLine},
+    },
     proto::{config::ConnectionConfig, streams::streams_ref::StreamRef},
     role::Role,
 };
 use bytes::{Buf, Bytes};
 use futures::future::poll_fn;
+use http::{HeaderMap, HeaderValue};
 use std::{
     io::Error,
     task::{Context, Poll},
@@ -16,6 +23,18 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 // ===== Builder =====
 pub struct Server;
+
+impl Server {
+    pub fn build_send_header_frame(
+        stream_id: StreamId,
+        response: Response,
+    ) -> frame::Headers {
+        let (response_line, headers) = response.into_message_head();
+        let pseudo = Pseudo::response(response_line.status);
+        frame::Headers::new(stream_id, pseudo, headers)
+    }
+}
+
 pub type ServerBuilder = Builder<Server>;
 
 impl BuildConnection for Server {
