@@ -1,6 +1,7 @@
 use bytes::Buf;
 use bytes::Bytes;
 use tokio::io::AsyncWrite;
+use tracing::trace;
 
 use crate::Codec;
 use crate::DEFAULT_INITIAL_WINDOW_SIZE;
@@ -303,20 +304,30 @@ impl Send {
 
     fn try_assign_capacity(&mut self, stream: &mut Ptr) {
         let stream_available = stream.send_flow.available();
-        // no available stream capacity return
+
+        // check stream capacity
+        // when, connection window update
         if stream_available == 0 {
             return;
         }
 
-        // min  connection_flow_available
-        //      stream_flow_available
-        //      remaining_data_len
+        // check connection capacity on
+        // 1. stream window update
+        // 2. settings initial frame size change
+        if self.flow.available() == 0 {
+            self.pending_capacity.push(stream);
+            return;
+        }
+
+        //     | connection_flow_available
+        // min | stream_flow_available
+        //     | remaining_data_len
         let needed = min(
             min(self.flow.available(), stream_available),
             stream.remaining_data_len as u32,
         );
 
-        // no flow is needed, possibly empty data frame
+        // no flow is needed, possibly empty data frame ?
         if needed == 0 {
             self.pending_send.push(stream);
             return;
