@@ -112,11 +112,19 @@ impl Streams<Bytes> {
     ) -> Result<(), ProtoError> {
         let mut me = self.inner.lock().unwrap();
         let me = &mut *me;
+
+        let mut send_buffer = self.send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+
         me.counts
             .apply_remote_settings(settings);
-        me.actions
-            .send
-            .apply_remote_settings(settings, &mut me.store)
+        me.actions.send.apply_remote_settings(
+            settings,
+            send_buffer,
+            &mut me.store,
+            &mut me.counts,
+            &mut me.actions.task,
+        )
     }
 
     // ===== Reset =====
