@@ -374,15 +374,14 @@ impl Inner {
             })
     }
 
-    pub fn poll_complete<T, B>(
+    pub fn poll_complete<T>(
         &mut self,
-        send_buffer: &SendBuffer<B>,
+        send_buffer: &SendBuffer<Bytes>,
         cx: &mut Context,
         dst: &mut Codec<T, Bytes>,
     ) -> Poll<std::io::Result<()>>
     where
         T: AsyncWrite + Unpin,
-        B: Buf,
     {
         let mut send_buffer = send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
