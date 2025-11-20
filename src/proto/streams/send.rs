@@ -448,4 +448,24 @@ impl Send {
         }
         Ok(())
     }
+
+    // ===== polling =====
+
+    fn pop_pending_open<'s>(
+        &mut self,
+        store: &'s mut Store,
+        counts: &mut Counts,
+    ) -> Option<Ptr<'s>> {
+        // check for any pending open streams
+        if counts.can_inc_num_send_streams() {
+            if let Some(mut stream) = self.pending_open.pop(store) {
+                trace!("pop pending open| {:?}", stream.id);
+                counts.inc_num_send_streams(&mut stream);
+                // TODO
+                // stream.notify_send();
+                return Some(stream);
+            }
+        }
+        None
+    }
 }
