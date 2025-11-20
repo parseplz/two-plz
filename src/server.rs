@@ -24,17 +24,6 @@ use tokio::io::{AsyncRead, AsyncWrite};
 // ===== Builder =====
 pub struct Server;
 
-impl Server {
-    pub fn build_send_header_frame(
-        stream_id: StreamId,
-        response: Response,
-    ) -> frame::Headers {
-        let (response_line, headers) = response.into_message_head();
-        let pseudo = Pseudo::response(response_line.status);
-        frame::Headers::new(stream_id, pseudo, headers)
-    }
-}
-
 pub type ServerBuilder = Builder<Server>;
 
 impl BuildConnection for Server {
