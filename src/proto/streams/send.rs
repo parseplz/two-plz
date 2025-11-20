@@ -1,3 +1,8 @@
+use bytes::Buf;
+use bytes::Bytes;
+use tokio::io::AsyncWrite;
+
+use crate::Codec;
 use crate::DEFAULT_INITIAL_WINDOW_SIZE;
 use crate::Frame;
 use crate::Reason;
@@ -8,13 +13,20 @@ use crate::proto::ProtoError;
 use crate::proto::config::ConnectionConfig;
 use crate::proto::error::Initiator;
 use crate::proto::streams::Counts;
+use crate::proto::streams::Resolve;
 use crate::proto::streams::Store;
 use crate::proto::streams::buffer::Buffer;
 use crate::proto::streams::flow_control::FlowControl;
+use crate::proto::streams::flow_control::Window;
+use crate::proto::streams::send_buffer::SendBuffer;
 use crate::proto::streams::store::Ptr;
 use crate::proto::streams::store::Queue;
 use crate::proto::streams::stream;
 use std::cmp::Ordering;
+use std::cmp::min;
+use std::io;
+use std::task::Context;
+use std::task::Poll;
 use std::task::Waker;
 
 use crate::{
@@ -168,10 +180,13 @@ impl Send {
     }
 
     // ===== settings =====
-    pub fn apply_remote_settings(
+    pub fn apply_remote_settings<B>(
         &mut self,
-        settings: &Settings,
+        settings: &frame::Settings,
+        buffer: &mut Buffer<Frame<B>>,
         store: &mut Store,
+        counts: &mut Counts,
+        task: &mut Option<Waker>,
     ) -> Result<(), super::ProtoError> {
         if let Some(val) = settings.is_push_enabled() {
             self.is_push_enabled = val
@@ -181,26 +196,54 @@ impl Send {
             self.is_extended_connect_protocol_enabled = val;
         }
 
-        if let Some(val) = settings.initial_window_size() {
-            let old_val = self.init_stream_window_sz;
-            self.init_stream_window_sz = val;
+        if let Some(new) = settings.initial_window_size() {
+            let old = self.init_stream_window_sz;
+            self.init_stream_window_sz = new;
 
-            match val.cmp(&old_val) {
+            match new.cmp(&old) {
                 Ordering::Less => {
-                    let dec = old_val - val;
+                    // decrease the (remote) window on every open stream.
+                    let dec = old - new;
+                    let mut total_reclaimed = 0;
                     store.try_for_each(|mut stream| {
                         let stream = &mut *stream;
-                        if stream.state.is_send_closed() {
+                        if stream.state.is_send_closed()
+                        // TODO
+                        // && stream.buffered_send_data == 0 {
+                        {
                             return Ok(());
                         }
                         stream
                             .send_flow
                             .dec_window(dec)
-                            .map_err(ProtoError::library_go_away)
-                    })?
+                            .map_err(ProtoError::library_go_away)?;
+
+                        // It's possible that decreasing the window causes
+                        // `window_size` (the stream-specific window) to fall
+                        // below `allocated` (the portion of the
+                        // connection-level window that we have allocated to
+                        // the stream). In this case, we should take that
+                        // excess allocation away and reassign it to other
+                        // streams.
+                        let current_send_flow = stream.send_flow.available();
+                        let allocated = stream.connection_window_allocated;
+                        if allocated > current_send_flow {
+                            let extra = allocated - current_send_flow;
+                            total_reclaimed += extra;
+                            stream.connection_window_allocated -= extra;
+                        }
+                        Ok::<_, ProtoError>(())
+                    })?;
+                    if total_reclaimed > 0 {
+                        self.assign_connection_capacity(
+                            total_reclaimed,
+                            store,
+                            counts,
+                        );
+                    }
                 }
                 Ordering::Greater => {
-                    let inc = val - old_val;
+                    let inc = new - old;
                     store.try_for_each(|mut stream| {
                         self.recv_stream_window_update(&mut stream, inc)
                             .map_err(ProtoError::library_go_away)
@@ -243,6 +286,8 @@ impl Send {
             // became available. In that case, the stream won't want any
             // capacity, and so we shouldn't "transition" on it, but just evict
             // it and continue the loop.
+            // TODO
+            //if !(stream.state.is_send_streaming() || stream.buffered_send_data > 0) {
             if !stream.state.is_send_streaming() {
                 continue;
             }
