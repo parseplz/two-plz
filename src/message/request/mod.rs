@@ -1,11 +1,13 @@
 use crate::Reason;
 use crate::StreamId;
+use crate::codec::UserError;
 use crate::ext::Protocol;
 use crate::headers::Pseudo;
 use crate::message::InfoLine;
 use crate::message::TwoTwo;
 use crate::proto::ProtoError;
 use bytes::BytesMut;
+use http::uri::Scheme;
 use http::{HeaderMap, Method, StatusCode};
 mod builder;
 pub mod uri;
@@ -49,8 +51,16 @@ pub struct RequestLine {
 
 impl InfoLine for RequestLine {
     fn into_pseudo(self) -> Pseudo {
-        let is_connect = self.method == Method::CONNECT;
-        Pseudo::request(self.method, self.uri, self.extension)
+        // TODO
+        // let is_connect = self.method == Method::CONNECT;
+        let mut pseudo =
+            Pseudo::request(self.method, self.uri, self.extension);
+
+        if pseudo.scheme.is_none() {
+            pseudo.set_scheme(Scheme::HTTP)
+        }
+
+        pseudo
     }
 }
 
