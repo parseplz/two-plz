@@ -155,9 +155,11 @@ impl Counts {
     /// # Panics
     ///
     /// Panics on failure as this should have been validated before hand.
-    pub fn inc_num_send_streams(&mut self) {
+    pub fn inc_num_send_streams(&mut self, stream: &mut Ptr) {
         assert!(self.can_inc_num_send_streams());
+        assert!(!stream.is_counted);
         self.num_send_streams += 1;
+        stream.is_counted = true;
     }
 
     /// settings frame
