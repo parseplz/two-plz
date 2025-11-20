@@ -606,4 +606,39 @@ impl Send {
             }
         }
     }
+
+    pub fn poll_complete<T>(
+        &mut self,
+        cx: &mut Context,
+        buffer: &mut Buffer<Frame<Bytes>>,
+        store: &mut Store,
+        counts: &mut Counts,
+        dst: &mut Codec<T, Bytes>,
+    ) -> Poll<io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+    {
+        ready!(dst.poll_ready(cx))?;
+        let max_frame_len = dst.max_send_frame_size();
+        loop {
+            if let Some(mut stream) = self.pop_pending_open(store, counts) {
+                self.pending_send
+                    .push_front(&mut stream);
+                self.try_assign_capacity(&mut stream);
+            }
+
+            match self.pop_frame(buffer, store, max_frame_len, counts) {
+                Some(frame) => {
+                    dst.buffer(frame)
+                        .expect("invalid frame");
+                    ready!(dst.poll_ready(cx))?;
+                }
+                None => {
+                    ready!(dst.flush(cx))?;
+                }
+            }
+        }
+
+        return Poll::Ready(Ok(()));
+    }
 }
