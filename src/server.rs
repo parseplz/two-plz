@@ -96,7 +96,7 @@ pub struct SendResponse<B: Buf> {
 }
 
 impl<B: Buf> SendResponse<B> {
-    fn send_response(&mut self, response: Response) -> Result<(), Error> {
-        todo!()
+    fn send_response(&mut self, response: Response) -> Result<(), UserError> {
+        self.inner.send_response(response)
     }
 }
