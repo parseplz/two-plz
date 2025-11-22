@@ -27,8 +27,29 @@ impl<T> From<(StreamId, TwoTwo<T>)> for TwoTwoFrame
 where
     T: InfoLine,
 {
-    pub fn take_body(&mut self) -> Option<BytesMut> {
-        self.body.take()
+    fn from((stream_id, mut message): (StreamId, TwoTwo<T>)) -> Self {
+        let body = message.body;
+        let trailer = message.trailer;
+        let pseudo = message.info_line.into_pseudo();
+        let mut header =
+            frame::Headers::new(stream_id, pseudo, message.headers);
+        if body.is_none() && trailer.is_none() {
+            header.set_end_stream();
+            return TwoTwoFrame {
+                header,
+                data: None,
+                trailer: None,
+            };
+        }
+
+        let data = body.map(|b| frame::Data::new(stream_id, b.freeze()));
+        let trailer = trailer.map(|t| frame::Headers::trailers(stream_id, t));
+
+        TwoTwoFrame {
+            header,
+            data,
+            trailer,
+        }
     }
 
     pub fn take_trailer(&mut self) -> Option<HeaderMap<HeaderValue>> {
