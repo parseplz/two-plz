@@ -5,6 +5,10 @@ use crate::{StreamId, frame, headers::Pseudo};
 pub mod request;
 pub mod response;
 
+pub trait InfoLine {
+    fn into_pseudo(self) -> Pseudo;
+}
+
 #[derive(Debug)]
 pub struct TwoTwo<T> {
     info_line: T,
@@ -13,7 +17,13 @@ pub struct TwoTwo<T> {
     trailer: Option<HeaderMap<HeaderValue>>,
 }
 
-impl<T> TwoTwo<T>
+pub struct TwoTwoFrame {
+    header: frame::Headers,
+    data: Option<frame::Data>,
+    trailer: Option<frame::Headers>,
+}
+
+impl<T> From<(StreamId, TwoTwo<T>)> for TwoTwoFrame
 where
     T: InfoLine,
 {
@@ -29,17 +39,9 @@ where
         (self.info_line, self.headers)
     }
 
-    pub fn into_header_frame(
-        self,
-        stream_id: StreamId,
-        end_of_stream: bool,
-    ) -> frame::Headers {
+    pub fn into_header_frame(self, stream_id: StreamId) -> frame::Headers {
         let pseudo = self.info_line.into_pseudo();
-        let mut frame = frame::Headers::new(stream_id, pseudo, self.headers);
-        if end_of_stream {
-            frame.set_end_stream()
-        }
-        frame
+        frame::Headers::new(stream_id, pseudo, self.headers)
     }
 }
 
