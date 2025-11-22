@@ -23,6 +23,16 @@ pub struct TwoTwoFrame {
     trailer: Option<frame::Headers>,
 }
 
+impl TwoTwoFrame {
+    fn take_data(&mut self) -> Option<frame::Data> {
+        self.data.take()
+    }
+
+    fn take_trailer(&mut self) -> Option<frame::Headers> {
+        self.trailer.take()
+    }
+}
+
 impl<T> From<(StreamId, TwoTwo<T>)> for TwoTwoFrame
 where
     T: InfoLine,
@@ -51,21 +61,4 @@ where
             trailer,
         }
     }
-
-    pub fn take_trailer(&mut self) -> Option<HeaderMap<HeaderValue>> {
-        self.trailer.take()
-    }
-
-    pub fn into_message_head(self) -> (T, HeaderMap<HeaderValue>) {
-        (self.info_line, self.headers)
-    }
-
-    pub fn into_header_frame(self, stream_id: StreamId) -> frame::Headers {
-        let pseudo = self.info_line.into_pseudo();
-        frame::Headers::new(stream_id, pseudo, self.headers)
-    }
-}
-
-pub trait InfoLine {
-    fn into_pseudo(self) -> Pseudo;
 }
