@@ -38,8 +38,7 @@ where
     T: InfoLine,
 {
     fn from((stream_id, mut message): (StreamId, TwoTwo<T>)) -> Self {
-        let body = message.body;
-        let trailer = message.trailer;
+        let (body, trailer) = (message.body, message.trailer);
         let pseudo = message.info_line.into_pseudo();
         let mut header =
             frame::Headers::new(stream_id, pseudo, message.headers);
@@ -52,7 +51,14 @@ where
             };
         }
 
-        let data = body.map(|b| frame::Data::new(stream_id, b.freeze()));
+        let data = body.map(|b| {
+            let mut frame = frame::Data::new(stream_id, b.freeze());
+            if trailer.is_none() {
+                frame.set_end_stream(true);
+            }
+            frame
+        });
+
         let trailer = trailer.map(|t| frame::Headers::trailers(stream_id, t));
 
         TwoTwoFrame {
