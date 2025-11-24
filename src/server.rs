@@ -1,10 +1,11 @@
 use crate::codec::UserError;
 use crate::proto::streams::store::{Resolve, Store};
 use crate::{
-    Codec, Connection, StreamId,
+    Codec, Connection,
     builder::{BuildConnection, Builder},
     frame,
-    headers::Pseudo,
+    frame::StreamId,
+    frame::headers::Pseudo,
     message::{
         request::Request,
         response::{Response, ResponseLine},
@@ -70,14 +71,14 @@ where
 {
     pub async fn accept(
         &mut self,
-    ) -> Option<Result<(Request, SendResponse<Bytes>), crate::Error>> {
+    ) -> Option<Result<(Request, SendResponse), crate::frame::Error>> {
         poll_fn(move |cx| self.poll_accept(cx)).await
     }
 
     pub fn poll_accept(
         &mut self,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<(Request, SendResponse<Bytes>), crate::Error>>>
+    ) -> Poll<Option<Result<(Request, SendResponse), crate::frame::Error>>>
     {
         //TODO .map_err(Into::into);
         if self.connection.poll(cx).is_ready() {
@@ -99,11 +100,11 @@ where
 }
 
 #[derive(Debug)]
-pub struct SendResponse<B: Buf> {
-    inner: StreamRef<B>,
+pub struct SendResponse {
+    inner: StreamRef<Bytes>,
 }
 
-impl<B: Buf> SendResponse<B> {
+impl SendResponse {
     fn send_response(&mut self, response: Response) -> Result<(), UserError> {
         self.inner.send_response(response)
     }
