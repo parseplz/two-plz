@@ -1,7 +1,7 @@
 use bytes::BytesMut;
 use http::{HeaderMap, HeaderValue};
 
-use crate::{StreamId, frame, headers::Pseudo};
+use crate::frame::{self, StreamId, headers::Pseudo};
 pub mod request;
 pub mod response;
 

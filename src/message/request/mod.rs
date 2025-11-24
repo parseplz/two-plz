@@ -1,8 +1,7 @@
-use crate::Reason;
-use crate::StreamId;
-use crate::codec::UserError;
 use crate::ext::Protocol;
-use crate::headers::Pseudo;
+use crate::frame::Reason;
+use crate::frame::StreamId;
+use crate::frame::headers::Pseudo;
 use crate::message::InfoLine;
 use crate::message::TwoTwo;
 use crate::proto::ProtoError;

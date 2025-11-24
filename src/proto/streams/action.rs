@@ -1,8 +1,8 @@
 use bytes::Bytes;
 
-use crate::Frame;
-use crate::Reason;
-use crate::StreamId;
+use crate::frame::Frame;
+use crate::frame::Reason;
+use crate::frame::StreamId;
 use crate::proto::streams::Counts;
 use crate::proto::streams::Ptr;
 use crate::proto::streams::buffer::Buffer;

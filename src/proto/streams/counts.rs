@@ -1,5 +1,5 @@
 use crate::{
-    Settings,
+    frame,
     proto::{config::ConnectionConfig, streams::store::Ptr},
     role::Role,
 };
@@ -163,7 +163,7 @@ impl Counts {
     }
 
     /// settings frame
-    pub fn set_max_send_streams(&mut self, settings: &Settings) {
+    pub fn set_max_send_streams(&mut self, settings: &frame::Settings) {
         self.max_send_streams = settings
             .max_concurrent_streams()
             .map(|v| v as usize)
@@ -190,7 +190,7 @@ impl Counts {
         self.num_local_reset_streams += 1;
     }
 
-    pub fn apply_remote_settings(&mut self, settings: &Settings) {
+    pub fn apply_remote_settings(&mut self, settings: &frame::Settings) {
         self.max_send_streams = settings
             .max_concurrent_streams()
             .map(|v| v as usize)
@@ -261,7 +261,6 @@ impl Counts {
             }
 
             if !stream.state.is_scheduled_reset() && stream.is_counted {
-                tracing::trace!("dec_num_streams; stream={:?}", stream.id);
                 // Decrement the number of active streams.
                 self.dec_num_streams(&mut stream);
             }

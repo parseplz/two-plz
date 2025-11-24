@@ -1,6 +1,6 @@
 use crate::proto::streams::Counts;
 use crate::proto::streams::action::Actions;
-use crate::{Reason, proto::streams::Resolve};
+use crate::{frame::Reason, proto::streams::Resolve};
 use std::{
     fmt,
     sync::{Arc, Mutex},

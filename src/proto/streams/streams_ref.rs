@@ -1,18 +1,22 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    message::request::Request,
+    codec::UserError,
+    message::{TwoTwoFrame, request::Request, response::Response},
     proto::streams::{
-        Resolve, inner::Inner, opaque_streams_ref::OpaqueStreamRef,
-        send_buffer::SendBuffer, store::Ptr,
+        inner::Inner,
+        opaque_streams_ref::OpaqueStreamRef,
+        send_buffer::SendBuffer,
+        store::{Ptr, Resolve},
     },
+    server::Server,
 };
 
 /// Reference to the stream state
 #[derive(Debug)]
 pub(crate) struct StreamRef<B> {
-    opaque: OpaqueStreamRef,
-    send_buffer: Arc<SendBuffer<B>>,
+    pub opaque: OpaqueStreamRef,
+    pub send_buffer: Arc<SendBuffer<B>>,
 }
 
 impl<B> StreamRef<B> {

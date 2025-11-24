@@ -1,8 +1,7 @@
 use http::{HeaderMap, StatusCode};
 
 use crate::{
-    StreamId,
-    headers::Pseudo,
+    frame::{StreamId, headers::Pseudo},
     message::{InfoLine, TwoTwo},
     proto::ProtoError,
 };

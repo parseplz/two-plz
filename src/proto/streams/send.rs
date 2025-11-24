@@ -4,12 +4,11 @@ use tokio::io::AsyncWrite;
 use tracing::trace;
 
 use crate::Codec;
-use crate::DEFAULT_INITIAL_WINDOW_SIZE;
-use crate::Frame;
-use crate::Reason;
-use crate::Settings;
 use crate::codec::UserError;
 use crate::frame;
+use crate::frame::DEFAULT_INITIAL_WINDOW_SIZE;
+use crate::frame::Frame;
+use crate::frame::Reason;
 use crate::proto::ProtoError;
 use crate::proto::config::ConnectionConfig;
 use crate::proto::error::Initiator;
@@ -31,7 +30,7 @@ use std::task::Poll;
 use std::task::Waker;
 
 use crate::{
-    StreamId, proto::WindowSize, role::Role, stream_id::StreamIdOverflow,
+    frame::StreamId, frame::StreamIdOverflow, proto::WindowSize, role::Role,
 };
 
 #[derive(Debug)]

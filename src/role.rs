@@ -1,12 +1,11 @@
+use crate::proto::ProtoError;
+use crate::proto::streams::recv::Open;
 use bytes::BytesMut;
 use http::HeaderMap;
 
-use crate::{
-    Reason, StreamId,
-    headers::Pseudo,
-    message::{request::Request, response::Response},
-    proto::{ProtoError, streams::recv::Open},
-};
+use crate::frame::{Reason, StreamId, headers::Pseudo};
+
+use crate::message::{request::Request, response::Response};
 
 #[derive(Debug)]
 pub enum PollMessage {

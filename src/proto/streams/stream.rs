@@ -2,7 +2,7 @@ use crate::proto::error::Initiator;
 use crate::proto::streams::buffer::Deque;
 use crate::proto::streams::flow_control::FlowControl;
 use crate::proto::streams::store::{self, Key, Next, Queue};
-use crate::{Reason, proto::streams::state::State};
+use crate::{frame::Reason, proto::streams::state::State};
 use std::task::Waker;
 use std::time::Instant;
 

@@ -2,10 +2,8 @@ use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
 
-use crate::Data;
-use crate::Reason;
-use crate::WindowUpdate;
 use crate::frame;
+use crate::frame::Reason;
 use crate::proto::ProtoError;
 use crate::proto::error::Initiator;
 use crate::proto::settings::SettingsAction;
@@ -18,7 +16,7 @@ use bytes::Bytes;
 use futures::Stream;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::{Headers, Settings};
+use crate::frame::{Headers, Settings};
 use crate::{
     codec::{Codec, UserError},
     frame::{Frame, Ping, StreamId},
@@ -163,7 +161,7 @@ where
     // ==== Window Update =====
     fn recv_window_update(
         &mut self,
-        window_update: WindowUpdate,
+        window_update: frame::WindowUpdate,
     ) -> Result<(), ProtoError> {
         let id = window_update.stream_id();
         let size = window_update.size_increment();

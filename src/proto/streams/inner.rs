@@ -1,10 +1,7 @@
 use crate::Codec;
-use crate::Data;
-use crate::Headers;
-use crate::Reason;
-use crate::StreamId;
-use crate::WindowUpdate;
 use crate::frame;
+use crate::frame::Reason;
+use crate::frame::StreamId;
 use crate::proto::MAX_WINDOW_SIZE;
 use crate::proto::ProtoError;
 use crate::proto::WindowSize;
@@ -63,7 +60,7 @@ impl Inner {
     pub fn recv_data(
         &mut self,
         send_buffer: &SendBuffer<Bytes>,
-        frame: Data,
+        frame: frame::Data,
     ) -> Result<(), ProtoError> {
         let id = frame.stream_id();
         let stream = match self.store.find_mut(&id) {
@@ -133,7 +130,7 @@ impl Inner {
     pub fn recv_headers(
         &mut self,
         send_buffer: &SendBuffer<Bytes>,
-        frame: Headers,
+        frame: frame::Headers,
     ) -> Result<(), ProtoError> {
         let id = frame.stream_id();
         let role = self.counts.role();
@@ -321,7 +318,7 @@ impl Inner {
 
         if let Some(size) = self.should_send_connection_window_update() {
             ready!(dst.poll_ready(cx))?;
-            let frame = WindowUpdate::new(StreamId::ZERO, size);
+            let frame = frame::WindowUpdate::new(StreamId::ZERO, size);
             dst.buffer(frame.into())
                 .expect("invalid WINDOW_UPDATE frame");
             self.actions
@@ -333,7 +330,7 @@ impl Inner {
             self.should_send_stream_window_update()
         {
             ready!(dst.poll_ready(cx))?;
-            let frame = WindowUpdate::new(stream_id, size);
+            let frame = frame::WindowUpdate::new(stream_id, size);
             dst.buffer(frame.into())
                 .expect("invalid WINDOW_UPDATE frame");
             let mut stream = self.store.find_mut(&stream_id).unwrap();

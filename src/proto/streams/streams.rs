@@ -2,7 +2,7 @@ use bytes::{Buf, Bytes};
 use tokio::io::AsyncWrite;
 
 use crate::{
-    Codec, WindowUpdate, frame,
+    Codec, frame,
     proto::{
         WindowSize,
         config::ConnectionConfig,
@@ -19,7 +19,8 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::{Reason, Settings, StreamId, proto::ProtoError, role::Role};
+use crate::frame::{Reason, Settings, StreamId};
+use crate::{proto::ProtoError, role::Role};
 
 #[derive(Debug)]
 pub(crate) struct Streams<B> {

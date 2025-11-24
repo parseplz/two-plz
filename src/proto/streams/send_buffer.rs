@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::{Frame, proto::streams::buffer::Buffer};
+use crate::{frame::Frame, proto::streams::buffer::Buffer};
 
 #[derive(Debug)]
 pub struct SendBuffer<B> {

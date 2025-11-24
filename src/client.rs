@@ -2,8 +2,9 @@ use bytes::Bytes;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
-    Codec, Connection, Error, StreamId,
+    Codec, Connection,
     builder::{BuildConnection, Builder},
+    frame::{self, StreamId},
     message::{request::Request, response::Response},
     proto::config::ConnectionConfig,
     role::Role,
@@ -11,6 +12,7 @@ use crate::{
 
 // ===== Builder =====
 pub struct Client;
+
 pub type ClientBuilder = Builder<Client>;
 
 impl BuildConnection for Client {
@@ -58,7 +60,7 @@ impl SendRequest {
     fn send_request(
         &mut self,
         request: Request,
-    ) -> Result<RecvResponse, Error> {
+    ) -> Result<RecvResponse, frame::Error> {
         todo!()
     }
 }
@@ -66,7 +68,7 @@ impl SendRequest {
 struct RecvResponse;
 
 impl RecvResponse {
-    async fn recv_response(&mut self) -> Result<Response, Error> {
+    async fn recv_response(&mut self) -> Result<Response, frame::Error> {
         todo!()
     }
 }

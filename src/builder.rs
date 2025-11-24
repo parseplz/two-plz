@@ -1,15 +1,15 @@
 use bytes::{Buf, Bytes};
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::Codec;
 use crate::proto::config::ConnectionConfig;
 use crate::proto::{
     DEFAULT_LOCAL_RESET_COUNT_MAX, DEFAULT_REMOTE_RESET_COUNT_MAX,
     DEFAULT_RESET_STREAM_MAX, DEFAULT_RESET_STREAM_SECS,
 };
 use crate::role::Role;
+use crate::{Codec, frame};
 use crate::{
-    Settings, StreamId,
+    frame::StreamId,
     preface::{PrefaceConn, PrefaceError, PrefaceState},
 };
 use std::marker::PhantomData;
@@ -55,7 +55,7 @@ pub struct Builder<R> {
     role: PhantomData<R>,
 
     /// Initial `Settings` frame to send as part of the handshake.
-    pub settings: Settings,
+    pub settings: frame::Settings,
 }
 
 impl<R> Default for Builder<R>
@@ -72,7 +72,7 @@ where
     R: BuildConnection,
 {
     pub fn new() -> Self {
-        let mut settings = Settings::default();
+        let mut settings = frame::Settings::default();
         settings.set_enable_push(false);
         Builder {
             initial_connection_window_size: None,
@@ -289,7 +289,10 @@ where
         Ok(R::build(preface.role, config, preface.stream))
     }
 
-    fn build_config(&self, peer_settings: Settings) -> ConnectionConfig {
+    fn build_config(
+        &self,
+        peer_settings: frame::Settings,
+    ) -> ConnectionConfig {
         ConnectionConfig {
             initial_connection_window_size: self
                 .initial_connection_window_size,

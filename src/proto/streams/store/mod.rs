@@ -8,13 +8,13 @@ use indexmap::{self, IndexMap};
 use crate::frame::StreamId;
 use crate::proto::streams::stream::Stream;
 mod entry;
-mod ptr;
+pub mod ptr;
 mod queue;
 pub use entry::*;
 pub(crate) use ptr::{Key, Ptr};
 pub(crate) use queue::{Next, Queue};
 
-pub(super) trait Resolve {
+pub trait Resolve {
     fn resolve(&mut self, key: Key) -> Ptr<'_>;
 }
 
@@ -24,7 +24,7 @@ pub(super) trait Resolve {
 struct SlabIndex(u32);
 
 #[derive(Debug)]
-pub(super) struct Store {
+pub struct Store {
     slab: slab::Slab<Stream>,
     ids: IndexMap<StreamId, SlabIndex>,
 }

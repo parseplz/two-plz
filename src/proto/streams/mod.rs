@@ -10,7 +10,7 @@ pub mod streams_ref;
 use send::Send;
 mod inner;
 mod state;
-mod store;
+pub mod store;
 mod stream;
 use crate::proto::streams::{
     counts::Counts,

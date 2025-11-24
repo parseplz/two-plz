@@ -43,8 +43,8 @@ mod ping;
 mod priority;
 mod reason;
 mod reset;
-pub mod settings;
-pub mod stream_id;
+mod settings;
+mod stream_id;
 mod util;
 mod window_update;
 
@@ -60,6 +60,7 @@ pub use self::reset::Reset;
 pub use self::settings::Settings;
 pub use self::stream_id::StreamId;
 pub use self::window_update::WindowUpdate;
+pub use stream_id::StreamIdOverflow;
 
 // Re-export some constants
 pub use self::settings::{

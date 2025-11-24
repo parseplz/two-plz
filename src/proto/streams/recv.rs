@@ -8,9 +8,10 @@ use http::HeaderMap;
 use tracing::trace;
 
 use crate::{
-    DEFAULT_INITIAL_WINDOW_SIZE, Data, Headers, Reason, Settings, StreamId,
-    frame,
-    headers::{self, Pseudo},
+    frame::{
+        self, DEFAULT_INITIAL_WINDOW_SIZE, Reason, StreamId, StreamIdOverflow,
+        headers::Pseudo,
+    },
     message::request::Request,
     proto::{
         MAX_WINDOW_SIZE, ProtoError, WindowSize,
@@ -24,7 +25,6 @@ use crate::{
         },
     },
     role::{PollMessage, Role},
-    stream_id::StreamIdOverflow,
 };
 
 #[derive(Debug)]
@@ -150,7 +150,7 @@ impl Recv {
     // ===== Data =====
     pub fn recv_data(
         &mut self,
-        frame: Data,
+        frame: frame::Data,
         stream: &mut Ptr,
         role: &Role,
     ) -> Result<(), ProtoError> {
@@ -351,7 +351,7 @@ impl Recv {
             .fields()
             .get(header::CONTENT_LENGTH)
         {
-            let content_length = headers::parse_u64(
+            let content_length = frame::headers::parse_u64(
                     content_length.as_bytes(),
                 )
                 .map_err(|_| {
@@ -408,9 +408,9 @@ impl Recv {
         );
         // server
         if counts.role().is_server() && is_initial {
-            let mut response = Headers::new(
+            let mut response = frame::Headers::new(
                 stream.id,
-                headers::Pseudo::response(
+                Pseudo::response(
                     ::http::StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
                 ),
                 HeaderMap::new(),
@@ -484,7 +484,7 @@ impl Recv {
     /// Transition the stream based on receiving trailers
     pub fn recv_trailers(
         &mut self,
-        frame: Headers,
+        frame: frame::Headers,
         stream: &mut Ptr,
         role: &Role,
     ) -> Result<(), ProtoError> {
@@ -528,7 +528,7 @@ impl Recv {
 
     pub fn apply_local_settings(
         &mut self,
-        settings: &Settings,
+        settings: &frame::Settings,
         store: &mut Store,
     ) -> Result<(), ProtoError> {
         if let Some(val) = settings.is_extended_connect_protocol_enabled() {

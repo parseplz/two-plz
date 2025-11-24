@@ -4,7 +4,8 @@ use bytes::{Buf, Bytes};
 use tokio::io::AsyncWrite;
 
 use crate::{
-    Codec, Reason,
+    Codec,
+    frame::Reason,
     frame::Settings,
     proto::{self, ProtoError, streams::streams::Streams},
 };
