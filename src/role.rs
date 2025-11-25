@@ -83,4 +83,11 @@ impl Role {
                 .map(PollMessage::Client),
         }
     }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Role::Client => "client",
+            Role::Server => "server",
+        }
+    }
 }
