@@ -64,6 +64,10 @@ impl InfoLine for RequestLine {
 }
 
 impl Request {
+    pub fn method(&self) -> &Method {
+        &self.info_line.method
+    }
+
     pub fn from_http_two(
         pseudo: Pseudo,
         headers: HeaderMap,
