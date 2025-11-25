@@ -299,11 +299,23 @@ impl Send {
     }
 
     fn try_assign_capacity(&mut self, stream: &mut Ptr) {
+        let span = trace_span!("try assign capacity| ", ?stream.id);
+        let _ = span.enter();
+        let remaining_data_len = if let Some(rem) = stream.remaining_data_len {
+            rem
+        } else {
+            trace!("[-] no remaining data");
+            return;
+        };
+        trace!("remaining| {remaining_data_len}");
+
         let stream_available = stream.send_flow.available();
+        trace!("stream flow| {stream_available}");
 
         // check stream capacity
         // when, connection window update
         if stream_available == 0 {
+            trace!("[-] stream flow unavailable");
             return;
         }
 
@@ -311,6 +323,7 @@ impl Send {
         // 1. stream window update
         // 2. settings initial frame size change
         if self.flow.available() == 0 {
+            trace!("[-] con flow unavailable");
             self.pending_capacity.push(stream);
             return;
         }
@@ -318,21 +331,23 @@ impl Send {
         //     | connection_flow_available
         // min | stream_flow_available
         //     | remaining_data_len
-        let needed = min(
+        let allocated = min(
             min(self.flow.available(), stream_available),
-            stream.remaining_data_len as u32,
+            remaining_data_len as u32,
         );
 
+        trace!("allocated| {allocated}");
+        self.pending_send.push(stream);
+
         // no flow is needed, possibly empty data frame ?
-        if needed == 0 {
-            self.pending_send.push(stream);
+        if allocated == 0 {
             return;
         }
 
         // increase stream allocated connection window
-        stream.connection_window_allocated += needed;
+        stream.connection_window_allocated += allocated;
         // reduce connection window
-        self.flow.dec_window(needed);
+        self.flow.dec_window(allocated);
     }
 
     pub fn recv_stream_window_update(
