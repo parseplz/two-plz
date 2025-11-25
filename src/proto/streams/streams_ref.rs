@@ -1,13 +1,20 @@
 use std::sync::{Arc, Mutex};
 
+use bytes::Bytes;
+use tracing::{debug, trace};
+
 use crate::{
     codec::UserError,
-    message::{TwoTwoFrame, request::Request, response::Response},
+    frame::Frame,
+    message::{
+        InfoLine, TwoTwo, TwoTwoFrame, request::Request, response::Response,
+    },
     proto::streams::{
+        buffer::Buffer,
         inner::Inner,
         opaque_streams_ref::OpaqueStreamRef,
         send_buffer::SendBuffer,
-        store::{Ptr, Resolve},
+        store::{Key, Ptr, Resolve},
     },
     server::Server,
 };
@@ -19,11 +26,11 @@ pub(crate) struct StreamRef<B> {
     pub send_buffer: Arc<SendBuffer<B>>,
 }
 
-impl<B> StreamRef<B> {
+impl StreamRef<Bytes> {
     pub fn new(
         inner: Arc<Mutex<Inner>>,
         ptr: &mut Ptr,
-        send_buffer: Arc<SendBuffer<B>>,
+        send_buffer: Arc<SendBuffer<Bytes>>,
     ) -> Self {
         StreamRef {
             opaque: OpaqueStreamRef::new(inner, ptr),
