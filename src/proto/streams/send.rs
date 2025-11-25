@@ -2,6 +2,7 @@ use bytes::Buf;
 use bytes::Bytes;
 use tokio::io::AsyncWrite;
 use tracing::trace;
+use tracing::trace_span;
 
 use crate::Codec;
 use crate::codec::UserError;
@@ -108,17 +109,6 @@ impl Send {
         self.schedule_send(stream, task);
     }
 
-    /// Clear the send queue for a stream
-    pub fn clear_queue<B>(
-        &mut self,
-        buffer: &mut Buffer<Frame<B>>,
-        stream: &mut Ptr,
-    ) {
-        while let Some(frame) = stream.pending_send.pop_front(buffer) {
-            tracing::trace!(?frame, "dropping");
-        }
-    }
-
     /// Schedule a stream to be sent
     pub fn schedule_send(
         &mut self,
@@ -127,13 +117,22 @@ impl Send {
     ) {
         // If the stream is waiting to be opened, nothing more to do.
         if stream.is_send_ready() {
-            tracing::trace!(?stream.id, "schedule_send");
             // Queue the stream
             self.pending_send.push(stream);
-
             if let Some(task) = task.take() {
                 task.wake();
             }
+        }
+    }
+
+    /// Clear the send queue for a stream
+    pub fn clear_queue<B>(
+        &mut self,
+        buffer: &mut Buffer<Frame<B>>,
+        stream: &mut Ptr,
+    ) {
+        while let Some(frame) = stream.pending_send.pop_front(buffer) {
+            tracing::trace!(?frame, "dropping");
         }
     }
 
@@ -167,9 +166,7 @@ impl Send {
         //
         // This call expects that, since new streams are in the open queue, new
         // streams won't be pushed on pending_send.
-        stream
-            .pending_send
-            .push_back(buffer, frame.into());
+        self.queue_frame(frame.into(), buffer, stream, task);
 
         // Need to notify the connection when pushing onto pending_open since
         // queue_frame only notifies for pending_send.
@@ -416,6 +413,7 @@ impl Send {
         counts: &mut Counts,
         task: &mut Option<Waker>,
     ) {
+        trace!("scheduled reset| {:?}", stream.id);
         if stream.state.is_closed() {
             // Stream is already closed, nothing more to do
             return;
@@ -486,6 +484,8 @@ impl Send {
         max_frame_size: usize,
         counts: &mut Counts,
     ) -> Option<Frame<Bytes>> {
+        let span = trace_span!("pop frame");
+        let _ = span.enter();
         loop {
             match self.pending_send.pop(store) {
                 Some(mut stream) => {
@@ -596,8 +596,10 @@ impl Send {
                         // the next frame. i.e. don't requeue it if the next
                         // frame is a data frame and the stream does not have
                         // any more capacity.
+                        trace!("stream pending send| not empty");
                         self.pending_send.push(&mut stream);
                     }
+                    trace!("stream pending send| empty");
                     counts.transition_after(stream, is_pending_reset);
                     return Some(frame);
                 }
@@ -631,12 +633,15 @@ impl Send {
                     dst.buffer(frame)
                         .expect("invalid frame");
                     ready!(dst.poll_ready(cx))?;
+                    trace!("frame sent");
                 }
                 None => {
                     ready!(dst.flush(cx))?;
+                    return Poll::Ready(Ok(()));
                 }
             }
         }
+    }
 
     pub fn ensure_next_stream_id(&self) -> Result<StreamId, UserError> {
         self.next_stream_id
