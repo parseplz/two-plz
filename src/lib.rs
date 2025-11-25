@@ -35,4 +35,3 @@ pub mod state;
 // tests
 pub use crate::proto::connection::Connection;
 pub use codec::Codec;
-//pub use frame::*;

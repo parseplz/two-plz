@@ -143,11 +143,11 @@ fn decode_frame(
     partial_inout: &mut Option<Partial>,
     mut bytes: BytesMut,
 ) -> Result<Option<Frame>, ProtoError> {
-    let span =
-        tracing::trace_span!("FramedRead::decode_frame", offset = bytes.len());
-    let _e = span.enter();
-
-    tracing::trace!("decoding frame from {}B", bytes.len());
+    //let span =
+    //    tracing::trace_span!("FramedRead::decode_frame", offset = bytes.len());
+    //let _e = span.enter();
+    //
+    //tracing::trace!("decoding frame from {}B", bytes.len());
 
     // Parse the head
     let head = frame::Head::parse(&bytes);
@@ -159,7 +159,7 @@ fn decode_frame(
 
     let kind = head.kind();
 
-    tracing::trace!(frame.kind = ?kind);
+    //tracing::trace!(frame.kind = ?kind);
 
     macro_rules! header_block {
         ($frame:ident, $head:ident, $bytes:ident) => ({
@@ -202,7 +202,7 @@ fn decode_frame(
             if is_end_headers {
                 frame.into()
             } else {
-                tracing::trace!("loaded partial header block");
+                //tracing::trace!("loaded partial header block");
                 // Defer returning the frame
                 *partial_inout = Some(Partial {
                     frame: Continuable::$frame(frame),
@@ -423,17 +423,17 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        let span = tracing::trace_span!("FramedRead::poll_next");
-        let _e = span.enter();
+        //let span = tracing::trace_span!("FramedRead::poll_next");
+        //let _e = span.enter();
         loop {
-            tracing::trace!("poll");
+            //tracing::trace!("poll");
             let bytes = match ready!(Pin::new(&mut self.inner).poll_next(cx)) {
                 Some(Ok(bytes)) => bytes,
                 Some(Err(e)) => return Poll::Ready(Some(Err(map_err(e)))),
                 None => return Poll::Ready(None),
             };
 
-            tracing::trace!(read.bytes = bytes.len());
+            //tracing::trace!(read.bytes = bytes.len());
             let Self {
                 ref mut hpack,
                 max_header_list_size,
