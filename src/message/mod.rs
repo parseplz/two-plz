@@ -18,17 +18,17 @@ pub struct TwoTwo<T> {
 }
 
 pub struct TwoTwoFrame {
-    header: frame::Headers,
+    pub(crate) header: frame::Headers,
     data: Option<frame::Data>,
     trailer: Option<frame::Headers>,
 }
 
 impl TwoTwoFrame {
-    fn take_data(&mut self) -> Option<frame::Data> {
+    pub fn take_data(&mut self) -> Option<frame::Data> {
         self.data.take()
     }
 
-    fn take_trailer(&mut self) -> Option<frame::Headers> {
+    pub fn take_trailer(&mut self) -> Option<frame::Headers> {
         self.trailer.take()
     }
 }
