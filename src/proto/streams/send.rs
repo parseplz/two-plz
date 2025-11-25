@@ -137,10 +137,10 @@ impl Send {
     }
 
     // ===== Headers =====
-    pub fn send_headers<B>(
+    pub fn send_headers(
         &mut self,
         frame: frame::Headers,
-        buffer: &mut Buffer<Frame<B>>,
+        buffer: &mut Buffer<Frame<Bytes>>,
         stream: &mut Ptr,
         counts: &mut Counts,
         task: &mut Option<Waker>,
