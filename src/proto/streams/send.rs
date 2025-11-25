@@ -638,6 +638,8 @@ impl Send {
             }
         }
 
-        return Poll::Ready(Ok(()));
+    pub fn ensure_next_stream_id(&self) -> Result<StreamId, UserError> {
+        self.next_stream_id
+            .map_err(|_| UserError::OverflowedStreamId)
     }
 }
