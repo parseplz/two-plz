@@ -43,7 +43,7 @@ pub struct Stream {
 
     // ===== Send =====
     pub send_flow: FlowControl,
-    pub remaining_data_len: usize,
+    pub remaining_data_len: Option<usize>,
     pub connection_window_allocated: WindowSize,
 
     /// Next Send
@@ -101,7 +101,7 @@ impl Stream {
             is_counted: false,
             // === send ===
             send_flow: FlowControl::new(init_send_window),
-            remaining_data_len: 0,
+            remaining_data_len: None,
             connection_window_allocated: 0,
             // next send
             next_pending_send: None,
@@ -171,6 +171,7 @@ impl Stream {
             // The stream is not in any queue
             !self.is_pending_send && !self.is_pending_send_capacity &&
             !self.is_pending_accept && 
+            // TODO && !self.is_pending_window_update &&
             !self.is_pending_open && self.reset_at.is_none()
     }
 
