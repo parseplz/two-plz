@@ -105,7 +105,10 @@ pub struct SendResponse {
 }
 
 impl SendResponse {
-    fn send_response(&mut self, response: Response) -> Result<(), UserError> {
+    pub fn send_response(
+        &mut self,
+        response: Response,
+    ) -> Result<(), UserError> {
         self.inner.send_response(response)
     }
 }
