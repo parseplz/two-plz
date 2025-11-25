@@ -17,6 +17,22 @@ pub struct TwoTwo<T> {
     trailer: Option<HeaderMap<HeaderValue>>,
 }
 
+impl<T> TwoTwo<T> {
+    pub fn new(
+        info_line: T,
+        headers: HeaderMap<HeaderValue>,
+        body: Option<BytesMut>,
+        trailer: Option<HeaderMap<HeaderValue>>,
+    ) -> TwoTwo<T> {
+        Self {
+            info_line,
+            headers,
+            body,
+            trailer,
+        }
+    }
+}
+
 pub struct TwoTwoFrame {
     pub(crate) header: frame::Headers,
     data: Option<frame::Data>,
