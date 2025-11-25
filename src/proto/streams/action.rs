@@ -127,4 +127,12 @@ impl Actions {
             true
         }
     }
+
+    pub fn ensure_no_conn_error(&self) -> Result<(), ProtoError> {
+        if let Some(ref err) = self.conn_error {
+            Err(err.clone())
+        } else {
+            Ok(())
+        }
+    }
 }
