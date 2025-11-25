@@ -1,3 +1,5 @@
+use tracing::trace;
+
 use crate::{
     frame,
     proto::{config::ConnectionConfig, streams::store::Ptr},
@@ -254,6 +256,7 @@ impl Counts {
     ) {
         if stream.is_closed() {
             if !stream.is_pending_reset_expiration() {
+                trace!("unlinked stream| {:?}", stream.id);
                 stream.unlink();
                 if is_reset_counted {
                     self.dec_num_reset_streams();
@@ -268,6 +271,7 @@ impl Counts {
 
         // Release the stream if it requires releasing
         if stream.is_released() {
+            trace!("removed stream| {:?}", stream.id);
             stream.remove();
         }
     }
