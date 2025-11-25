@@ -30,7 +30,6 @@ pub mod preface;
 pub mod proto;
 pub mod role;
 pub mod server;
-pub mod state;
 
 // tests
 pub use crate::proto::connection::Connection;
