@@ -19,7 +19,7 @@ pub use crate::frame::Reason;
 /// [`Reason`]: struct.Reason.html
 /// [`reason`]: #method.reason
 #[derive(Debug)]
-pub struct Error {
+pub struct OpError {
     kind: Kind,
 }
 
@@ -45,7 +45,7 @@ enum Kind {
 
 // ===== impl Error =====
 
-impl Error {
+impl OpError {
     /// If the error was caused by the remote peer, the error reason.
     ///
     /// This is either an error received by the peer or caused by an invalid
@@ -81,7 +81,7 @@ impl Error {
     }
 
     pub(crate) fn from_io(err: io::Error) -> Self {
-        Error {
+        OpError {
             kind: Kind::Io(err),
         }
     }
@@ -119,11 +119,11 @@ impl Error {
     }
 }
 
-impl From<ProtoError> for Error {
-    fn from(src: ProtoError) -> Error {
+impl From<ProtoError> for OpError {
+    fn from(src: ProtoError) -> OpError {
         use crate::proto::error::ProtoError::*;
 
-        Error {
+        OpError {
             kind: match src {
                 Reset(stream_id, reason, initiator) => {
                     Kind::Reset(stream_id, reason, initiator)
@@ -140,16 +140,16 @@ impl From<ProtoError> for Error {
     }
 }
 
-impl From<Reason> for Error {
-    fn from(src: Reason) -> Error {
-        Error {
+impl From<Reason> for OpError {
+    fn from(src: Reason) -> OpError {
+        OpError {
             kind: Kind::Reason(src),
         }
     }
 }
 
-impl From<SendError> for Error {
-    fn from(src: SendError) -> Error {
+impl From<SendError> for OpError {
+    fn from(src: SendError) -> OpError {
         match src {
             SendError::User(e) => e.into(),
             SendError::Connection(e) => e.into(),
@@ -157,15 +157,15 @@ impl From<SendError> for Error {
     }
 }
 
-impl From<UserError> for Error {
-    fn from(src: UserError) -> Error {
-        Error {
+impl From<UserError> for OpError {
+    fn from(src: UserError) -> OpError {
+        OpError {
             kind: Kind::User(src),
         }
     }
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for OpError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let debug_data = match self.kind {
             Kind::Reset(_, reason, Initiator::User) => {
@@ -204,16 +204,16 @@ impl fmt::Display for Error {
     }
 }
 
-impl error::Error for Error {}
+impl error::Error for OpError {}
 
 #[cfg(test)]
 mod tests {
-    use super::Error;
+    use super::OpError;
     use crate::error::Reason;
 
     #[test]
     fn error_from_reason() {
-        let err = Error::from(Reason::HTTP_1_1_REQUIRED);
+        let err = OpError::from(Reason::HTTP_1_1_REQUIRED);
         assert_eq!(err.reason(), Some(Reason::HTTP_1_1_REQUIRED));
     }
 }
