@@ -45,7 +45,7 @@ enum ConnectionState {
 
 pub struct Connection<T> {
     pub codec: Codec<T, Bytes>,
-    streams: Streams<Bytes>,
+    pub streams: Streams<Bytes>,
     ping_handler: PingHandler,
     settings_handler: SettingsHandler,
     role: Role,

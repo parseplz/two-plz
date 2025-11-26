@@ -4,9 +4,13 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::{
     Codec, Connection,
     builder::{BuildConnection, Builder},
+    error::OpError,
     frame::{self, StreamId},
     message::{request::Request, response::Response},
-    proto::config::ConnectionConfig,
+    proto::{
+        config::ConnectionConfig,
+        streams::{opaque_streams_ref::OpaqueStreamRef, streams::Streams},
+    },
     role::Role,
 };
 
@@ -39,7 +43,7 @@ impl BuildConnection for Client {
         T: AsyncRead + AsyncWrite + Unpin,
     {
         ClientConnection {
-            conn: Connection::new(role, config, codec),
+            inner: Connection::new(role, config, codec),
         }
     }
 }
@@ -51,7 +55,15 @@ impl BuildConnection for Client {
 // Response => compelete response
 
 pub struct ClientConnection<T> {
-    pub conn: Connection<T>,
+    inner: Connection<T>,
+}
+
+impl<T> ClientConnection<T> {
+    fn send_request_handle(&self) -> SendRequest {
+        SendRequest {
+            inner: self.inner.streams.clone(),
+        }
+    }
 }
 
 pub struct SendRequest {
