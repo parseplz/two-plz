@@ -298,3 +298,14 @@ impl Streams<Bytes> {
         me.poll_complete(&self.send_buffer, cx, dst)
     }
 }
+
+impl<B> Clone for Streams<B> {
+    fn clone(&self) -> Self {
+        self.inner.lock().unwrap().refs += 1;
+        Streams {
+            inner: self.inner.clone(),
+            send_buffer: self.send_buffer.clone(),
+            //_p: ::std::marker::PhantomData,
+        }
+    }
+}
