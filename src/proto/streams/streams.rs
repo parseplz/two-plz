@@ -309,3 +309,16 @@ impl<B> Clone for Streams<B> {
         }
     }
 }
+
+impl<B> Drop for Streams<B> {
+    fn drop(&mut self) {
+        if let Ok(mut inner) = self.inner.lock() {
+            inner.refs -= 1;
+            if inner.refs == 1 {
+                if let Some(task) = inner.actions.task.take() {
+                    task.wake();
+                }
+            }
+        }
+    }
+}
