@@ -1,3 +1,6 @@
+use tracing::trace;
+
+use crate::frame::StreamId;
 use crate::proto::streams::Counts;
 use crate::proto::streams::action::Actions;
 use crate::{frame::Reason, proto::streams::Resolve};
@@ -98,9 +101,12 @@ impl Drop for OpaqueStreamRef {
 
 fn maybe_cancel(stream: &mut Ptr, actions: &mut Actions, counts: &mut Counts) {
     if stream.is_canceled_interest() {
-        // Server is allowed to early respond without fully consuming the client input stream
-        // But per the RFC, must send a RST_STREAM(NO_ERROR) in such cases. https://www.rfc-editor.org/rfc/rfc7540#section-8.1
-        // Some other http2 implementation may interpret other error code as fatal if not respected (i.e: nginx https://trac.nginx.org/nginx/ticket/2376)
+        // Server is allowed to early respond without fully consuming the
+        // client input stream But per the RFC, must send a
+        // RST_STREAM(NO_ERROR) in such cases.
+        // https://www.rfc-editor.org/rfc/rfc7540#section-8.1 Some other http2
+        // implementation may interpret other error code as fatal if not
+        // respected (i.e: nginx https://trac.nginx.org/nginx/ticket/2376)
         let reason = if counts.role().is_server()
             && stream.state.is_send_closed()
             && stream.state.is_recv_streaming()

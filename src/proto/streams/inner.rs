@@ -28,6 +28,7 @@ use bytes::Bytes;
 use tokio::io::AsyncWrite;
 use tracing::error;
 use tracing::trace;
+use tracing::trace_span;
 
 /// Fields needed to manage state related to managing the set of streams. This
 /// is mostly split out to make ownership happy.
@@ -382,7 +383,7 @@ impl Inner {
     {
         let mut send_buffer = send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
-
+        trace!("[+] polling streams");
         ready!(self.actions.send.poll_complete(
             cx,
             send_buffer,
@@ -393,7 +394,6 @@ impl Inner {
 
         // Nothing else to do, track the task
         self.actions.task = Some(cx.waker().clone());
-
         Poll::Ready(Ok(()))
     }
 }

@@ -2,7 +2,7 @@ pub mod connection;
 
 pub use error::ProtoError;
 pub mod config;
-mod error;
+pub mod error;
 pub mod ping_pong;
 pub mod settings;
 pub mod streams;
