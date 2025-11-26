@@ -96,3 +96,12 @@ impl StreamRef<Bytes> {
         Ok(())
     }
 }
+
+impl<B> Clone for StreamRef<B> {
+    fn clone(&self) -> Self {
+        StreamRef {
+            opaque: self.opaque.clone(),
+            send_buffer: self.send_buffer.clone(),
+        }
+    }
+}
