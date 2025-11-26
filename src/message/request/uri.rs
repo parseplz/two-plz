@@ -46,6 +46,18 @@ pub struct Uri {
 }
 
 impl Uri {
+    pub fn new(
+        authority: Option<Authority>,
+        scheme: Option<Scheme>,
+        path_and_query: Option<PathAndQuery>,
+    ) -> Uri {
+        Uri {
+            authority,
+            scheme,
+            path_and_query,
+        }
+    }
+
     pub fn authority(mut self, a: BytesStr) -> Self {
         self.authority = Some(Authority(a));
         self
