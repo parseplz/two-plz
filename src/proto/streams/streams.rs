@@ -1,14 +1,20 @@
 use bytes::{Buf, Bytes};
 use tokio::io::AsyncWrite;
+use tracing::trace_span;
 
 use crate::{
-    Codec, frame,
+    Codec,
+    client::ResponseFuture,
+    codec::{SendError, UserError},
+    frame,
+    message::{TwoTwoFrame, request::Request},
     proto::{
         WindowSize,
         config::ConnectionConfig,
         error::Initiator,
         streams::{
-            inner::Inner, send_buffer::SendBuffer, store::Resolve,
+            inner::Inner, opaque_streams_ref::OpaqueStreamRef,
+            send_buffer::SendBuffer, store::Resolve, stream::Stream,
             streams_ref::StreamRef,
         },
     },
@@ -48,6 +54,84 @@ impl Streams<Bytes> {
             send_buffer: Arc::new(SendBuffer::new()),
         }
     }
+
+    pub fn send_request(
+        &mut self,
+        mut request: Request,
+    ) -> Result<StreamRef<Bytes>, SendError> {
+        use super::stream::ContentLength;
+        use http::Method;
+        // TODO: why ?
+        //let protocol = request
+        //    .extensions_mut()
+        //    .remove::<Protocol>();
+        //request.extensions_mut().clear();
+
+        // TODO: There is a hazard with assigning a stream ID before the
+        // prioritize layer. If prioritization reorders new streams, this
+        // implicitly closes the earlier stream IDs.
+        //
+        // See: hyperium/h2#11
+
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        let mut send_buffer = self.send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+        me.actions.ensure_no_conn_error()?;
+        me.actions
+            .send
+            .ensure_next_stream_id()?;
+
+        if me.counts.role().is_server() {
+            // Servers cannot open streams. PushPromise must first be reserved.
+            return Err(UserError::UnexpectedFrameType.into());
+        }
+
+        let stream_id = me.actions.send.open()?;
+
+        let mut stream = Stream::new(
+            stream_id,
+            me.actions.send.init_window_sz(),
+            me.actions.recv.init_window_sz(),
+        );
+
+        if *request.method() == Method::HEAD {
+            stream.content_length = ContentLength::Head;
+        }
+
+        let mut stream = me.store.insert(stream.id, stream);
+
+        let mut request_frames = TwoTwoFrame::from((stream.id, request));
+        let data_frame = request_frames.take_data();
+        let trailer_frame = request_frames.take_trailer();
+
+        // TODO: Error handling needed ?
+        if let Err(e) = me.actions.send.send_headers(
+            request_frames.header,
+            send_buffer,
+            &mut stream,
+            &mut me.counts,
+            &mut me.actions.task,
+        ) {
+            stream.unlink();
+            stream.remove();
+            return Err(e.into());
+        }
+
+        // Given that the stream has been initialized, it should not be in the
+        // closed state.
+        debug_assert!(!stream.state.is_closed());
+
+        // TODO: ideally, OpaqueStreamRefs::new would do this, but we're
+        // holding the lock, so it can't.
+        me.refs += 1;
+
+        Ok(StreamRef {
+            opaque: OpaqueStreamRef::new(self.inner.clone(), &mut stream),
+            send_buffer: self.send_buffer.clone(),
+        })
+    }
+    // ===== send =====
 
     pub fn next_accept(&mut self) -> Option<StreamRef<Bytes>> {
         let mut me = self.inner.lock().unwrap();
