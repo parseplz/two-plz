@@ -499,8 +499,6 @@ impl Send {
         max_frame_size: usize,
         counts: &mut Counts,
     ) -> Option<Frame<Bytes>> {
-        let span = trace_span!("pop frame");
-        let _ = span.enter();
         loop {
             match self.pending_send.pop(store) {
                 Some(mut stream) => {
@@ -515,6 +513,12 @@ impl Send {
 
                     let frame = match stream.pending_send.pop_front(buffer) {
                         Some(Frame::Data(mut frame)) => {
+                            let remaining_data_len =
+                                if let Some(len) = stream.remaining_data_len {
+                                    len
+                                } else {
+                                    continue;
+                                };
                             // Get the amount of capacity remaining for stream's
                             // window.
                             let stream_available =
@@ -522,9 +526,9 @@ impl Send {
 
                             // Zero length data frames always have capacity to
                             // be sent.
-                            if stream.remaining_data_len > 0
-                                && stream_available == 0
+                            if stream_available == 0 && remaining_data_len > 0
                             {
+                                trace!("[-] no stream flow");
                                 // Ensure that the stream is waiting for
                                 // connection level capacity
                                 //
@@ -541,34 +545,93 @@ impl Send {
                                 continue;
                             }
 
-                            //     | remaining_data_len
-                            // min | max_frame_size
-                            //     | stream flow available
-                            let len = min(
-                                min(stream.remaining_data_len, max_frame_size),
-                                stream_available as usize,
-                            );
+                            // check allocated conn flow
+                            if stream.connection_window_allocated == 0
+                                && remaining_data_len > 0
+                            {
+                                // try to get more capacity
+                                let allocated = min(
+                                    min(
+                                        self.flow.available(),
+                                        stream_available,
+                                    ),
+                                    remaining_data_len as u32,
+                                );
+                                if allocated == 0 {
+                                    self.pending_capacity.push(&mut stream);
+                                    continue;
+                                }
+                                stream.connection_window_allocated +=
+                                    allocated;
+                                self.flow.dec_window(allocated);
+                            }
 
-                            // There *must* be be enough connection level
-                            // capacity at this point.
-                            debug_assert!(
-                                len <= self.flow.available() as usize
-                            );
-                            // consume
-                            //      - stream flow control
-                            //      - connection window allocated
-                            //      - remaining_data_len
-                            let _res = stream.send_flow.dec_window(len as u32);
-                            stream.connection_window_allocated -= len as u32;
-                            stream.remaining_data_len -= len;
+                            // empty data frame
+                            if remaining_data_len == 0 {
+                                stream.remaining_data_len = None;
+                                Frame::Data(frame)
+                            } else {
+                                //     | remaining_data_len
+                                // min | max_frame_size
+                                //     | stream flow available
+                                //     | connection flow allocated
+                                let len = min(
+                                    min(
+                                        min(remaining_data_len, max_frame_size)
+                                            as u32,
+                                        stream_available,
+                                    ),
+                                    stream.connection_window_allocated,
+                                );
 
-                            // split the buf
-                            let data = frame.payload_mut().split_to(len);
-                            let mut data_frame =
-                                frame::Data::new(stream.id, data);
-                            let eos = stream.remaining_data_len > 0;
-                            data_frame.set_end_stream(eos);
-                            Frame::Data(data_frame)
+                                // There *must* be be enough connection level
+                                // capacity at this point.
+                                debug_assert!(len <= self.flow.available());
+                                // consume
+                                //      - stream flow control
+                                //      - connection window allocated
+                                //      - remaining_data_len
+                                let _res =
+                                    stream.send_flow.dec_window(len as u32);
+                                stream.connection_window_allocated -=
+                                    len as u32;
+                                stream.remaining_data_len = stream
+                                    .remaining_data_len
+                                    .map(|rem| rem - len as usize)
+                                    .filter(|&rem| rem > 0);
+
+                                // split the buf
+                                let data = frame
+                                    .payload_mut()
+                                    .split_to(len as usize);
+                                let mut data_frame =
+                                    frame::Data::new(stream.id, data);
+                                let eos = stream.remaining_data_len.is_none();
+                                if stream.remaining_data_len.is_none() {
+                                    trace!("data| completed");
+                                    if stream.pending_send.is_empty() {
+                                        trace!("data| eos");
+                                        data_frame.set_end_stream(true);
+                                    }
+                                } else {
+                                    trace!("data| remaining");
+                                    stream
+                                        .pending_send
+                                        .push_front(buffer, frame.into());
+                                }
+                                Frame::Data(data_frame)
+                            }
+                        }
+                        Some(Frame::Headers(header)) => {
+                            // if data frame is present, try assign capacity
+                            if stream.remaining_data_len.is_some() {
+                                trace!(
+                                    "popping header| remaining data| {}",
+                                    stream.remaining_data_len.unwrap()
+                                );
+                                self.try_assign_capacity(&mut stream);
+                            }
+                            Frame::Headers(header)
                         }
                         Some(frame) => frame.map(|_| {
                             unreachable!(
@@ -581,7 +644,6 @@ impl Send {
                                 stream.state.get_scheduled_reset()
                             {
                                 stream.set_reset(reason, Initiator::Library);
-
                                 let frame =
                                     frame::Reset::new(stream.id, reason);
                                 Frame::Reset(frame)
@@ -611,10 +673,8 @@ impl Send {
                         // the next frame. i.e. don't requeue it if the next
                         // frame is a data frame and the stream does not have
                         // any more capacity.
-                        trace!("stream pending send| not empty");
                         self.pending_send.push(&mut stream);
                     }
-                    trace!("stream pending send| empty");
                     counts.transition_after(stream, is_pending_reset);
                     return Some(frame);
                 }
