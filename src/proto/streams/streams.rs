@@ -117,6 +117,12 @@ impl Streams<Bytes> {
             stream.remove();
             return Err(e.into());
         }
+        queue_body_trailer(
+            &mut stream,
+            data_frame,
+            trailer_frame,
+            send_buffer,
+        );
 
         // Given that the stream has been initialized, it should not be in the
         // closed state.
