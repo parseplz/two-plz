@@ -15,6 +15,7 @@ use crate::{
         opaque_streams_ref::OpaqueStreamRef,
         send_buffer::SendBuffer,
         store::{Key, Ptr, Resolve},
+        streams::queue_body_trailer,
     },
     server::Server,
 };
@@ -75,22 +76,15 @@ impl StreamRef<Bytes> {
                 )
             });
         trace!("[+] added| header");
-        let mut stream = me.store.resolve(self.opaque.key);
-        if let Some(frame) = data_frame {
-            trace!("[+] added| data");
-            stream.remaining_data_len = Some(frame.payload().len());
-            stream
-                .pending_send
-                .push_back(send_buffer, frame.into());
-        }
 
-        if let Some(frame) = trailer_frame {
-            trace!("[+] added| trailer");
-            stream
-                .pending_send
-                .push_back(send_buffer, frame.into());
-        }
-        stream.state.send_close();
+        let mut stream = me.store.resolve(self.opaque.key);
+
+        queue_body_trailer(
+            &mut stream,
+            data_frame,
+            trailer_frame,
+            send_buffer,
+        );
 
         trace!("[+] response queued");
         Ok(())
