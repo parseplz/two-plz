@@ -662,4 +662,10 @@ impl Send {
         self.next_stream_id
             .map_err(|_| UserError::OverflowedStreamId)
     }
+
+    pub fn open(&mut self) -> Result<StreamId, UserError> {
+        let stream_id = self.ensure_next_stream_id()?;
+        self.next_stream_id = stream_id.next_id();
+        Ok(stream_id)
+    }
 }
