@@ -58,7 +58,7 @@ impl Streams<Bytes> {
     pub fn send_request(
         &mut self,
         mut request: Request,
-    ) -> Result<StreamRef<Bytes>, SendError> {
+    ) -> Result<OpaqueStreamRef, SendError> {
         use super::stream::ContentLength;
         use http::Method;
         // TODO: why ?
@@ -126,10 +126,7 @@ impl Streams<Bytes> {
         // holding the lock, so it can't.
         me.refs += 1;
 
-        Ok(StreamRef {
-            opaque: OpaqueStreamRef::new(self.inner.clone(), &mut stream),
-            send_buffer: self.send_buffer.clone(),
-        })
+        Ok(OpaqueStreamRef::new(self.inner.clone(), &mut stream))
     }
     // ===== send =====
 
