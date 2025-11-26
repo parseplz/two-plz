@@ -322,3 +322,26 @@ impl<B> Drop for Streams<B> {
         }
     }
 }
+
+pub fn queue_body_trailer(
+    stream: &mut Ptr,
+    data_frame: Option<frame::Data<Bytes>>,
+    trailer_frame: Option<frame::Headers>,
+    send_buffer: &mut Buffer<Frame>,
+) {
+    if let Some(frame) = data_frame {
+        trace!("[+] added| data");
+        stream.remaining_data_len = Some(frame.payload().len());
+        stream
+            .pending_send
+            .push_back(send_buffer, frame.into());
+    }
+
+    if let Some(frame) = trailer_frame {
+        trace!("[+] added| trailer");
+        stream
+            .pending_send
+            .push_back(send_buffer, frame.into());
+    }
+    stream.state.send_close();
+}
