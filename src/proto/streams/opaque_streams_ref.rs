@@ -24,6 +24,10 @@ impl OpaqueStreamRef {
             key: stream.key(),
         }
     }
+
+    pub fn stream_id(&self) -> StreamId {
+        self.inner.lock().unwrap().store[self.key].id
+    }
 }
 
 impl Clone for OpaqueStreamRef {
