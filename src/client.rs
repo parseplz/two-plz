@@ -54,14 +54,21 @@ pub struct ClientConnection<T> {
     pub conn: Connection<T>,
 }
 
-struct SendRequest;
+pub struct SendRequest {
+    inner: Streams<Bytes>,
+}
 
 impl SendRequest {
     fn send_request(
         &mut self,
         request: Request,
-    ) -> Result<RecvResponse, frame::Error> {
-        todo!()
+    ) -> Result<ResponseFuture, OpError> {
+        self.inner
+            .send_request(request)
+            .map_err(Into::into)
+            .map(|s| ResponseFuture {
+                inner: s,
+            })
     }
 }
 
