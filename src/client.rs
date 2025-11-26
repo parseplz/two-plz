@@ -72,10 +72,17 @@ impl SendRequest {
     }
 }
 
-struct RecvResponse;
+pub struct ResponseFuture {
+    inner: OpaqueStreamRef,
+}
 
-impl RecvResponse {
-    async fn recv_response(&mut self) -> Result<Response, frame::Error> {
-        todo!()
+impl ResponseFuture {
+    /// Returns the stream ID of the response stream.
+    ///
+    /// # Panics
+    ///
+    /// If the lock on the stream store has been poisoned.
+    pub fn stream_id(&self) -> StreamId {
+        self.inner.stream_id()
     }
 }
