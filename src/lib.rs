@@ -21,6 +21,7 @@ macro_rules! ready {
 pub mod builder;
 pub mod client;
 pub mod codec;
+pub mod error;
 mod ext;
 mod frame;
 mod hpack;
