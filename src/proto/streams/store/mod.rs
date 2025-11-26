@@ -37,9 +37,17 @@ impl Store {
         }
     }
 
-    pub fn insert(&mut self, id: StreamId, val: Stream) {
+    pub fn insert(&mut self, id: StreamId, val: Stream) -> Ptr<'_> {
         let index = SlabIndex(self.slab.insert(val) as u32);
         assert!(self.ids.insert(id, index).is_none());
+
+        Ptr {
+            key: Key {
+                index,
+                stream_id: id,
+            },
+            store: self,
+        }
     }
 
     pub fn find_entry(&mut self, id: StreamId) -> Entry<'_> {
