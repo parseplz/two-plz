@@ -85,7 +85,7 @@ impl Send {
                 .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
             last_opened_id: StreamId::ZERO,
             max_stream_id: StreamId::MAX,
-            next_stream_id: Ok(role.peer_init_stream_id()),
+            next_stream_id: Ok(1.into()),
             pending_capacity: Queue::new(),
             pending_open: Queue::new(),
             pending_reset: Queue::new(),
