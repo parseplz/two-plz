@@ -115,6 +115,11 @@ pub(super) enum Event {
 
 impl Recv {
     pub fn new(config: &ConnectionConfig, role: &Role) -> Recv {
+        let next_stream_id = if role.is_server() {
+            1
+        } else {
+            2
+        };
         Recv {
             buffer: Buffer::new(),
             flow: FlowControl::new(
@@ -128,7 +133,7 @@ impl Recv {
                 .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
             last_processed_id: StreamId::ZERO,
             max_stream_id: StreamId::MAX,
-            next_stream_id: Ok(role.peer_init_stream_id()),
+            next_stream_id: Ok(next_stream_id.into()),
             pending_accept: Queue::new(),
             pending_complete: Queue::new(),
             pending_reset_expired: Queue::new(),
