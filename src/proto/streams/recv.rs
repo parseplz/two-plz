@@ -677,6 +677,11 @@ impl Recv {
         }
     }
 
+    /// Returns the ID of the last processed stream
+    pub fn last_processed_id(&self) -> StreamId {
+        self.last_processed_id
+    }
+
     pub fn init_window_sz(&self) -> WindowSize {
         self.init_stream_window_sz
     }

@@ -309,6 +309,15 @@ impl Streams<Bytes> {
         let me = self.inner.lock().unwrap();
         me.counts.has_streams() || me.refs > 1
     }
+
+    pub fn last_processed_id(&self) -> StreamId {
+        self.inner
+            .lock()
+            .unwrap()
+            .actions
+            .recv
+            .last_processed_id()
+    }
 }
 
 impl<B> Clone for Streams<B> {
