@@ -767,3 +767,37 @@ impl Recv {
         }
     }
 }
+
+fn process_remaining_frames<T>(
+    message: &mut TwoTwo<T>,
+    stream: &mut Ptr,
+    buffer: &mut Buffer<Event>,
+) {
+    let mut body: Option<BytesMut> = None;
+    while let Some(event) = stream.pending_recv.pop_front(buffer) {
+        match event {
+            Event::Headers(_) => {
+                unreachable!("header already popped")
+            }
+            Event::Data(data) => {
+                let buf = body.get_or_insert_with(|| {
+                    let capacity = stream
+                        .content_length()
+                        .map(|size| size as usize)
+                        // assume atleast two data frames of same size
+                        // are received
+                        .unwrap_or_else(|| data.len() * 2);
+
+                    BytesMut::with_capacity(capacity)
+                });
+
+                buf.reserve(data.len());
+                buf.extend_from_slice(&data);
+            }
+            Event::Trailers(header_map) => {
+                message.set_trailer(header_map);
+            }
+        }
+    }
+    message.set_body(body);
+}
