@@ -692,50 +692,14 @@ impl Recv {
     }
 
     pub fn take_request(&mut self, stream: &mut Ptr) -> Request {
-        let mut request =
-            if let Some(Event::Headers(PollMessage::Server(request))) = stream
-                .pending_recv
-                .pop_front(&mut self.buffer)
-            {
-                request
-            } else {
-                unreachable!("server stream queue must start with Headers")
-            };
-
-        // Initialize body buffer
-        let mut body: Option<BytesMut> = None;
-
-        // Process remaining events
-        while let Some(event) = stream
+        let mut request = match stream
             .pending_recv
             .pop_front(&mut self.buffer)
         {
-            match event {
-                Event::Headers(_) => {
-                    unreachable!("header already popped")
-                }
-                Event::Data(data) => {
-                    let buf = body.get_or_insert_with(|| {
-                        let capacity = stream
-                            .content_length()
-                            .map(|size| size as usize)
-                            // assume atleast two data frames of same size
-                            // are received
-                            .unwrap_or_else(|| data.len() * 2);
-
-                        BytesMut::with_capacity(capacity)
-                    });
-
-                    buf.reserve(data.len());
-                    buf.extend_from_slice(&data);
-                }
-                Event::Trailers(header_map) => {
-                    request.set_trailer(header_map);
-                }
-            }
-        }
-
-        request.set_body(body);
+            Some(Event::Headers(PollMessage::Server(request))) => request,
+            _ => unreachable!("server stream queue must start with Headers"),
+        };
+        process_remaining_frames(&mut request, stream, &mut self.buffer);
         request
     }
 
