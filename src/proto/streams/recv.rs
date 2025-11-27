@@ -1,5 +1,6 @@
 use std::{
     cmp::Ordering,
+    task::{Context, Poll},
     time::{Duration, Instant},
 };
 
@@ -9,10 +10,10 @@ use tracing::trace;
 
 use crate::{
     frame::{
-        self, DEFAULT_INITIAL_WINDOW_SIZE, Reason, StreamId, StreamIdOverflow,
-        headers::Pseudo,
+        self, DEFAULT_INITIAL_WINDOW_SIZE, Frame, Reason, StreamId,
+        StreamIdOverflow, headers::Pseudo,
     },
-    message::request::Request,
+    message::{TwoTwo, request::Request, response::Response},
     proto::{
         MAX_WINDOW_SIZE, ProtoError, WindowSize,
         config::ConnectionConfig,
@@ -150,6 +151,37 @@ impl Recv {
         self.pending_accept
             .pop(store)
             .map(|ptr| ptr.key())
+    }
+
+    pub fn poll_response(
+        &mut self,
+        cx: &Context,
+        stream: &mut Ptr,
+    ) -> Poll<Result<Response, ProtoError>> {
+        if stream.state.is_recv_end_stream() {
+            let mut response = match stream
+                .pending_recv
+                .pop_front(&mut self.buffer)
+            {
+                Some(Event::Headers(PollMessage::Client(response))) => {
+                    response
+                }
+                Some(_) => {
+                    unreachable!("client stream queue must start with Headers")
+                }
+                None => {
+                    return Poll::Ready(Err(ProtoError::library_reset(
+                        stream.id,
+                        Reason::PROTOCOL_ERROR,
+                    )));
+                }
+            };
+            process_remaining_frames(&mut response, stream, &mut self.buffer);
+            Poll::Ready(Ok(response))
+        } else {
+            stream.recv_task = Some(cx.waker().clone());
+            Poll::Pending
+        }
     }
 
     // ===== Data =====
@@ -531,7 +563,6 @@ impl Recv {
     }
 
     // ===== Settings =====
-
     pub fn apply_local_settings(
         &mut self,
         settings: &frame::Settings,
