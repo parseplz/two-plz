@@ -11,7 +11,7 @@ use crate::frame::Ping;
 pub struct PingHandler {
     pending_ping: Option<Ping>,
     awaiting_pong: bool,
-    pending_pong: Option<Ping>,
+    pending_pong: Option<PingPayload>,
     awaiting_shutdown: bool,
 }
 
@@ -37,7 +37,7 @@ impl PingHandler {
     pub fn handle(&mut self, frame: Ping) -> PingAction {
         // ping frames (must respond with PONG)
         if !frame.is_ack() {
-            self.pending_pong = Some(Ping::pong(frame.into_payload()));
+            self.pending_pong = Some(frame.into_payload());
             return PingAction::MustAck;
         }
 
