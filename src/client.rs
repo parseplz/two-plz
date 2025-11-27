@@ -98,3 +98,16 @@ impl ResponseFuture {
         self.inner.stream_id()
     }
 }
+
+impl Future for ResponseFuture {
+    type Output = Result<Response, OpError>;
+
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
+        self.inner
+            .poll_response(cx)
+            .map_err(Into::into)
+    }
+}
