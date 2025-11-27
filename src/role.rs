@@ -28,14 +28,6 @@ impl Role {
         matches!(self, Self::Client)
     }
 
-    pub fn peer_init_stream_id(&self) -> StreamId {
-        if self.is_server() {
-            1.into()
-        } else {
-            2.into()
-        }
-    }
-
     pub fn is_local_init(&self, id: StreamId) -> bool {
         assert!(!id.is_zero());
         self.is_server() == id.is_server_initiated()
