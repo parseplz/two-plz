@@ -1,9 +1,12 @@
 use tracing::trace;
 
 use crate::frame::StreamId;
+use crate::message::response::Response;
+use crate::proto::ProtoError;
 use crate::proto::streams::Counts;
 use crate::proto::streams::action::Actions;
 use crate::{frame::Reason, proto::streams::Resolve};
+use std::task::{Context, Poll};
 use std::{
     fmt,
     sync::{Arc, Mutex},
@@ -30,6 +33,18 @@ impl OpaqueStreamRef {
 
     pub fn stream_id(&self) -> StreamId {
         self.inner.lock().unwrap().store[self.key].id
+    }
+
+    pub fn poll_response(
+        &mut self,
+        cx: &Context,
+    ) -> Poll<Result<Response, ProtoError>> {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        let mut stream = me.store.resolve(self.key);
+        me.actions
+            .recv
+            .poll_response(cx, &mut stream)
     }
 }
 
@@ -65,7 +80,7 @@ impl Drop for OpaqueStreamRef {
         me.refs -= 1;
         let mut stream = me.store.resolve(self.key);
 
-        tracing::trace!("drop_stream_ref; stream={:?}", stream);
+        tracing::trace!("drop_stream_ref| stream={:?}", stream);
 
         // decrement the stream's ref count by 1.
         stream.ref_dec();
