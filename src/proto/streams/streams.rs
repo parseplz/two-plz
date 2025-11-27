@@ -303,6 +303,12 @@ impl Streams<Bytes> {
         let mut me = self.inner.lock().unwrap();
         me.poll_complete(&self.send_buffer, cx, dst)
     }
+
+    // ===== misc =====
+    pub fn has_streams_or_other_references(&self) -> bool {
+        let me = self.inner.lock().unwrap();
+        me.counts.has_streams() || me.refs > 1
+    }
 }
 
 impl<B> Clone for Streams<B> {
