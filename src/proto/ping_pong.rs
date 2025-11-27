@@ -1,3 +1,10 @@
+use std::task::{Context, Poll};
+
+use bytes::Buf;
+use tokio::io::AsyncWrite;
+
+use crate::{Codec, frame::Ping, proto::PingPayload};
+
 // PING (payload) => recvd
 //                <= PING (payload) + ack
 //
@@ -5,19 +12,22 @@
 //      spec - 2 * GOAWAY
 //      hyper - 1 * GOAWAY + PING + 1 * GOAWAY
 
-use crate::frame::Ping;
-
 #[derive(Debug, Default)]
 pub struct PingHandler {
-    pending_ping: Option<Ping>,
+    pending_ping: Option<PendingPing>,
     awaiting_pong: bool,
     pending_pong: Option<PingPayload>,
     awaiting_shutdown: bool,
 }
 
 #[derive(Debug)]
+struct PendingPing {
+    payload: PingPayload,
+    sent: bool,
+}
+
+#[derive(Debug)]
 pub(crate) enum PingAction {
-    Ok,
     MustAck,
     Unknown,
     Shutdown,
@@ -34,43 +44,64 @@ impl PingHandler {
         PingHandler::default()
     }
 
-    pub fn handle(&mut self, frame: Ping) -> PingAction {
+    pub fn handle(&mut self, ping: Ping) -> PingAction {
         // ping frames (must respond with PONG)
-        if !frame.is_ack() {
-            self.pending_pong = Some(frame.into_payload());
+        if !ping.is_ack() {
+            self.pending_pong = Some(ping.into_payload());
             return PingAction::MustAck;
         }
 
         if let Some(pending) = self.pending_ping.take() {
-            if pending.payload() == frame.payload() {
-                if self.awaiting_shutdown {
-                    return PingAction::Shutdown;
-                } else {
-                    return PingAction::Ok;
-                }
+            if &pending.payload == ping.payload() {
+                assert_eq!(
+                    &pending.payload,
+                    &Ping::SHUTDOWN,
+                    "pending_ping should be for shutdown",
+                );
+                tracing::trace!("recv PING SHUTDOWN ack");
+                return PingAction::Shutdown;
             }
 
+            // if not the payload we expected, put it back.
             self.pending_ping = Some(pending);
         }
 
+        // else we were acked a ping we didn't send?
+        // The spec doesn't require us to do anything about this,
+        // so for resiliency, just ignore it for now.
+        tracing::warn!("recv PING ack that we never sent| {:?}", ping);
         PingAction::Unknown
     }
 
-    pub(crate) fn ping_shutdown(&mut self) {
-        self.awaiting_shutdown = true;
-        self.pending_ping = Some(Ping::new(Ping::SHUTDOWN));
-    }
+    pub(crate) fn poll_pending<T, B>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, B>,
+    ) -> Poll<std::io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+    {
+        if let Some(pong) = self.pending_pong.take() {
+            if !dst.poll_ready(cx)?.is_ready() {
+                self.pending_pong = Some(pong);
+                return Poll::Pending;
+            }
 
-    pub fn send_ping(&mut self) {
-        self.awaiting_pong = true;
-        self.pending_ping = Some(Ping::new(Ping::USER));
-    }
+            dst.buffer(Ping::pong(pong).into())
+                .expect("invalid pong frame");
+        }
+        if let Some(ref mut ping) = self.pending_ping {
+            if !ping.sent {
+                if !dst.poll_ready(cx)?.is_ready() {
+                    return Poll::Pending;
+                }
 
-    pub(crate) fn pending_pong(&mut self) -> Option<Ping> {
-        self.pending_pong.take()
-    }
-
-    pub(crate) fn pending_ping(&mut self) -> Option<Ping> {
-        self.pending_ping.take()
+                dst.buffer(Ping::new(ping.payload).into())
+                    .expect("invalid ping frame");
+                ping.sent = true;
+            }
+        }
+        Poll::Ready(Ok(()))
     }
 }
