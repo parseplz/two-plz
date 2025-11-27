@@ -253,9 +253,10 @@ impl Recv {
                 {
                     self.pending_accept.push(&mut stream);
                 }
+            } else {
+                // notify the client
+                stream.notify_recv();
             }
-            // notify the client
-            stream.notify_recv();
         }
 
         // toggle check_connection_window_update
