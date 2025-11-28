@@ -321,6 +321,14 @@ where
             self.go_away_now(Reason::NO_ERROR);
         }
     }
+
+    // ==== GOAWAY =====
+    fn go_away_now(&mut self, e: Reason) {
+        let last_processed_id = self.streams.last_processed_id();
+        let frame = frame::GoAway::new(last_processed_id, e);
+        self.go_away.go_away_now(frame);
+    }
+
     // ===== Test =====
     #[cfg(feature = "test-util")]
     pub fn read_frame(&mut self) -> Result<Frame, ProtoError> {
