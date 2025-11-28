@@ -66,6 +66,9 @@ impl<T> ClientConnection<T> {
     }
 }
 
+
+// ===== Send Request ====
+#[derive(Clone)]
 pub struct SendRequest {
     inner: Streams<Bytes>,
 }
