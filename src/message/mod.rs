@@ -31,6 +31,14 @@ impl<T> TwoTwo<T> {
             trailer,
         }
     }
+
+    pub fn set_trailer(&mut self, trailer: HeaderMap) {
+        self.trailer = Some(trailer);
+    }
+
+    pub fn set_body(&mut self, body: Option<BytesMut>) {
+        self.body = body;
+    }
 }
 
 pub struct TwoTwoFrame {
