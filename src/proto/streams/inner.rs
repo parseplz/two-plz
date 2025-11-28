@@ -326,9 +326,11 @@ impl Inner {
         self.store.for_each(|stream| {
             if stream.id > last_stream_id {
                 counts.transition(stream, |counts, stream| {
+                    // notify receivers
                     actions
                         .recv
                         .handle_error(&err, &mut *stream);
+                    // clear pending buffer
                     actions
                         .send
                         .handle_error(send_buffer, stream, counts);
@@ -339,6 +341,36 @@ impl Inner {
         actions.conn_error = Some(err);
 
         Ok(())
+    }
+
+    pub fn handle_error<B>(
+        &mut self,
+        send_buffer: &SendBuffer<B>,
+        err: ProtoError,
+    ) -> StreamId {
+        let actions = &mut self.actions;
+        let counts = &mut self.counts;
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+
+        let last_processed_id = actions.recv.last_processed_id();
+
+        self.store.for_each(|stream| {
+            counts.transition(stream, |counts, stream| {
+                // notify receivers
+                actions
+                    .recv
+                    .handle_error(&err, &mut *stream);
+                // clear pending buffer
+                actions
+                    .send
+                    .handle_error(send_buffer, stream, counts);
+            })
+        });
+
+        actions.conn_error = Some(err);
+
+        last_processed_id
     }
 
     // ===== window update =====
