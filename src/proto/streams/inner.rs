@@ -301,6 +301,46 @@ impl Inner {
             })
     }
 
+    // ===== Goaway =====
+    pub fn recv_go_away(
+        &mut self,
+        send_buffer: &SendBuffer<Bytes>,
+        frame: &frame::GoAway,
+    ) -> Result<(), ProtoError> {
+        let actions = &mut self.actions;
+        let counts = &mut self.counts;
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+
+        let last_stream_id = frame.last_stream_id();
+
+        actions
+            .send
+            .recv_go_away(last_stream_id)?;
+
+        let err = ProtoError::remote_go_away(
+            frame.debug_data().clone(),
+            frame.reason(),
+        );
+
+        self.store.for_each(|stream| {
+            if stream.id > last_stream_id {
+                counts.transition(stream, |counts, stream| {
+                    actions
+                        .recv
+                        .handle_error(&err, &mut *stream);
+                    actions
+                        .send
+                        .handle_error(send_buffer, stream, counts);
+                })
+            }
+        });
+
+        actions.conn_error = Some(err);
+
+        Ok(())
+    }
+
     // ===== window update =====
     pub fn poll_window_update<T>(
         &mut self,
