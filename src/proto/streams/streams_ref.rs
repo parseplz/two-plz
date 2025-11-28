@@ -89,6 +89,35 @@ impl StreamRef<Bytes> {
         trace!("[+] response queued");
         Ok(())
     }
+
+    pub fn send_reset(&mut self, reason: Reason) {
+        let mut me = self.opaque.inner.lock().unwrap();
+        let me = &mut *me;
+
+        let stream = me.store.resolve(self.opaque.key);
+        let mut send_buffer = self.send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+
+        match me.actions.send_reset(
+            stream,
+            reason,
+            Initiator::User,
+            &mut me.counts,
+            send_buffer,
+        ) {
+            Ok(()) => (),
+            Err(crate::proto::error::GoAway {
+                ..
+            }) => {
+                // this should never happen, because Initiator::User resets do
+                // not count toward the local limit.
+                // we could perhaps make this state impossible, if we made the
+                // initiator argument a generic, and so this could return
+                // Infallible instead of an impossible GoAway, but oh well.
+                unreachable!("Initiator::User should not error sending reset");
+            }
+        }
+    }
 }
 
 impl<B> Clone for StreamRef<B> {
