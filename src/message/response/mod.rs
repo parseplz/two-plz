@@ -11,6 +11,12 @@ use builder::ResponseBuilder;
 
 pub type Response = TwoTwo<ResponseLine>;
 
+impl Response {
+    pub fn status(&self) -> StatusCode {
+        self.info_line.status
+    }
+}
+
 #[derive(Debug)]
 pub struct ResponseLine {
     pub status: StatusCode,
