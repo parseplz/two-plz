@@ -228,6 +228,13 @@ impl Streams<Bytes> {
         me.recv_go_away(&self.send_buffer, frame)
     }
 
+    pub fn send_go_away(&mut self, last_processed_id: StreamId) {
+        let mut me = self.inner.lock().unwrap();
+        me.actions
+            .recv
+            .go_away(last_processed_id);
+    }
+
     // ===== Reset =====
     pub fn recv_reset(
         &mut self,
