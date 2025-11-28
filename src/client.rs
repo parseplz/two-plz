@@ -59,7 +59,7 @@ pub struct ClientConnection<T> {
 }
 
 impl<T> ClientConnection<T> {
-    fn send_request_handle(&self) -> SendRequest {
+    pub fn send_request_handle(&self) -> SendRequest {
         SendRequest {
             inner: self.inner.streams.clone(),
         }
@@ -74,7 +74,7 @@ pub struct SendRequest {
 }
 
 impl SendRequest {
-    fn send_request(
+    pub fn send_request(
         &mut self,
         request: Request,
     ) -> Result<ResponseFuture, OpError> {
@@ -87,16 +87,12 @@ impl SendRequest {
     }
 }
 
+// ===== Response Future =====
 pub struct ResponseFuture {
     inner: OpaqueStreamRef,
 }
 
 impl ResponseFuture {
-    /// Returns the stream ID of the response stream.
-    ///
-    /// # Panics
-    ///
-    /// If the lock on the stream store has been poisoned.
     pub fn stream_id(&self) -> StreamId {
         self.inner.stream_id()
     }
