@@ -322,6 +322,14 @@ where
         }
     }
 
+    /// Checks if there are any streams or references left
+    pub fn has_streams_or_other_references(&self) -> bool {
+        // If we poll() and realize that there are no streams or references
+        // then we can close the connection by transitioning to GOAWAY
+        self.streams
+            .has_streams_or_other_references()
+    }
+
     // ==== GOAWAY =====
     fn go_away_now(&mut self, e: Reason) {
         let last_processed_id = self.streams.last_processed_id();
