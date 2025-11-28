@@ -41,6 +41,43 @@ impl Actions {
         }
     }
 
+    // ===== RESET =====
+    pub fn send_reset(
+        &mut self,
+        stream: Ptr,
+        reason: Reason,
+        initiator: Initiator,
+        counts: &mut Counts,
+        send_buffer: &mut Buffer<Frame<Bytes>>,
+    ) -> Result<(), crate::proto::error::GoAway> {
+        counts.transition(stream, |counts, stream| {
+            if initiator.is_library() {
+                if counts.can_inc_num_local_error_resets() {
+                    counts.inc_num_local_error_resets();
+                } else {
+                    return Err(crate::proto::error::GoAway {
+                        reason: Reason::ENHANCE_YOUR_CALM,
+                        debug_data: "too_many_internal_resets".into(),
+                    });
+                }
+            }
+
+            self.send.send_reset(
+                reason,
+                initiator,
+                stream,
+                send_buffer,
+                counts,
+                &mut self.task,
+            );
+            self.recv
+                .enqueue_reset_expiration(stream, counts);
+            // if a RecvStream is parked, ensure it's notified
+            stream.notify_recv();
+            Ok(())
+        })
+    }
+
     pub fn reset_on_recv_stream_err(
         &mut self,
         buffer: &mut Buffer<Frame<Bytes>>,
