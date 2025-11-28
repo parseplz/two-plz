@@ -10,7 +10,7 @@ use http::uri::Scheme;
 use http::{HeaderMap, Method, StatusCode};
 mod builder;
 pub mod uri;
-use builder::RequestBuilder;
+pub use builder::RequestBuilder;
 use uri::Uri;
 
 pub type Request = TwoTwo<RequestLine>;
@@ -160,13 +160,5 @@ impl Request {
         b = b.uri(uri);
 
         Ok(b.build())
-    }
-
-    pub fn set_trailer(&mut self, trailer: HeaderMap) {
-        self.trailer = Some(trailer);
-    }
-
-    pub fn set_body(&mut self, body: Option<BytesMut>) {
-        self.body = body;
     }
 }
