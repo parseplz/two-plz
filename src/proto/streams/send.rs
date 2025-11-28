@@ -448,6 +448,19 @@ impl Send {
         self.reclaim_all_capacity(stream, counts);
     }
 
+    pub fn maybe_reset_next_stream_id(&mut self, id: StreamId) {
+        if let Ok(next_id) = self.next_stream_id {
+            // Peer::is_local_init should have been called beforehand
+            debug_assert_eq!(
+                id.is_server_initiated(),
+                next_id.is_server_initiated()
+            );
+            if id >= next_id {
+                self.next_stream_id = id.next_id();
+            }
+        }
+    }
+
     // ===== GoAway =====
     pub(super) fn recv_go_away(
         &mut self,
