@@ -448,6 +448,30 @@ impl Send {
         self.reclaim_all_capacity(stream, counts);
     }
 
+    // ===== GoAway =====
+    pub(super) fn recv_go_away(
+        &mut self,
+        last_stream_id: StreamId,
+    ) -> Result<(), ProtoError> {
+        if last_stream_id > self.max_stream_id {
+            // The remote endpoint sent a `GOAWAY` frame indicating a stream
+            // that we never sent, or that we have already terminated on account
+            // of previous `GOAWAY` frame. In either case, that is illegal.
+            // (When sending multiple `GOAWAY`s, "Endpoints MUST NOT increase
+            // the value they send in the last stream identifier, since the
+            // peers might already have retried unprocessed requests on another
+            // connection.")
+            proto_err!(conn:
+                "recv_go_away| last_stream_id ({:?}) > max_stream_id ({:?})",
+                last_stream_id, self.max_stream_id,
+            );
+            return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+
+        self.max_stream_id = last_stream_id;
+        Ok(())
+    }
+
     // ===== Misc ====
     pub fn init_window_sz(&self) -> WindowSize {
         self.init_stream_window_sz
