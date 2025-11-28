@@ -308,6 +308,19 @@ where
         }
     }
 
+    // ===== client misc ====
+    /// Closes the connection by transitioning to a GOAWAY state
+    /// if there are no streams or references
+    pub fn maybe_close_connection_if_no_streams(&mut self) {
+        // If we poll() and realize that there are no streams or references
+        // then we can close the connection by transitioning to GOAWAY
+        if !self
+            .streams
+            .has_streams_or_other_references()
+        {
+            self.go_away_now(Reason::NO_ERROR);
+        }
+    }
     // ===== Test =====
     #[cfg(feature = "test-util")]
     pub fn read_frame(&mut self) -> Result<Frame, ProtoError> {
