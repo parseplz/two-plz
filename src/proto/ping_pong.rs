@@ -104,4 +104,13 @@ impl PingHandler {
         }
         Poll::Ready(Ok(()))
     }
+
+    pub(crate) fn ping_shutdown(&mut self) {
+        assert!(self.pending_ping.is_none());
+
+        self.pending_ping = Some(PendingPing {
+            payload: Ping::SHUTDOWN,
+            sent: false,
+        });
+    }
 }
