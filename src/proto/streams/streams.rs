@@ -244,6 +244,15 @@ impl Streams<Bytes> {
         me.recv_reset(&self.send_buffer, frame)
     }
 
+    pub fn send_reset(
+        &mut self,
+        id: StreamId,
+        reason: Reason,
+    ) -> Result<(), crate::proto::error::GoAway> {
+        let mut me = self.inner.lock().unwrap();
+        me.send_reset(&self.send_buffer, id, reason)
+    }
+
     // ===== Window Update =====
     pub fn poll_window_update<T>(
         &mut self,
