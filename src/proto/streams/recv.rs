@@ -274,20 +274,21 @@ impl Recv {
             .push_back(&mut self.buffer, event);
 
         if is_eos {
-            // for server
-            // move the streams from pending complete to pending_accept
-            if role.is_server() {
-                while let Some(mut stream) = self
-                    .pending_complete
-                    .pop_if(stream.store_mut(), |stream| {
-                        stream.state.is_recv_end_stream()
-                    })
-                {
+            // server => move eos streams from pending_complete to
+            //           pending_accept
+            // client => drop
+            if role.is_client() {
+                stream.notify_recv();
+            }
+            while let Some(mut stream) = self
+                .pending_complete
+                .pop_if(stream.store_mut(), |stream| {
+                    stream.state.is_recv_end_stream()
+                })
+            {
+                if role.is_server() {
                     self.pending_accept.push(&mut stream);
                 }
-            } else {
-                // notify the client
-                stream.notify_recv();
             }
         }
 
@@ -374,6 +375,7 @@ impl Recv {
                 self.pending_complete.push(stream);
             }
         }
+
         Ok(())
     }
 
@@ -544,15 +546,14 @@ impl Recv {
             .pending_recv
             .push_back(&mut self.buffer, Event::Trailers(frame.into_fields()));
 
-        if role.is_server() {
-            // for server
-            // move the streams from pending complete to pending_accept
-            while let Some(mut stream) = self
-                .pending_complete
-                .pop_if(stream.store_mut(), |stream| {
-                    stream.state.is_recv_end_stream()
-                })
-            {
+        // server move streams from pending complete to pending_accept
+        while let Some(mut stream) = self
+            .pending_complete
+            .pop_if(stream.store_mut(), |stream| {
+                stream.state.is_recv_end_stream()
+            })
+        {
+            if role.is_server() {
                 self.pending_accept.push(&mut stream);
             }
         }
