@@ -620,6 +620,18 @@ impl Recv {
         self.max_stream_id
     }
 
+    /// Handle a connection-level error
+    pub fn handle_error(&mut self, err: &ProtoError, stream: &mut Stream) {
+        // Receive an error
+        stream.state.handle_error(err);
+
+        // If a receiver is waiting, notify it
+        stream.notify_recv();
+        // TODO: future
+        //stream.notify_send();
+        //stream.notify_push();
+    }
+
     // ===== RESET =====
     pub fn recv_reset(
         &mut self,
