@@ -245,6 +245,29 @@ where
         }
     }
 
+    fn handle_go_away(
+        &mut self,
+        reason: Reason,
+        debug_data: Bytes,
+        initiator: Initiator,
+    ) {
+        let e = ProtoError::GoAway(debug_data.clone(), reason, initiator);
+        // We may have already sent a GOAWAY for this error,
+        // if so, don't send another, just flush and close up.
+        if self
+            .go_away_handler
+            .going_away()
+            .map_or(false, |frame| frame.reason() == reason)
+        {
+            self.state = ConnectionState::Closing(reason, initiator);
+            return;
+        }
+
+        // Reset all active streams
+        self.streams.handle_error(e);
+        self.go_away_now_data(reason, debug_data);
+    }
+
     fn poll_control_frames(
         &mut self,
         cx: &mut Context,
