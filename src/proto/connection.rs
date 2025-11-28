@@ -6,6 +6,7 @@ use crate::frame;
 use crate::frame::Reason;
 use crate::proto::ProtoError;
 use crate::proto::error::Initiator;
+use crate::proto::go_away::GoAway;
 use crate::proto::settings::SettingsAction;
 use crate::proto::settings::SettingsHandler;
 use crate::proto::streams::streams::Streams;
@@ -46,6 +47,7 @@ enum ConnectionState {
 pub struct Connection<T> {
     pub codec: Codec<T, Bytes>,
     pub streams: Streams<Bytes>,
+    goaway_handler: GoAway,
     ping_handler: PingHandler,
     settings_handler: SettingsHandler,
     role: Role,
@@ -69,6 +71,7 @@ where
     ) -> Self {
         Connection {
             state: ConnectionState::Open,
+            goaway_handler: GoAway::new(),
             ping_handler: PingHandler::new(),
             settings_handler: SettingsHandler::new(
                 config.local_settings.clone(),
