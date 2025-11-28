@@ -1,4 +1,4 @@
-use tracing::trace;
+use tracing::{debug, error, trace};
 
 use crate::{
     frame,
@@ -256,7 +256,7 @@ impl Counts {
     ) {
         if stream.is_closed() {
             if !stream.is_pending_reset_expiration() {
-                trace!("unlinked stream| {:?}", stream.id);
+                debug!("unlinked stream| {:?}", stream.id);
                 stream.unlink();
                 if is_reset_counted {
                     self.dec_num_reset_streams();
@@ -271,7 +271,7 @@ impl Counts {
 
         // Release the stream if it requires releasing
         if stream.is_released() {
-            trace!("removed stream| {:?}", stream.id);
+            debug!("removed stream| {:?}", stream.id);
             stream.remove();
         }
     }

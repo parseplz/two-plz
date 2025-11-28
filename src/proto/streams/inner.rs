@@ -149,6 +149,7 @@ impl Inner {
         };
 
         let stream = self.store.resolve(key);
+
         if stream.state.is_local_error() {
             // Locally reset streams must ignore frames "for some time".
             // This is because the remote may have sent trailers before

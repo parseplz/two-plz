@@ -1,20 +1,24 @@
 use bytes::{Buf, Bytes};
 use tokio::io::AsyncWrite;
-use tracing::trace_span;
+use tracing::{trace, trace_span};
 
 use crate::{
     Codec,
     client::ResponseFuture,
     codec::{SendError, UserError},
-    frame,
+    frame::{self, Frame},
     message::{TwoTwoFrame, request::Request},
     proto::{
         WindowSize,
         config::ConnectionConfig,
         error::Initiator,
         streams::{
-            inner::Inner, opaque_streams_ref::OpaqueStreamRef,
-            send_buffer::SendBuffer, store::Resolve, stream::Stream,
+            buffer::Buffer,
+            inner::Inner,
+            opaque_streams_ref::OpaqueStreamRef,
+            send_buffer::SendBuffer,
+            store::{Ptr, Resolve},
+            stream::Stream,
             streams_ref::StreamRef,
         },
     },

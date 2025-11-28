@@ -272,7 +272,6 @@ where
         } else {
             Role::Server
         };
-
         let mut state = PrefaceState::new(io, role, self.settings.clone());
 
         loop {
