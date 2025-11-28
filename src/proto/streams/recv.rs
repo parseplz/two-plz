@@ -612,6 +612,10 @@ impl Recv {
     }
 
     // ===== GOAWAY =====
+    pub fn go_away(&mut self, last_processed_id: StreamId) {
+        assert!(self.max_stream_id >= last_processed_id);
+        self.max_stream_id = last_processed_id;
+    }
 
     /// Get the max ID of streams we can receive.
     ///
