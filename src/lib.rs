@@ -24,7 +24,7 @@ pub mod codec;
 pub mod error;
 mod ext;
 mod frame;
-mod hpack;
+pub mod hpack;
 pub mod io;
 pub mod message;
 pub mod preface;

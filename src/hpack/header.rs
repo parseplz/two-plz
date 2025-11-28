@@ -301,11 +301,11 @@ impl<'a> Name<'a> {
 // ===== impl BytesStr =====
 
 impl BytesStr {
-    pub(crate) const fn from_static(value: &'static str) -> Self {
+    pub const fn from_static(value: &'static str) -> Self {
         BytesStr(Bytes::from_static(value.as_bytes()))
     }
 
-    pub(crate) fn from(value: &str) -> Self {
+    pub fn from(value: &str) -> Self {
         BytesStr(Bytes::copy_from_slice(value.as_bytes()))
     }
 
