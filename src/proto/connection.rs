@@ -339,10 +339,35 @@ where
     }
 
     // ==== GOAWAY =====
+    // send goaway - shutdown
+    fn go_away(&mut self, id: StreamId, e: Reason) {
+        let frame = frame::GoAway::new(id, e);
+        self.streams.send_go_away(id);
+        self.go_away_handler.go_away(frame);
+    }
+
+    // send goaway - immediate
     fn go_away_now(&mut self, e: Reason) {
         let last_processed_id = self.streams.last_processed_id();
         let frame = frame::GoAway::new(last_processed_id, e);
-        self.go_away.go_away_now(frame);
+        self.go_away_handler.go_away_now(frame);
+    }
+
+    fn go_away_now_data(&mut self, e: Reason, data: Bytes) {
+        let last_processed_id = self.streams.last_processed_id();
+        let frame = frame::GoAway::with_debug_data(last_processed_id, e, data);
+        self.go_away_handler.go_away_now(frame);
+    }
+
+    // TODO: implement method
+    fn go_away_from_user(&mut self, e: Reason) {
+        let last_processed_id = self.streams.last_processed_id();
+        let frame = frame::GoAway::new(last_processed_id, e);
+        self.go_away_handler
+            .go_away_from_user(frame);
+        // Notify all streams of reason we're abruptly closing.
+        self.streams
+            .handle_error(ProtoError::user_go_away(e));
     }
 
     // ===== Test =====
