@@ -343,6 +343,12 @@ impl Streams<Bytes> {
             .recv
             .last_processed_id()
     }
+
+    /// Notify all streams that a connection-level error happened.
+    pub fn handle_error(&self, e: ProtoError) -> StreamId {
+        let mut me = self.inner.lock().unwrap();
+        me.handle_error(&self.send_buffer, e)
+    }
 }
 
 impl<B> Clone for Streams<B> {
