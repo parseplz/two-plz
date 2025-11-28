@@ -109,9 +109,17 @@ where
                 //if action.is_shutdown() {
                 //    todo!()
                 //}
-                todo!()
+                Ok(())
             }
-            Frame::GoAway(go_away) => todo!(),
+            Frame::GoAway(go_away) => {
+                // This should prevent starting new streams,
+                // but should allow continuing to process current streams
+                // until they are all EOS. Once they are, State should
+                // transition to GoAway.
+                self.streams.recv_go_away(&go_away)?;
+                self.error = Some(go_away);
+                Ok(())
+            }
             Frame::WindowUpdate(wupdate) => self.recv_window_update(wupdate),
         }?;
         Ok(())

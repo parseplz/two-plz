@@ -219,6 +219,15 @@ impl Streams<Bytes> {
         )
     }
 
+    // ===== Goaway ====
+    pub fn recv_go_away(
+        &mut self,
+        frame: &frame::GoAway,
+    ) -> Result<(), ProtoError> {
+        let mut me = self.inner.lock().unwrap();
+        me.recv_go_away(&self.send_buffer, frame)
+    }
+
     // ===== Reset =====
     pub fn recv_reset(
         &mut self,
