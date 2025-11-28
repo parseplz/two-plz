@@ -353,6 +353,10 @@ impl Streams<Bytes> {
             .last_processed_id()
     }
 
+    pub fn send_buffer_is_empty(&self) -> bool {
+        self.send_buffer.is_empty()
+    }
+
     /// Notify all streams that a connection-level error happened.
     pub fn handle_error(&self, e: ProtoError) -> StreamId {
         let mut me = self.inner.lock().unwrap();
