@@ -80,7 +80,7 @@ impl Drop for OpaqueStreamRef {
         me.refs -= 1;
         let mut stream = me.store.resolve(self.key);
 
-        tracing::trace!("drop_stream_ref| stream={:?}", stream);
+        tracing::trace!("drop_stream_ref| {:?}", stream.id);
 
         // decrement the stream's ref count by 1.
         stream.ref_dec();
@@ -91,11 +91,11 @@ impl Drop for OpaqueStreamRef {
         // closed (does not have to go through logic below
         // of canceling the stream), we should notify the task
         // (connection) so that it can close properly
-        //if stream.ref_count == 0 && stream.is_closed() {
-        //    if let Some(task) = actions.task.take() {
-        //        task.wake();
-        //    }
-        //}
+        if stream.ref_count == 0 && stream.is_closed() {
+            if let Some(task) = actions.task.take() {
+                task.wake();
+            }
+        }
 
         me.counts
             .transition(stream, |counts, stream| {
