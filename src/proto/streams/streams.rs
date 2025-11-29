@@ -357,6 +357,21 @@ impl Streams<Bytes> {
         self.send_buffer.is_empty()
     }
 
+    pub fn send_pending_refusal<T>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, Bytes>,
+    ) -> Poll<std::io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+    {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        me.actions
+            .recv
+            .send_pending_refusal(cx, dst)
+    }
+
     /// Notify all streams that a connection-level error happened.
     pub fn handle_error(&self, e: ProtoError) -> StreamId {
         let mut me = self.inner.lock().unwrap();
