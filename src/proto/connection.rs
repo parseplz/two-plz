@@ -378,20 +378,12 @@ where
         &mut self,
         cx: &mut Context,
     ) -> Poll<Result<(), ProtoError>> {
-        // write pending pong
-        // ping
-        // settings
-        ready!(self.poll_settings(cx))?;
-        // refusal
-        // window update
-        ready!(self.poll_window_update(cx))?;
-        Poll::Ready(Ok(()))
-    }
-
-    fn poll_settings(
-        &mut self,
-        cx: &mut Context,
-    ) -> Poll<Result<(), ProtoError>> {
+        let span = tracing::trace_span!("control frames");
+        let _e = span.enter();
+        ready!(
+            self.ping_handler
+                .poll_pending(cx, &mut self.codec)
+        )?;
         ready!(
             self.settings_handler
                 .poll_remote_settings(cx, &mut self.codec, &mut self.streams)
@@ -400,6 +392,11 @@ where
             self.settings_handler
                 .poll_local_settings(cx, &mut self.codec)
         )?;
+        ready!(
+            self.streams
+               .send_pending_refusal(cx, &mut self.codec)
+        )?;
+        ready!(self.poll_window_update(cx))?;
         Poll::Ready(Ok(()))
     }
 
