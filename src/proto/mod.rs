@@ -3,6 +3,7 @@ pub mod connection;
 pub use error::ProtoError;
 pub mod config;
 pub mod error;
+pub mod go_away;
 pub mod ping_pong;
 pub mod settings;
 pub mod streams;

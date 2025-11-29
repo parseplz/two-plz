@@ -3,6 +3,7 @@ use bytes::Bytes;
 use crate::frame::Frame;
 use crate::frame::Reason;
 use crate::frame::StreamId;
+use crate::proto::error::Initiator;
 use crate::proto::streams::Counts;
 use crate::proto::streams::Ptr;
 use crate::proto::streams::buffer::Buffer;

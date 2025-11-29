@@ -5,17 +5,21 @@ use tracing::{debug, trace};
 
 use crate::{
     codec::UserError,
+    error::Reason,
     frame::Frame,
     message::{
         InfoLine, TwoTwo, TwoTwoFrame, request::Request, response::Response,
     },
-    proto::streams::{
-        buffer::Buffer,
-        inner::Inner,
-        opaque_streams_ref::OpaqueStreamRef,
-        send_buffer::SendBuffer,
-        store::{Key, Ptr, Resolve},
-        streams::queue_body_trailer,
+    proto::{
+        error::Initiator,
+        streams::{
+            buffer::Buffer,
+            inner::Inner,
+            opaque_streams_ref::OpaqueStreamRef,
+            send_buffer::SendBuffer,
+            store::{Key, Ptr, Resolve},
+            streams::queue_body_trailer,
+        },
     },
     server::Server,
 };
@@ -90,6 +94,7 @@ impl StreamRef<Bytes> {
         Ok(())
     }
 
+    // TODO: expose API
     pub fn send_reset(&mut self, reason: Reason) {
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;

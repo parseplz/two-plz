@@ -9,7 +9,7 @@ use crate::{
 #[derive(Debug)]
 pub(super) struct Counts {
     /// role
-    role: Role,
+    pub role: Role,
 
     /// Maximum number of locally initiated streams
     max_send_streams: usize,

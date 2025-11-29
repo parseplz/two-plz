@@ -5,6 +5,7 @@ use crate::frame::StreamId;
 use crate::proto::MAX_WINDOW_SIZE;
 use crate::proto::ProtoError;
 use crate::proto::WindowSize;
+use crate::proto::error::Initiator;
 use crate::proto::streams::send_buffer::SendBuffer;
 use crate::proto::{
     config::ConnectionConfig,
