@@ -810,6 +810,14 @@ impl Recv {
         self.refused = None;
         Poll::Ready(Ok(()))
     }
+
+    pub fn recv_eof(&mut self, stream: &mut Stream) {
+        stream.state.recv_eof();
+        stream.notify_recv();
+        // TODO: ws
+        //stream.notify_send();
+        //stream.notify_push();
+    }
 }
 
 fn process_remaining_frames<T>(
