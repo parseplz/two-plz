@@ -377,6 +377,11 @@ impl Streams<Bytes> {
         let mut me = self.inner.lock().unwrap();
         me.handle_error(&self.send_buffer, e)
     }
+
+    pub fn recv_eof(&mut self, clear_pending_accept: bool) -> Result<(), ()> {
+        let mut me = self.inner.lock().map_err(|_| ())?;
+        me.recv_eof(self.send_buffer, clear_pending_accept)
+    }
 }
 
 impl<B> Clone for Streams<B> {
