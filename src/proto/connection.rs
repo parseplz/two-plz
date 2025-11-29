@@ -262,6 +262,18 @@ where
         }
     }
 
+    /// Send any pending GOAWAY frames.
+    ///
+    /// This will return `Some(reason)` if the connection should be closed
+    /// afterwards. If this is a graceful shutdown, this returns `None`.
+    fn poll_go_away(
+        &mut self,
+        cx: &mut Context,
+    ) -> Poll<Option<std::io::Result<Reason>>> {
+        self.go_away_handler
+            .send_pending_go_away(cx, &mut self.codec)
+    }
+
     fn handle_poll2_result(
         &mut self,
         result: Result<(), ProtoError>,
