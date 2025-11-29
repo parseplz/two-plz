@@ -54,8 +54,6 @@ pub struct Stream {
     /// Next capacity.
     pub next_pending_send_capacity: Option<Key>,
     pub is_pending_send_capacity: bool,
-    /// Set to true when the send capacity has been incremented
-    pub send_capacity_inc: bool,
 
     /// Next Open
     pub next_open: Option<Key>,
@@ -110,7 +108,6 @@ impl Stream {
             // next capacity
             next_pending_send_capacity: None,
             is_pending_send_capacity: false,
-            send_capacity_inc: false,
             // next open
             next_open: None,
             is_pending_open: false,
