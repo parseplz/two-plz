@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    task::{Context, Poll},
+    task::{Context, Poll, Waker},
     time::{Duration, Instant},
 };
 
@@ -9,6 +9,7 @@ use http::HeaderMap;
 use tracing::trace;
 
 use crate::{
+    Codec,
     frame::{
         self, DEFAULT_INITIAL_WINDOW_SIZE, Frame, Reason, StreamId,
         StreamIdOverflow, headers::Pseudo,
@@ -84,8 +85,6 @@ pub(super) struct Recv {
     /// Streams waiting for EOS
     pending_complete: Queue<NextComplete>,
 
-    /// Streams that have pending window updates
-    /// pending_window_updates: Queue<NextWindowUpdate>,
     /// Locally reset streams that should be reaped when they expire
     pending_reset_expired: Queue<NextResetExpire>,
 
@@ -817,6 +816,40 @@ impl Recv {
         // TODO: ws
         //stream.notify_send();
         //stream.notify_push();
+    }
+
+    /// Called on EOF
+    // clear
+    pub fn clear_queues(
+        &mut self,
+        clear_pending_accept: bool,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        self.clear_all_reset_streams(store, counts);
+        if clear_pending_accept {
+            self.clear_all_pending_accept(store, counts);
+        }
+    }
+
+    fn clear_all_reset_streams(
+        &mut self,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        while let Some(stream) = self.pending_reset_expired.pop(store) {
+            counts.transition_after(stream, true);
+        }
+    }
+
+    fn clear_all_pending_accept(
+        &mut self,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        while let Some(stream) = self.pending_accept.pop(store) {
+            counts.transition_after(stream, false);
+        }
     }
 }
 
