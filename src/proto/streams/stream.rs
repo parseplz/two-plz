@@ -171,10 +171,12 @@ impl Stream {
             // There are no more outstanding references to the stream
             self.ref_count == 0 &&
             // The stream is not in any queue
-            !self.is_pending_send && !self.is_pending_send_capacity &&
-            !self.is_pending_accept && 
-            // TODO && !self.is_pending_window_update &&
-            !self.is_pending_open && self.reset_at.is_none()
+            // send queues
+            !self.is_pending_send && !self.is_pending_send_capacity && 
+            !self.is_pending_open &&
+            // recv queues
+            !self.is_pending_accept && !self.is_pending_complete
+            && self.reset_at.is_none()
     }
 
     pub fn is_send_ready(&self) -> bool {
