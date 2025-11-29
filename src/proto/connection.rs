@@ -212,6 +212,15 @@ where
         }
     }
 
+    #[inline(always)]
+    fn can_go_away(&self) -> bool {
+        (self.error.is_some()
+            || self
+                .go_away_handler
+                .should_close_on_idle())
+            && !self.streams.has_streams()
+    }
+
     fn poll2(&mut self, cx: &mut Context) -> Poll<Result<(), ProtoError>> {
         // This happens outside of the loop to prevent needing to do a clock
         // check and then comparison of the queue possibly multiple times a
