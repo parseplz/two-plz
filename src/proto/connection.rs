@@ -185,7 +185,7 @@ where
         }
     }
 
-    // ===== Polling =====
+    // ===== POLLING =====
     pub fn poll(&mut self, cx: &mut Context) -> Poll<Result<(), ProtoError>> {
         let span = self.span.clone();
         let _e = span.enter();
@@ -195,13 +195,21 @@ where
                     let result = match self.poll2(cx) {
                         Poll::Ready(result) => result,
                         Poll::Pending => {
-                            ////
+                            ready!(
+                                self.streams
+                                    .poll_complete(cx, &mut self.codec)
+                            )?;
+                            if self.can_go_away() {
+                                self.go_away_now(Reason::NO_ERROR);
+                                continue;
+                            }
                             return Poll::Pending;
                         }
                     };
+                    self.handle_poll2_result(result)?
                 }
                 ConnectionState::Closing(reason, initiator) => {
-                    tracing::trace!("connection closing after flush");
+                    tracing::trace!("closing after flush");
                     ready!(self.codec.shutdown(cx))?;
                     self.state = ConnectionState::Closed(reason, initiator);
                 }
