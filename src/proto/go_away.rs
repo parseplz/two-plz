@@ -38,7 +38,7 @@ impl GoAway {
     /// Enqueue a GOAWAY frame to be written.
     ///
     /// The connection is expected to continue to run until idle.
-    pub fn go_away(&mut self, f: frame::GoAway) {
+    pub fn enqueue_go_away(&mut self, f: frame::GoAway) {
         if let Some(ref going_away) = self.going_away {
             assert!(
                 f.last_stream_id() <= going_away.last_processed_id,
