@@ -131,8 +131,10 @@ impl Send {
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut Ptr,
     ) {
+        let span = trace_span!("clear_queue", ?stream.id);
+        let _e = span.enter();
         while let Some(frame) = stream.pending_send.pop_front(buffer) {
-            tracing::trace!(?frame, "dropping");
+            trace!(?frame, "dropping");
         }
     }
 
@@ -392,7 +394,7 @@ impl Send {
         if is_reset {
             // Don't double reset
             tracing::trace!(
-                " -> not sending RST_STREAM ({:?} is already reset)",
+                "-> RST_STREAM| {:?}| N| already reset",
                 stream_id
             );
             return;
@@ -405,8 +407,7 @@ impl Send {
         // reset explicitly, either. Implicit resets can still be queued.
         if is_closed && is_empty {
             tracing::trace!(
-                " -> not sending explicit RST_STREAM ({:?} was closed \
-                 and send queue was flushed)",
+                "-> RST_STREAM| {:?}| N| already closed",
                 stream_id
             );
             return;
