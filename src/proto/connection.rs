@@ -363,10 +363,13 @@ where
 
     // ==== GOAWAY =====
     // send goaway - shutdown
-    fn go_away(&mut self, id: StreamId, e: Reason) {
+    // TODO: Expose Api
+    fn go_away_graceful(&mut self, id: StreamId, e: Reason) {
         let frame = frame::GoAway::new(id, e);
+        // sets recv.last_processed_id
         self.streams.send_go_away(id);
-        self.go_away_handler.go_away(frame);
+        self.go_away_handler
+            .enqueue_go_away(frame);
     }
 
     // send goaway - immediate
