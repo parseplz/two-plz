@@ -245,7 +245,84 @@ where
         }
     }
 
-    fn handle_go_away(
+    fn handle_poll2_result(
+        &mut self,
+        result: Result<(), ProtoError>,
+    ) -> Result<(), ProtoError> {
+        match result {
+            // The connection has shutdown normally
+            Ok(()) => {
+                self.state = ConnectionState::Closing(
+                    Reason::NO_ERROR,
+                    Initiator::Library,
+                );
+                Ok(())
+            }
+            // Attempting to read a frame resulted in a connection level
+            // error. This is handled by setting a GOAWAY frame followed by
+            // terminating the connection.
+            Err(ProtoError::GoAway(debug_data, reason, initiator)) => {
+                self.poll2_go_away(reason, debug_data, initiator);
+                Ok(())
+            }
+            // Attempting to read a frame resulted in a stream level error.
+            // This is handled by resetting the frame then trying to read
+            // another frame.
+            Err(ProtoError::Reset(id, reason, initiator)) => {
+                debug_assert_eq!(initiator, Initiator::Library);
+                match self.streams.send_reset(id, reason) {
+                    Ok(()) => (),
+                    // only possible - Too many internal resets,
+                    //                 ENHANCE_YOUR_CALM
+                    Err(crate::proto::error::GoAway {
+                        debug_data,
+                        reason,
+                    }) => {
+                        self.poll2_go_away(
+                            reason,
+                            debug_data,
+                            Initiator::Library,
+                        );
+                    }
+                }
+                Ok(())
+            }
+            // Attempting to read a frame resulted in an I/O error. All
+            // active streams must be reset.
+            //
+            // TODO: Are I/O errors recoverable?
+            Err(ProtoError::Io(kind, inner)) => {
+                let e = ProtoError::Io(kind, inner);
+                // Reset and Notify all active streams
+                self.streams.handle_error(e.clone());
+                // Some client implementations drop the connections without
+                // notifying its peer Attempting to read after the client
+                // dropped the connection results in UnexpectedEof If as a
+                // server, we don't have anything more to send, just close the
+                // connection without error
+                //
+                // See https://github.com/hyperium/hyper/issues/3427
+                if self.streams.send_buffer_is_empty()
+                    && matches!(kind, std::io::ErrorKind::UnexpectedEof)
+                    && (self.role.is_server()
+                        || self
+                            .error
+                            .as_ref()
+                            .map(|f| f.reason() == Reason::NO_ERROR)
+                            == Some(true))
+                {
+                    self.state = ConnectionState::Closed(
+                        Reason::NO_ERROR,
+                        Initiator::Library,
+                    );
+                    return Ok(());
+                }
+                Err(e)
+            }
+        }
+    }
+
+    fn poll2_go_away(
         &mut self,
         reason: Reason,
         debug_data: Bytes,
