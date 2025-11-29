@@ -792,6 +792,24 @@ impl Recv {
             }
         }
     }
+
+    pub(crate) fn send_pending_refusal<T>(
+        &mut self,
+        cx: &mut Context<'_>,
+        dst: &mut Codec<T, Bytes>,
+    ) -> Poll<std::io::Result<()>>
+    where
+        T: tokio::io::AsyncWrite + Unpin,
+    {
+        if let Some(stream_id) = self.refused {
+            ready!(dst.poll_ready(cx))?;
+            let frame = frame::Reset::new(stream_id, Reason::REFUSED_STREAM);
+            dst.buffer(frame.into())
+                .expect("invalid RST_STREAM frame");
+        }
+        self.refused = None;
+        Poll::Ready(Ok(()))
+    }
 }
 
 fn process_remaining_frames<T>(
