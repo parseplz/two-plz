@@ -159,7 +159,9 @@ impl Stream {
     }
 
     pub fn is_closed(&self) -> bool {
-        self.state.is_closed() && self.pending_send.is_empty()
+        self.state.is_closed()
+            && self.pending_send.is_empty()
+            && self.remaining_data_len.is_some()
     }
 
     /// Returns true if the stream is no longer in use
