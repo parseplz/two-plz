@@ -505,3 +505,10 @@ where
         self.codec.read_frame()
     }
 }
+
+impl<T> Drop for Connection<T> {
+    fn drop(&mut self) {
+        // Ignore errors as this indicates that the mutex is poisoned.
+        let _ = self.streams.recv_eof(true);
+    }
+}
