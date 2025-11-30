@@ -378,9 +378,10 @@ impl Streams<Bytes> {
         me.handle_error(&self.send_buffer, e)
     }
 
+    // ===== EOF =====
     pub fn recv_eof(&mut self, clear_pending_accept: bool) -> Result<(), ()> {
         let mut me = self.inner.lock().map_err(|_| ())?;
-        me.recv_eof(self.send_buffer, clear_pending_accept)
+        me.recv_eof(&self.send_buffer, clear_pending_accept)
     }
 }
 
