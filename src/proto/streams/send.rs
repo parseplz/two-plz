@@ -136,6 +136,7 @@ impl Send {
         while let Some(frame) = stream.pending_send.pop_front(buffer) {
             trace!(?frame, "dropping");
         }
+        stream.remaining_data_len = None;
     }
 
     // ===== Headers =====
