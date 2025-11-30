@@ -173,4 +173,19 @@ impl Actions {
             Ok(())
         }
     }
+
+    // ===== EOF =====
+    pub fn clear_queues(
+        &mut self,
+        clear_pending_accept: bool,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        // reset + pending_accept
+        self.recv
+            .clear_queues(clear_pending_accept, store, counts);
+
+        // pending_capacity + pending_send + pending_open
+        self.send.clear_queues(store, counts);
+    }
 }
