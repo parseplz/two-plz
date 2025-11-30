@@ -78,7 +78,7 @@ where
             ),
             codec,
             role: role.clone(),
-            span: tracing::debug_span!("connection| "),
+            span: tracing::debug_span!("conn", "{}", role.as_str()),
             streams: Streams::new(role, config),
             error: None,
         }
@@ -89,7 +89,29 @@ where
         self.streams.next_accept()
     }
 
-    // ===== Codec =====
+    // ===== CLIENT =====
+    /// Closes the connection by transitioning to a GOAWAY state
+    /// if there are no streams or references
+    pub fn maybe_close_connection_if_no_streams(&mut self) {
+        // If we poll() and realize that there are no streams or references
+        // then we can close the connection by transitioning to GOAWAY
+        if !self
+            .streams
+            .has_streams_or_other_references()
+        {
+            self.go_away_now(Reason::NO_ERROR);
+        }
+    }
+
+    /// Checks if there are any streams or references left
+    pub fn has_streams_or_other_references(&self) -> bool {
+        // If we poll() and realize that there are no streams or references
+        // then we can close the connection by transitioning to GOAWAY
+        self.streams
+            .has_streams_or_other_references()
+    }
+
+    // ===== COMMON =====
     pub fn buffer(&mut self, item: Frame<Bytes>) -> Result<(), UserError> {
         self.codec.buffer(item)
     }
@@ -158,15 +180,6 @@ where
         }
         self.streams
             .apply_local_settings(&settings)
-    }
-
-    // ===== Ping =====
-    pub fn recv_ping(&mut self, frame: Ping) -> PingAction {
-        self.ping_handler.handle(frame)
-    }
-
-    pub fn pending_pong(&mut self) -> Option<Ping> {
-        self.ping_handler.pending_pong()
     }
 
     // ==== Window Update =====
@@ -270,7 +283,7 @@ where
         &mut self,
         cx: &mut Context,
     ) -> Poll<Option<std::io::Result<Reason>>> {
-        self.go_away_handler
+        self.goaway_handler
             .send_pending_go_away(cx, &mut self.codec)
     }
 
@@ -361,7 +374,7 @@ where
         // We may have already sent a GOAWAY for this error,
         // if so, don't send another, just flush and close up.
         if self
-            .go_away_handler
+            .goaway_handler
             .going_away()
             .map_or(false, |frame| frame.reason() == reason)
         {
@@ -369,7 +382,7 @@ where
             return;
         }
 
-        // Reset all active streams
+        // Reset and Notify all active streams
         self.streams.handle_error(e);
         self.go_away_now_data(reason, debug_data);
     }
@@ -471,7 +484,7 @@ where
         let frame = frame::GoAway::new(id, e);
         // sets recv.last_processed_id
         self.streams.send_go_away(id);
-        self.go_away_handler
+        self.goaway_handler
             .enqueue_go_away(frame);
     }
 
@@ -479,20 +492,21 @@ where
     fn go_away_now(&mut self, e: Reason) {
         let last_processed_id = self.streams.last_processed_id();
         let frame = frame::GoAway::new(last_processed_id, e);
-        self.go_away_handler.go_away_now(frame);
+        self.goaway_handler.go_away_now(frame);
     }
 
+    // send_goaway - immediate with data
     fn go_away_now_data(&mut self, e: Reason, data: Bytes) {
         let last_processed_id = self.streams.last_processed_id();
         let frame = frame::GoAway::with_debug_data(last_processed_id, e, data);
-        self.go_away_handler.go_away_now(frame);
+        self.goaway_handler.go_away_now(frame);
     }
 
-    // TODO: implement method
+    // TODO Expose Api
     fn go_away_from_user(&mut self, e: Reason) {
         let last_processed_id = self.streams.last_processed_id();
         let frame = frame::GoAway::new(last_processed_id, e);
-        self.go_away_handler
+        self.goaway_handler
             .go_away_from_user(frame);
         // Notify all streams of reason we're abruptly closing.
         self.streams
