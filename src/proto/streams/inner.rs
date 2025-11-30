@@ -522,4 +522,41 @@ impl Inner {
         self.actions.task = Some(cx.waker().clone());
         Poll::Ready(Ok(()))
     }
+
+    // ===== EOF =====
+    pub fn recv_eof<B>(
+        &mut self,
+        send_buffer: &SendBuffer<B>,
+        clear_pending_accept: bool,
+    ) -> Result<(), ()> {
+        let actions = &mut self.actions;
+        let counts = &mut self.counts;
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+        if actions.conn_error.is_none() {
+            actions.conn_error = Some(
+                io::Error::new(
+                    io::ErrorKind::BrokenPipe,
+                    "connection closed because of a broken pipe",
+                )
+                .into(),
+            );
+        }
+
+        self.store.for_each(|stream| {
+            counts.transition(stream, |counts, stream| {
+                // notify
+                actions.recv.recv_eof(stream);
+
+                // clear queues and reclaim capacity
+                actions
+                    .send
+                    .handle_error(send_buffer, stream, counts);
+            })
+        });
+
+        // clear send and recv queues
+        actions.clear_queues(clear_pending_accept, &mut self.store, counts);
+        Ok(())
+    }
 }
