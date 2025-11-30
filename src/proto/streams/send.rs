@@ -126,7 +126,7 @@ impl Send {
     }
 
     /// Clear the send queue for a stream
-    pub fn clear_queue<B>(
+    pub fn clear_stream_queue<B>(
         &mut self,
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut Ptr,
@@ -414,7 +414,7 @@ impl Send {
         }
 
         // Clear all pending outbound frames.
-        self.clear_queue(buffer, stream);
+        self.clear_stream_queue(buffer, stream);
 
         // add reset to the send queue
         let frame = frame::Reset::new(stream.id, reason);
@@ -445,7 +445,7 @@ impl Send {
         stream: &mut Ptr,
         counts: &mut Counts,
     ) {
-        self.clear_queue(buffer, stream);
+        self.clear_stream_queue(buffer, stream);
         self.reclaim_all_capacity(stream, counts);
     }
 
