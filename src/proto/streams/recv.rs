@@ -810,6 +810,7 @@ impl Recv {
         Poll::Ready(Ok(()))
     }
 
+    // ===== EOF =====
     pub fn recv_eof(&mut self, stream: &mut Stream) {
         stream.state.recv_eof();
         stream.notify_recv();
@@ -818,8 +819,6 @@ impl Recv {
         //stream.notify_push();
     }
 
-    /// Called on EOF
-    // clear
     pub fn clear_queues(
         &mut self,
         clear_pending_accept: bool,
