@@ -250,26 +250,41 @@ where
             .clear_expired_reset_streams();
 
         loop {
-            /* TODO: GOAWAY LOGIC */
-
-            /* TODO:
-             * ready!(self.poll_ready(cx))?;
-             * pending control frames*/
-
+            // First, ensure that the `Connection` is able to receive a frame
+            //
+            // The order here matters:
+            // - poll_go_away may buffer a graceful shutdown GOAWAY frame
+            // - If it has, we've also added a PING to be sent in poll_ready
+            if let Some(reason) = ready!(self.poll_go_away(cx)?) {
+                if self.goaway_handler.should_close_now() {
+                    if self.goaway_handler.is_user_initiated() {
+                        // A user initiated abrupt shutdown shouldn't return
+                        // the same error back to the user.
+                        return Poll::Ready(Ok(()));
+                    } else {
+                        return Poll::Ready(Err(ProtoError::library_go_away(
+                            reason,
+                        )));
+                    }
+                }
+                // Only NO_ERROR should be waiting for idle
+                debug_assert_eq!(
+                    reason,
+                    Reason::NO_ERROR,
+                    "graceful GOAWAY should be NO_ERROR"
+                );
+            }
+            ready!(self.poll_control_frames(cx))?;
             // read a frame
             match ready!(Pin::new(&mut self.codec).poll_next(cx)?) {
                 Some(frame) => {
-                    let result = self.recv_frame(frame)?;
-                    match result {
-                        ReadAction::Continue => continue,
-                        ReadAction::NeedsFlush => {
-                            self.codec.flush(cx);
-                            return Poll::Ready(Ok(()));
-                        }
-                    }
+                    self.recv_frame(frame)?;
                 }
                 None => {
-                    tracing::trace!("codec closed");
+                    trace!("codec closed");
+                    self.streams
+                        .recv_eof(false)
+                        .expect("mutex poisoned");
                     return Poll::Ready(Ok(()));
                 }
             }
