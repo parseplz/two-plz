@@ -410,14 +410,6 @@ where
             self.streams
                 .send_pending_refusal(cx, &mut self.codec)
         )?;
-        ready!(self.poll_window_update(cx))?;
-        Poll::Ready(Ok(()))
-    }
-
-    fn poll_window_update(
-        &mut self,
-        cx: &mut Context,
-    ) -> Poll<Result<(), ProtoError>> {
         ready!(
             self.streams
                 .poll_window_update(cx, &mut self.codec)
