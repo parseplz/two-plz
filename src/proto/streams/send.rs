@@ -450,6 +450,7 @@ impl Send {
         self.reclaim_all_capacity(stream, counts);
     }
 
+    // closes non existent ID's
     pub fn maybe_reset_next_stream_id(&mut self, id: StreamId) {
         if let Ok(next_id) = self.next_stream_id {
             // role::is_local_init should have been called beforehand
@@ -766,5 +767,51 @@ impl Send {
         let stream_id = self.ensure_next_stream_id()?;
         self.next_stream_id = stream_id.next_id();
         Ok(stream_id)
+    }
+
+    /// ===== EOF =====
+    pub fn clear_queues(&mut self, store: &mut Store, counts: &mut Counts) {
+        self.clear_pending_capacity(store, counts);
+        self.clear_pending_send(store, counts);
+        self.clear_pending_open(store, counts);
+    }
+
+    pub fn clear_pending_capacity(
+        &mut self,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        let span = tracing::trace_span!("clear_pending_capacity");
+        let _e = span.enter();
+        while let Some(stream) = self.pending_capacity.pop(store) {
+            counts.transition(stream, |_, stream| {
+                tracing::trace!(?stream.id, "clear_pending_capacity");
+            })
+        }
+    }
+
+    pub fn clear_pending_send(
+        &mut self,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        while let Some(mut stream) = self.pending_send.pop(store) {
+            let is_pending_reset = stream.is_pending_reset_expiration();
+            if let Some(reason) = stream.state.get_scheduled_reset() {
+                stream.set_reset(reason, Initiator::Library);
+            }
+            counts.transition_after(stream, is_pending_reset);
+        }
+    }
+
+    pub fn clear_pending_open(
+        &mut self,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        while let Some(stream) = self.pending_open.pop(store) {
+            let is_pending_reset = stream.is_pending_reset_expiration();
+            counts.transition_after(stream, is_pending_reset);
+        }
     }
 }
