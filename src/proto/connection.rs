@@ -127,10 +127,10 @@ where
             Frame::PushPromise(push_promise) => todo!(),
             Frame::Ping(ping) => {
                 let action = self.ping_handler.handle(ping);
-                // TODO
-                //if action.is_shutdown() {
-                //    todo!()
-                //}
+                if action.is_shutdown() {
+                    let last_processed_id = self.streams.last_processed_id();
+                    self.go_away_graceful(last_processed_id, Reason::NO_ERROR);
+                }
                 Ok(())
             }
             Frame::GoAway(go_away) => {
