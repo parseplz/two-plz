@@ -394,7 +394,7 @@ where
         )?;
         ready!(
             self.streams
-               .send_pending_refusal(cx, &mut self.codec)
+                .send_pending_refusal(cx, &mut self.codec)
         )?;
         ready!(self.poll_window_update(cx))?;
         Poll::Ready(Ok(()))
