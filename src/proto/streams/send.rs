@@ -286,9 +286,9 @@ impl Send {
             // became available. In that case, the stream won't want any
             // capacity, and so we shouldn't "transition" on it, but just evict
             // it and continue the loop.
-            // TODO
-            //if !(stream.state.is_send_streaming() || stream.buffered_send_data > 0) {
-            if !stream.state.is_send_streaming() {
+            if !stream.state.is_send_streaming()
+                || stream.remaining_data_len.is_none()
+            {
                 continue;
             }
 
