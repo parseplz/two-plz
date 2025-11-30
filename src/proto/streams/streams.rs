@@ -334,6 +334,14 @@ impl Streams<Bytes> {
     }
 
     // ===== misc =====
+    pub fn clear_expired_reset_streams(&mut self) {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        me.actions
+            .recv
+            .clear_expired_reset_streams(&mut me.store, &mut me.counts);
+    }
+
     pub fn has_streams(&self) -> bool {
         let me = self.inner.lock().unwrap();
         me.counts.has_streams()
