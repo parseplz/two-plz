@@ -2,6 +2,7 @@ use std::task::{Context, Poll};
 
 use bytes::{Buf, Bytes};
 use tokio::io::AsyncWrite;
+use tracing::trace;
 
 use crate::{
     Codec,
@@ -93,6 +94,7 @@ impl SettingsHandler {
             // Buffer the settings frame
             dst.buffer(frame.into())
                 .expect("invalid settings frame");
+            trace!("ACK sent| applying settings");
             streams.apply_remote_settings(&settings)?;
 
             if let Some(val) = settings.header_table_size() {
@@ -124,11 +126,7 @@ impl SettingsHandler {
                 // Buffer the settings frame
                 dst.buffer(settings.clone().into())
                     .expect("invalid settings frame");
-                tracing::trace!(
-                    "local settings sent; waiting for ack: {:?}",
-                    settings
-                );
-
+                trace!("local settings sent| waiting for ack| {:?}", settings);
                 self.local = Local::WaitingAck(settings.clone());
             }
             Local::WaitingAck(..) | Local::Synced => {}
