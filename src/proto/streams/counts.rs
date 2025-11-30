@@ -164,14 +164,6 @@ impl Counts {
         stream.is_counted = true;
     }
 
-    /// settings frame
-    pub fn set_max_send_streams(&mut self, settings: &frame::Settings) {
-        self.max_send_streams = settings
-            .max_concurrent_streams()
-            .map(|v| v as usize)
-            .unwrap_or(usize::MAX);
-    }
-
     // ===== Local Reset =====
     pub fn can_inc_num_reset_streams(&self) -> bool {
         self.max_local_reset_streams > self.num_local_reset_streams
@@ -192,6 +184,7 @@ impl Counts {
         self.num_local_reset_streams += 1;
     }
 
+    // ===== SETTINGS =====
     pub fn apply_remote_settings(&mut self, settings: &frame::Settings) {
         self.max_send_streams = settings
             .max_concurrent_streams()
