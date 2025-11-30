@@ -66,7 +66,7 @@ impl GoAway {
                 return;
             }
         }
-        self.go_away(f);
+        self.enqueue_go_away(f);
     }
 
     pub fn go_away_from_user(&mut self, f: frame::GoAway) {

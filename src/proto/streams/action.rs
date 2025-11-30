@@ -7,6 +7,7 @@ use crate::proto::error::Initiator;
 use crate::proto::streams::Counts;
 use crate::proto::streams::Ptr;
 use crate::proto::streams::buffer::Buffer;
+use crate::proto::streams::store::Store;
 use crate::{
     proto::{
         ProtoError,

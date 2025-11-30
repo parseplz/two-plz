@@ -311,15 +311,6 @@ impl Streams<Bytes> {
         }
     }
 
-    // ===== clear =====
-    pub fn clear_expired_reset_streams(&mut self) {
-        let mut me = self.inner.lock().unwrap();
-        let me = &mut *me;
-        me.actions
-            .recv
-            .clear_expired_reset_streams(&mut me.store, &mut me.counts);
-    }
-
     // ===== polling =====
     pub fn poll_complete<T>(
         &mut self,

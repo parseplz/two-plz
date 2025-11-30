@@ -18,6 +18,7 @@ use crate::proto::{
         stream::Stream,
     },
 };
+use std::io;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::task::Context;
@@ -415,6 +416,7 @@ impl Inner {
                     .recv
                     .handle_error(&err, &mut *stream);
                 // clear pending buffer
+                // TODO: should reclaim capacity ?
                 actions
                     .send
                     .handle_error(send_buffer, stream, counts);
