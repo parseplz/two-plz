@@ -659,7 +659,6 @@ impl Send {
                                     .split_to(len as usize);
                                 let mut data_frame =
                                     frame::Data::new(stream.id, data);
-                                let eos = stream.remaining_data_len.is_none();
                                 if stream.remaining_data_len.is_none() {
                                     trace!("data| completed");
                                     if stream.pending_send.is_empty() {
