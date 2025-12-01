@@ -61,7 +61,7 @@ impl Streams<Bytes> {
 
     pub fn send_request(
         &mut self,
-        mut request: Request,
+        request: Request,
     ) -> Result<OpaqueStreamRef, SendError> {
         use super::stream::ContentLength;
         use http::Method;
@@ -266,49 +266,12 @@ impl Streams<Bytes> {
         me.poll_window_update(cx, dst)
     }
 
-    pub fn recv_connection_window_update(
+    pub fn recv_window_update(
         &mut self,
-        size: u32,
+        frame: frame::WindowUpdate,
     ) -> Result<(), ProtoError> {
         let mut me = self.inner.lock().unwrap();
-        let me = &mut *me;
-        me.actions
-            .send
-            .recv_connection_window_update(size, &mut me.store, &mut me.counts)
-            .map_err(ProtoError::library_go_away)
-    }
-
-    pub fn recv_stream_window_update(
-        &mut self,
-        id: StreamId,
-        size: u32,
-    ) -> Result<(), ProtoError> {
-        let mut me = self.inner.lock().unwrap();
-        let me = &mut *me;
-        if let Some(mut stream) = me.store.find_mut(&id) {
-            if let Err(e) = me
-                .actions
-                .send
-                .recv_stream_window_update(&mut stream, size)
-            {
-                let mut send_buffer = self.send_buffer.inner.lock().unwrap();
-                let send_buffer = &mut *send_buffer;
-                // send reset
-                me.actions.send.send_reset(
-                    Reason::FLOW_CONTROL_ERROR,
-                    Initiator::Library,
-                    &mut stream,
-                    send_buffer,
-                    &mut me.counts,
-                    &mut me.actions.task,
-                )
-            }
-            Ok(())
-        } else {
-            me.actions
-                .ensure_not_idle(me.counts.role(), id)
-                .map_err(ProtoError::library_go_away)
-        }
+        me.recv_window_update(&self.send_buffer, frame)
     }
 
     // ===== polling =====
