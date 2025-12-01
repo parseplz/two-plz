@@ -176,10 +176,10 @@ impl Send {
     }
 
     // ===== settings =====
-    pub fn apply_remote_settings<B>(
+    pub fn apply_remote_settings(
         &mut self,
         settings: &frame::Settings,
-        buffer: &mut Buffer<Frame<B>>,
+        buffer: &mut Buffer<Frame<Bytes>>,
         store: &mut Store,
         counts: &mut Counts,
         task: &mut Option<Waker>,
@@ -258,8 +258,14 @@ impl Send {
                 Ordering::Greater => {
                     let inc = new - old;
                     store.try_for_each(|mut stream| {
-                        self.recv_stream_window_update(&mut stream, inc)
-                            .map_err(ProtoError::library_go_away)
+                        self.recv_stream_window_update(
+                            inc,
+                            buffer,
+                            &mut stream,
+                            counts,
+                            task,
+                        )
+                        .map_err(ProtoError::library_go_away)
                     })?;
                 }
                 Ordering::Equal => (),
@@ -368,13 +374,27 @@ impl Send {
 
     pub fn recv_stream_window_update(
         &mut self,
+        sz: WindowSize,
+        buffer: &mut Buffer<Frame<Bytes>>,
         stream: &mut Ptr,
-        inc: WindowSize,
+        counts: &mut Counts,
+        task: &mut Option<Waker>,
     ) -> Result<(), Reason> {
         if stream.state.is_send_closed() {
             return Ok(());
         }
-        stream.send_flow.inc_window(inc)?;
+        if let Err(e) = stream.send_flow.inc_window(sz) {
+            self.send_reset(
+                Reason::FLOW_CONTROL_ERROR,
+                Initiator::Library,
+                stream,
+                buffer,
+                counts,
+                task,
+            );
+
+            return Err(e);
+        }
         self.try_assign_capacity(stream);
         Ok(())
     }
