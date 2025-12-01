@@ -2,3 +2,5 @@
 **/session.vim
 **/tags
 **/.vscode/
+**/mock_server/
+Cargo.lock
