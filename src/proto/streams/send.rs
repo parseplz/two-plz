@@ -196,6 +196,23 @@ impl Send {
             self.is_extended_connect_protocol_enabled = val;
         }
 
+        // Applies an update to the remote endpoint's initial window size.
+        //
+        // Per RFC 7540 §6.9.2:
+        //
+        // In addition to changing the flow-control window for streams that are
+        // not yet active, a SETTINGS frame can alter the initial flow-control
+        // window size for streams with active flow-control windows (that is,
+        // streams in the "open" or "half-closed (remote)" state). When the
+        // value of SETTINGS_INITIAL_WINDOW_SIZE changes, a receiver MUST adjust
+        // the size of all stream flow-control windows that it maintains by the
+        // difference between the new value and the old value.
+        //
+        // A change to `SETTINGS_INITIAL_WINDOW_SIZE` can cause the available
+        // space in a flow-control window to become negative. A sender MUST
+        // track the negative flow-control window and MUST NOT send new
+        // flow-controlled frames until it receives WINDOW_UPDATE frames that
+        // cause the flow-control window to become positive.
         if let Some(new) = settings.initial_window_size() {
             let old = self.init_stream_window_sz;
             self.init_stream_window_sz = new;
@@ -208,7 +225,7 @@ impl Send {
                     store.try_for_each(|mut stream| {
                         let stream = &mut *stream;
                         if stream.state.is_send_closed()
-                        // TODO
+                        // TODO: ws
                         // && stream.buffered_send_data == 0 {
                         {
                             return Ok(());
