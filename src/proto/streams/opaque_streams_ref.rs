@@ -1,5 +1,3 @@
-use tracing::trace;
-
 use crate::frame::StreamId;
 use crate::message::response::Response;
 use crate::proto::ProtoError;
@@ -91,10 +89,11 @@ impl Drop for OpaqueStreamRef {
         // closed (does not have to go through logic below
         // of canceling the stream), we should notify the task
         // (connection) so that it can close properly
-        if stream.ref_count == 0 && stream.is_closed() {
-            if let Some(task) = actions.task.take() {
-                task.wake();
-            }
+        if stream.ref_count == 0
+            && stream.is_closed()
+            && let Some(task) = actions.task.take()
+        {
+            task.wake();
         }
 
         me.counts

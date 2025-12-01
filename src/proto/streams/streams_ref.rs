@@ -54,11 +54,11 @@ impl StreamRef<Bytes> {
 
     pub fn send_response(
         &mut self,
-        mut response: Response,
+        response: Response,
     ) -> Result<(), UserError> {
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
-        let mut stream = me.store.resolve(self.opaque.key);
+        let stream = me.store.resolve(self.opaque.key);
         let span =
             tracing::debug_span!("[+] send response| ", "{:?}", stream.id);
         let _ = span.enter();

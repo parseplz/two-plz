@@ -30,7 +30,7 @@ pub(super) struct NextOpen;
 pub(super) struct NextResetExpire;
 
 #[derive(Debug)]
-pub struct Stream {
+pub(super) struct Stream {
     pub(crate) id: StreamId,
     pub state: State,
 
@@ -63,7 +63,8 @@ pub struct Stream {
     pub recv_flow: FlowControl,
     pub content_length: ContentLength,
     /// When the RecvStream drop occurs, no data should be received.
-    pub is_recv: bool,
+    /// TODO: why? 
+    pub _is_recv: bool,
     /// Task tracking receiving frames
     pub recv_task: Option<Waker>,
 

@@ -25,12 +25,10 @@ use std::task::Context;
 use std::task::Poll;
 
 use crate::role::Role;
-use bytes::Buf;
 use bytes::Bytes;
 use tokio::io::AsyncWrite;
 use tracing::error;
 use tracing::trace;
-use tracing::trace_span;
 
 /// Fields needed to manage state related to managing the set of streams. This
 /// is mostly split out to make ownership happy.
@@ -189,7 +187,7 @@ impl Inner {
                     Err(RecvHeaderBlockError::State(e)) => Err(e),
                 }
             } else {
-                /// Trailers
+                // Trailers
                 if !frame.is_end_stream() {
                     // Receiving trailers that don't set EOS is a "malformed"
                     // message. Malformed messages are a stream error.
@@ -450,7 +448,8 @@ impl Inner {
             let frame = frame::WindowUpdate::new(StreamId::ZERO, size);
             dst.buffer(frame.into())
                 .expect("invalid WINDOW_UPDATE frame");
-            self.actions
+            let _ = self
+                .actions
                 .recv
                 .inc_connection_window(size);
         }
@@ -463,7 +462,7 @@ impl Inner {
             dst.buffer(frame.into())
                 .expect("invalid WINDOW_UPDATE frame");
             let mut stream = self.store.find_mut(&stream_id).unwrap();
-            stream.recv_flow.inc_window(size);
+            let _ = stream.recv_flow.inc_window(size);
         }
 
         self.actions
