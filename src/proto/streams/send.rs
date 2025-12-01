@@ -68,15 +68,12 @@ pub struct Send {
     /// Queue of streams waiting for capacity due to max concurrency
     pending_open: Queue<stream::NextOpen>,
 
-    /// Queue of streams waiting to be reset
-    pending_reset: Queue<stream::NextResetExpire>,
-
     is_push_enabled: bool,
     is_extended_connect_protocol_enabled: bool,
 }
 
 impl Send {
-    pub fn new(config: &ConnectionConfig, role: &Role) -> Send {
+    pub fn new(config: &ConnectionConfig) -> Send {
         Send {
             flow: FlowControl::new(DEFAULT_INITIAL_WINDOW_SIZE),
             init_stream_window_sz: config
@@ -88,7 +85,6 @@ impl Send {
             next_stream_id: Ok(1.into()),
             pending_capacity: Queue::new(),
             pending_open: Queue::new(),
-            pending_reset: Queue::new(),
             pending_send: Queue::new(),
             is_push_enabled: false,
             is_extended_connect_protocol_enabled: false,
