@@ -426,7 +426,59 @@ impl Inner {
         last_processed_id
     }
 
-    // ===== window update =====
+    // ===== WINDOW UPDATE =====
+    pub fn recv_window_update(
+        &mut self,
+        send_buffer: &SendBuffer<Bytes>,
+        frame: frame::WindowUpdate,
+    ) -> Result<(), ProtoError> {
+        let id = frame.stream_id();
+        let size = frame.size_increment();
+
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+
+        if id.is_zero() {
+            self.actions
+                .send
+                .recv_connection_window_update(
+                    size,
+                    &mut self.store,
+                    &mut self.counts,
+                )
+                .map_err(ProtoError::library_go_away)?;
+        } else {
+            // The remote may send window updates for streams that the local now
+            // considers closed. It's ok...
+            if let Some(mut stream) = self.store.find_mut(&id) {
+                let res = self
+                    .actions
+                    .send
+                    .recv_stream_window_update(
+                        size,
+                        send_buffer,
+                        &mut stream,
+                        &mut self.counts,
+                        &mut self.actions.task,
+                    )
+                    .map_err(|reason| ProtoError::library_reset(id, reason));
+
+                return self.actions.reset_on_recv_stream_err(
+                    send_buffer,
+                    &mut stream,
+                    &mut self.counts,
+                    res,
+                );
+            } else {
+                self.actions
+                    .ensure_not_idle(self.counts.role(), id)
+                    .map_err(ProtoError::library_go_away)?;
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn poll_window_update<T>(
         &mut self,
         cx: &mut Context,
