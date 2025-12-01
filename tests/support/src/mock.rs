@@ -13,7 +13,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
-use std::{cmp, io, usize};
+use std::{cmp, io};
 
 const PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
@@ -507,6 +507,39 @@ struct Inner {
 
     /// Trigger an `UnexpectedEof` error on read
     unexpected_eof: bool,
+}
+
+/// Create a new mock and handle
+pub fn new() -> (Mock, Handle) {
+    new_with_write_capacity(usize::MAX)
+}
+
+/// Create a new mock and handle allowing up to `cap` bytes to be written.
+pub fn new_with_write_capacity(cap: usize) -> (Mock, Handle) {
+    let inner = Arc::new(Mutex::new(Inner {
+        rx: vec![],
+        rx_task: None,
+        tx: vec![],
+        tx_task: None,
+        tx_rem: cap,
+        tx_rem_task: None,
+        closed: false,
+        unexpected_eof: false,
+    }));
+
+    let mock = Mock {
+        pipe: Pipe {
+            inner: inner.clone(),
+        },
+    };
+
+    let handle = Handle {
+        codec: two_plz::Codec::new(Pipe {
+            inner,
+        }),
+    };
+
+    (mock, handle)
 }
 
 pub async fn idle_ms(ms: u64) {
