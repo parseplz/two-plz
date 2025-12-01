@@ -142,7 +142,9 @@ where
                 self.error = Some(go_away);
                 Ok(())
             }
-            Frame::WindowUpdate(wupdate) => self.recv_window_update(wupdate),
+            Frame::WindowUpdate(wupdate) => {
+                self.streams.recv_window_update(wupdate)
+            }
         }?;
         Ok(())
     }
@@ -180,22 +182,6 @@ where
         }
         self.streams
             .apply_local_settings(&settings)
-    }
-
-    // ==== Window Update =====
-    fn recv_window_update(
-        &mut self,
-        window_update: frame::WindowUpdate,
-    ) -> Result<(), ProtoError> {
-        let id = window_update.stream_id();
-        let size = window_update.size_increment();
-        if id.is_zero() {
-            self.streams
-                .recv_connection_window_update(size)
-        } else {
-            self.streams
-                .recv_stream_window_update(id, size)
-        }
     }
 
     // ===== POLLING =====
