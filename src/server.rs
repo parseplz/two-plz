@@ -16,6 +16,7 @@ use crate::{
 use bytes::{Buf, Bytes};
 use futures::future::poll_fn;
 use http::{HeaderMap, HeaderValue};
+use std::pin::Pin;
 use std::{
     io::Error,
     task::{Context, Poll},
@@ -96,6 +97,21 @@ where
             return Poll::Ready(Some(Ok((request, respond))));
         }
         Poll::Pending
+    }
+}
+
+#[cfg(feature = "stream")]
+impl<T> futures_core::Stream for ServerConnection<T>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    type Item = Result<(Request, SendResponse), crate::frame::Error>;
+
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        self.poll_accept(cx)
     }
 }
 
