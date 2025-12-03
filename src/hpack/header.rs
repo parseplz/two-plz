@@ -305,10 +305,6 @@ impl BytesStr {
         BytesStr(Bytes::from_static(value.as_bytes()))
     }
 
-    pub fn from(value: &str) -> Self {
-        BytesStr(Bytes::copy_from_slice(value.as_bytes()))
-    }
-
     pub fn unchecked_from_slice(value: &[u8]) -> Self {
         BytesStr(Bytes::copy_from_slice(value))
     }
@@ -326,6 +322,12 @@ impl BytesStr {
 
     pub(crate) fn into_inner(self) -> Bytes {
         self.0
+    }
+}
+
+impl From<&str> for BytesStr {
+    fn from(value: &str) -> Self {
+        BytesStr(Bytes::copy_from_slice(value.as_bytes()))
     }
 }
 
