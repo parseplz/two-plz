@@ -4,9 +4,9 @@ use crate::frame::StreamId;
 use crate::frame::headers::Pseudo;
 use crate::message::InfoLine;
 use crate::message::TwoTwo;
+use crate::message::request::uri::Scheme;
 use crate::proto::ProtoError;
 use bytes::BytesMut;
-use http::uri::Scheme;
 use http::{HeaderMap, Method, StatusCode};
 mod builder;
 pub mod uri;
@@ -122,14 +122,7 @@ impl Request {
             if is_connect && !has_protocol {
                 malformed!("malformed headers| :scheme in CONNECT");
             }
-            let maybe_scheme = scheme.parse();
-            let scheme = maybe_scheme.or_else(|why| {
-                malformed!(
-                    "malformed headers| malformed scheme ({:?}): {}",
-                    scheme,
-                    why,
-                )
-            })?;
+            let scheme = Scheme::from(scheme.as_bytes());
 
             // It's not possible to build an `Uri` from a scheme and path. So,
             // after validating is was a valid scheme, we just have to drop it

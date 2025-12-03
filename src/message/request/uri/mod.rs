@@ -1,12 +1,11 @@
 use authority::Authority;
 use bytes::Bytes;
-use http::uri::Scheme;
 mod authority;
 mod path;
 mod scheme;
 use crate::hpack::BytesStr;
 use path::PathAndQuery;
-use scheme::OwnScheme;
+pub use scheme::Scheme;
 
 #[derive(Default, Debug)]
 pub struct Uri {
@@ -43,4 +42,3 @@ impl Uri {
         self
     }
 }
-
