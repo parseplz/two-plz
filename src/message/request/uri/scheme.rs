@@ -1,23 +1,28 @@
+use std::str::FromStr;
+
+use http::uri::InvalidUri;
+
 use crate::hpack::BytesStr;
 
 // Require the scheme to not be too long in order to enable further
 // optimizations later.
 // const MAX_SCHEME_LEN: usize = 64;
 
-pub enum OwnScheme<T = Box<BytesStr>> {
+#[derive(Debug)]
+pub enum Scheme<T = Box<BytesStr>> {
     None,
     Standard(Protocol),
     Other(T),
 }
 
-impl OwnScheme {
-    pub const HTTP: OwnScheme = OwnScheme::Standard(Protocol::Http);
-    pub const HTTPS: OwnScheme = OwnScheme::Standard(Protocol::Https);
-    pub const EMPTY: OwnScheme = OwnScheme::None;
+impl Scheme {
+    pub const HTTP: Scheme = Scheme::Standard(Protocol::Http);
+    pub const HTTPS: Scheme = Scheme::Standard(Protocol::Https);
+    pub const EMPTY: Scheme = Scheme::None;
 
     pub fn as_str(&self) -> &str {
-        use self::OwnScheme::*;
         use self::Protocol::*;
+        use self::Scheme::*;
 
         match self {
             Standard(Http) => "http",
@@ -28,10 +33,10 @@ impl OwnScheme {
     }
 }
 
-impl PartialEq for OwnScheme {
-    fn eq(&self, other: &OwnScheme) -> bool {
-        use self::OwnScheme::*;
+impl PartialEq for Scheme {
+    fn eq(&self, other: &Scheme) -> bool {
         use self::Protocol::*;
+        use self::Scheme::*;
 
         match (self, other) {
             (&Standard(Http), &Standard(Http)) => true,
@@ -43,7 +48,7 @@ impl PartialEq for OwnScheme {
     }
 }
 
-impl From<&[u8]> for OwnScheme {
+impl From<&[u8]> for Scheme {
     fn from(value: &[u8]) -> Self {
         match value {
             b"http" => Protocol::Http.into(),
@@ -53,7 +58,7 @@ impl From<&[u8]> for OwnScheme {
                 //if s.len() > MAX_SCHEME_LEN {
                 //    return Err(ErrorKind::SchemeTooLong.into());
                 //}
-                OwnScheme::Other(BytesStr::unchecked_from_slice(value).into())
+                Scheme::Other(BytesStr::unchecked_from_slice(value).into())
             }
         }
     }
@@ -74,8 +79,8 @@ impl Protocol {
     }
 }
 
-impl From<Protocol> for OwnScheme {
+impl From<Protocol> for Scheme {
     fn from(src: Protocol) -> Self {
-        OwnScheme::Standard(src)
+        Scheme::Standard(src)
     }
 }
