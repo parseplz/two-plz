@@ -26,7 +26,7 @@ pub struct Client;
 pub type ClientBuilder = Builder<Client>;
 
 impl BuildConnection for Client {
-    type Connection<T> = ClientConnection<T>;
+    type Connection<T> = (ClientConnection<T>, SendRequest);
 
     fn is_server() -> bool {
         false
@@ -48,9 +48,13 @@ impl BuildConnection for Client {
     where
         T: AsyncRead + AsyncWrite + Unpin,
     {
-        ClientConnection {
+        let conn = ClientConnection {
             inner: Connection::new(role, config, codec),
-        }
+        };
+        let send_request = SendRequest {
+            inner: conn.inner.streams.clone(),
+        };
+        (conn, send_request)
     }
 }
 
@@ -62,14 +66,6 @@ impl BuildConnection for Client {
 
 pub struct ClientConnection<T> {
     inner: Connection<T>,
-}
-
-impl<T> ClientConnection<T> {
-    pub fn send_request_handle(&self) -> SendRequest {
-        SendRequest {
-            inner: self.inner.streams.clone(),
-        }
-    }
 }
 
 impl<T> Future for ClientConnection<T>
