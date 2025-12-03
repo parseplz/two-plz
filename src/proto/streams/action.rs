@@ -37,7 +37,7 @@ impl Actions {
     pub fn new(role: Role, config: ConnectionConfig) -> Self {
         Actions {
             recv: Recv::new(&config, &role),
-            send: Send::new(&config, &role),
+            send: Send::new(&config),
             task: None,
             conn_error: None,
         }

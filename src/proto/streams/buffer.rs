@@ -134,14 +134,14 @@ mod tests {
     fn test_buffer_remove() {
         let mut buf = Buffer::new();
         for i in 0..5 {
-            let key = buf.slab.insert(Slot {
+            let _ = buf.slab.insert(Slot {
                 value: i,
                 next: Some(i + 1),
             });
         }
 
         for i in 0..5 {
-            let key = buf.slab.insert(Slot {
+            let _ = buf.slab.insert(Slot {
                 value: i * 10,
                 next: None,
             });

@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(super) struct Counts {
+pub struct Counts {
     /// role
     pub role: Role,
 

@@ -1,5 +1,5 @@
-use super::{Resolve, SlabIndex, Store, Stream};
 use crate::frame::StreamId;
+use crate::proto::streams::store::{Resolve, SlabIndex, Store, Stream};
 use std::fmt;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};

@@ -3,7 +3,7 @@ mod buffer;
 mod counts;
 mod flow_control;
 pub mod opaque_streams_ref;
-pub mod recv;
+mod recv;
 pub mod send;
 pub mod send_buffer;
 pub mod streams_ref;
@@ -19,5 +19,7 @@ use crate::proto::streams::{
 };
 use store::Store;
 pub mod streams;
+use self::stream::Stream;
 
 use crate::proto::ProtoError;
+pub(crate) use recv::Open;

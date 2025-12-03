@@ -369,7 +369,7 @@ impl Send {
         // increase stream allocated connection window
         stream.connection_window_allocated += allocated;
         // reduce connection window
-        self.flow.dec_window(allocated);
+        let _ = self.flow.dec_window(allocated);
     }
 
     pub fn recv_stream_window_update(

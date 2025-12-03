@@ -54,7 +54,7 @@ impl Open {
 }
 
 #[derive(Debug)]
-pub(super) struct Recv {
+pub struct Recv {
     /// Holds frames that are waiting to be read
     buffer: Buffer<Event>,
 

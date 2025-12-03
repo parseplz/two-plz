@@ -8,9 +8,9 @@ use indexmap::{self, IndexMap};
 use crate::frame::StreamId;
 use crate::proto::streams::stream::Stream;
 mod entry;
-pub mod ptr;
+mod ptr;
 mod queue;
-pub use entry::*;
+pub(crate) use entry::*;
 pub(crate) use ptr::{Key, Ptr};
 pub(crate) use queue::{Next, Queue};
 

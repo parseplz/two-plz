@@ -1,5 +1,5 @@
 use crate::proto::ProtoError;
-use crate::proto::streams::recv::Open;
+use crate::proto::streams::Open;
 use bytes::BytesMut;
 use http::HeaderMap;
 

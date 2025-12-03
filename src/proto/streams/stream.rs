@@ -30,7 +30,7 @@ pub(super) struct NextOpen;
 pub(super) struct NextResetExpire;
 
 #[derive(Debug)]
-pub(super) struct Stream {
+pub(crate) struct Stream {
     pub(crate) id: StreamId,
     pub state: State,
 
@@ -115,7 +115,7 @@ impl Stream {
             // === recv ===
             recv_flow: FlowControl::new(init_recv_window),
             content_length: ContentLength::Omitted,
-            is_recv: true,
+            _is_recv: true,
             recv_task: None,
             // next accept
             next_pending_accept: None,
