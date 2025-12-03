@@ -309,6 +309,10 @@ impl BytesStr {
         BytesStr(Bytes::copy_from_slice(value.as_bytes()))
     }
 
+    pub fn unchecked_from_slice(value: &[u8]) -> Self {
+        BytesStr(Bytes::copy_from_slice(value))
+    }
+
     #[doc(hidden)]
     pub fn try_from(bytes: Bytes) -> Result<Self, std::str::Utf8Error> {
         std::str::from_utf8(bytes.as_ref())?;
