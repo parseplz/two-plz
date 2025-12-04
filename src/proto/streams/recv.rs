@@ -327,7 +327,7 @@ impl Recv {
         }
 
         if frame.is_over_size() {
-            Self::check_frame_size(is_initial, &frame, stream, counts)?;
+            Self::ret_frame_oversize_err(is_initial, stream, counts)?;
         }
 
         let stream_id = frame.stream_id();
@@ -424,9 +424,8 @@ impl Recv {
     }
 
     #[inline(always)]
-    fn check_frame_size(
+    fn ret_frame_oversize_err(
         is_initial: bool,
-        frame: &frame::Headers,
         stream: &mut Ptr,
         counts: &mut Counts,
     ) -> Result<(), RecvHeaderBlockError<Option<frame::Headers>>> {
