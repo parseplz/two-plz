@@ -10,6 +10,7 @@ mod send_buffer;
 mod state;
 mod store;
 mod stream;
+#[allow(clippy::module_inception)]
 mod streams;
 mod streams_ref;
 
