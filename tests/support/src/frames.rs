@@ -3,7 +3,10 @@ use std::fmt;
 use bytes::Bytes;
 use http::{HeaderMap, StatusCode};
 
-use two_plz::frame::{self, Frame, StreamId, headers::Pseudo};
+use two_plz::{
+    frame::{self, Frame, StreamId, headers::Pseudo},
+    message::request::uri::{Scheme, Uri},
+};
 
 pub const SETTINGS: &[u8] = &[0, 0, 0, 4, 0, 0, 0, 0, 0];
 pub const SETTINGS_ACK: &[u8] = &[0, 0, 0, 4, 1, 0, 0, 0, 0];
@@ -98,15 +101,22 @@ where
 // Headers helpers
 
 impl Mock<frame::Headers> {
-    pub fn request<M, U>(self, method: M, uri: U) -> Self
+    pub fn request<M>(
+        self,
+        method: M,
+        scheme: &str,
+        authority: &str,
+        path: &str,
+    ) -> Self
     where
         M: TryInto<http::Method>,
         M::Error: fmt::Debug,
-        U: TryInto<http::Uri>,
-        U::Error: fmt::Debug,
     {
         let method = method.try_into().unwrap();
-        let uri = uri.try_into().unwrap();
+        let mut uri = Uri::default();
+        uri = uri.authority(authority.into());
+        uri = uri.path(path.into());
+        uri = uri.scheme(Scheme::from(scheme.as_bytes()));
         let (id, _, fields) = self.into_parts();
         let extensions = Default::default();
         let pseudo = Pseudo::request(method, uri, extensions);
@@ -170,18 +180,14 @@ impl Mock<frame::Headers> {
 
     pub fn status(self, value: StatusCode) -> Self {
         let (id, mut pseudo, fields) = self.into_parts();
-
         pseudo.set_status(value);
-
         Mock(frame::Headers::new(id, pseudo, fields))
     }
 
     pub fn scheme(self, value: &str) -> Self {
         let (id, mut pseudo, fields) = self.into_parts();
-        let value = value.parse().unwrap();
-
+        let value = Scheme::from(value.as_bytes());
         pseudo.set_scheme(value);
-
         Mock(frame::Headers::new(id, pseudo, fields))
     }
 
@@ -226,20 +232,14 @@ impl Mock<frame::Data> {
 // PushPromise helpers
 
 impl Mock<frame::PushPromise> {
-    pub fn request<M, U>(self, method: M, uri: U) -> Self
+    pub fn request<M, U>(self, _method: M, _uri: U) -> Self
     where
         M: TryInto<http::Method>,
         M::Error: fmt::Debug,
         U: TryInto<http::Uri>,
         U::Error: fmt::Debug,
     {
-        let method = method.try_into().unwrap();
-        let uri = uri.try_into().unwrap();
-        let (id, promised, _, fields) = self.into_parts();
-        let extensions = Default::default();
-        let pseudo = Pseudo::request(method, uri, extensions);
-        let frame = frame::PushPromise::new(id, promised, pseudo, fields);
-        Mock(frame)
+        todo!()
     }
 
     pub fn fields(self, fields: HeaderMap) -> Self {

@@ -10,6 +10,11 @@ pub mod util;
 mod client_ext;
 mod future_ext;
 
+use http::Method;
+use two_plz::hpack::BytesStr;
+use two_plz::message::request::uri::{Scheme, Uri};
+use two_plz::message::request::{Request, RequestBuilder};
+
 pub use crate::client_ext::SendRequestExt;
 pub use crate::future_ext::TestFuture;
 
