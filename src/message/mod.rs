@@ -39,6 +39,18 @@ impl<T> TwoTwo<T> {
     pub fn set_body(&mut self, body: Option<BytesMut>) {
         self.body = body;
     }
+
+    pub fn body_as_ref(&self) -> Option<&BytesMut> {
+        self.body.as_ref()
+    }
+
+    pub fn headers(&self) -> &HeaderMap {
+        &self.headers
+    }
+
+    pub fn set_headers(&mut self, headers: HeaderMap) {
+        self.headers = headers;
+    }
 }
 
 pub struct TwoTwoFrame {
