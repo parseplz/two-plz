@@ -2,5 +2,10 @@
 name = "two-tests"
 version = "0.1.0"
 edition = "2024"
+publish = false
 
 [dependencies]
+support = { path = "../support" }
+tracing = "0.1.43"
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
+tokio = { version = "1.48.0", features = ["macros", "net", "rt", "io-util", "rt-multi-thread"] }
