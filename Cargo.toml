@@ -24,6 +24,12 @@ futures-core = "0.3.31"
 futures-sink = "0.3.31"
 
 [dev-dependencies]
+env_logger = { version = "0.11", default-features = false }
+
+# Fuzzing
+quickcheck = { version = "1.0.3", default-features = false }
+rand = "0.9"
+
 # HPACK fixtures
 hex = "0.4.3"
 walkdir = "2.5.0"
