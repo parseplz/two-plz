@@ -2,8 +2,8 @@ use super::{StreamDependency, StreamId, util};
 use crate::ext::Protocol;
 use crate::frame::{Error, Frame, Head, Kind};
 use crate::hpack::{self, BytesStr};
+use crate::message::request::uri::Scheme;
 use crate::message::request::uri::Uri;
-use crate::message::request::uri::{self, Scheme};
 
 use http::header::{self, HeaderName, HeaderValue};
 use http::{HeaderMap, Method, Request, StatusCode};

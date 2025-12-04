@@ -2,24 +2,21 @@ mod action;
 mod buffer;
 mod counts;
 mod flow_control;
-pub mod opaque_streams_ref;
-mod recv;
-pub mod send;
-pub mod send_buffer;
-pub mod streams_ref;
-use send::Send;
 mod inner;
+mod opaque_streams_ref;
+mod recv;
+mod send;
+mod send_buffer;
 mod state;
-pub mod store;
+mod store;
 mod stream;
-use crate::proto::streams::{
-    counts::Counts,
-    recv::Recv,
-    store::{Ptr, Resolve},
-};
-use store::Store;
-pub mod streams;
-use self::stream::Stream;
+mod streams;
+mod streams_ref;
 
-use crate::proto::ProtoError;
+pub(crate) use opaque_streams_ref::OpaqueStreamRef;
 pub(crate) use recv::Open;
+pub(crate) use recv::Recv;
+pub(crate) use send::Send;
+use store::{Ptr, Resolve, Store};
+pub(crate) use streams::Streams;
+pub(crate) use streams_ref::StreamRef;

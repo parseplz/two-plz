@@ -1,5 +1,4 @@
 use authority::Authority;
-use bytes::Bytes;
 mod authority;
 mod path;
 mod scheme;

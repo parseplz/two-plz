@@ -1,8 +1,8 @@
 use crate::frame::StreamId;
 use crate::message::response::Response;
 use crate::proto::ProtoError;
-use crate::proto::streams::Counts;
 use crate::proto::streams::action::Actions;
+use crate::proto::streams::counts::Counts;
 use crate::{frame::Reason, proto::streams::Resolve};
 use std::task::{Context, Poll};
 use std::{

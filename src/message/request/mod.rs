@@ -7,7 +7,7 @@ use crate::message::TwoTwo;
 use crate::message::request::uri::Scheme;
 use crate::proto::ProtoError;
 use bytes::BytesMut;
-use http::{HeaderMap, Method, StatusCode};
+use http::{HeaderMap, Method};
 mod builder;
 pub mod uri;
 pub use builder::RequestBuilder;
@@ -109,7 +109,7 @@ impl Request {
             }
         }
 
-        /// Uri
+        // Uri
         let mut uri = Uri::default();
 
         // authority

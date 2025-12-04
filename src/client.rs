@@ -5,20 +5,18 @@ use std::{
 
 use bytes::Bytes;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tracing::trace;
 
 use crate::{
     Codec, Connection,
     builder::{BuildConnection, Builder},
     error::OpError,
-    frame::{self, StreamId},
+    frame::StreamId,
     message::{request::Request, response::Response},
-    proto::{
-        config::ConnectionConfig,
-        streams::{opaque_streams_ref::OpaqueStreamRef, streams::Streams},
-    },
+    proto::{config::ConnectionConfig, streams::Streams},
     role::Role,
 };
+
+use crate::proto::streams::OpaqueStreamRef;
 
 // ===== Builder =====
 pub struct Client;

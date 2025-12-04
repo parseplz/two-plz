@@ -4,9 +4,9 @@ use crate::frame::Frame;
 use crate::frame::Reason;
 use crate::frame::StreamId;
 use crate::proto::error::Initiator;
-use crate::proto::streams::Counts;
 use crate::proto::streams::Ptr;
 use crate::proto::streams::buffer::Buffer;
+use crate::proto::streams::counts::Counts;
 use crate::proto::streams::store::Store;
 use crate::{
     proto::{

@@ -7,7 +7,7 @@ use crate::{
 };
 
 mod builder;
-use builder::ResponseBuilder;
+pub use builder::ResponseBuilder;
 
 pub type Response = TwoTwo<ResponseLine>;
 
@@ -32,7 +32,7 @@ impl Response {
     pub fn from_http_two(
         pseudo: Pseudo,
         headers: HeaderMap,
-        stream_id: StreamId,
+        _stream_id: StreamId,
     ) -> Result<Response, ProtoError> {
         let mut b = ResponseBuilder::new();
         if let Some(status) = pseudo.status {

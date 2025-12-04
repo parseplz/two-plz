@@ -98,6 +98,6 @@ impl<T> IoStateExt<T> for Result<T, UserError> {
 impl<T> IoStateExt<T> for Result<T, proto::ProtoError> {
     #[inline]
     fn in_state(self, state: PrefaceErrorState) -> Result<T, PrefaceError> {
-        self.map_err(|e| PrefaceError::new(state, PrefaceErrorKind::Proto))
+        self.map_err(|_e| PrefaceError::new(state, PrefaceErrorKind::Proto))
     }
 }

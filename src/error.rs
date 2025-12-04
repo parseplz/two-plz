@@ -1,7 +1,7 @@
 use crate::codec::{SendError, UserError};
 use crate::frame::StreamId;
 use crate::proto::ProtoError;
-use crate::proto::{self, error::Initiator};
+use crate::proto::error::Initiator;
 
 use bytes::Bytes;
 use std::{error, fmt, io};

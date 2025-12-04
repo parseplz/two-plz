@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    task::{Context, Poll, Waker},
+    task::{Context, Poll},
     time::{Duration, Instant},
 };
 
@@ -11,16 +11,17 @@ use tracing::trace;
 use crate::{
     Codec,
     frame::{
-        self, DEFAULT_INITIAL_WINDOW_SIZE, Frame, Reason, StreamId,
-        StreamIdOverflow, headers::Pseudo,
+        self, DEFAULT_INITIAL_WINDOW_SIZE, Reason, StreamId, StreamIdOverflow,
+        headers::Pseudo,
     },
     message::{TwoTwo, request::Request, response::Response},
     proto::{
         MAX_WINDOW_SIZE, ProtoError, WindowSize,
         config::ConnectionConfig,
         streams::{
-            Counts, Store,
+            Store,
             buffer::Buffer,
+            counts::Counts,
             flow_control::FlowControl,
             store::{Key, Ptr, Queue},
             stream::{NextAccept, NextComplete, NextResetExpire, Stream},
@@ -303,7 +304,7 @@ impl Recv {
     /// Check if the headers frame is in right format and parse the headers
     ///
     /// The caller ensures that the frame represents headers and not trailers.
-    pub fn recv_headers(
+    pub(super) fn recv_headers(
         &mut self,
         frame: frame::Headers,
         stream: &mut Ptr,
@@ -423,7 +424,7 @@ impl Recv {
     }
 
     #[inline(always)]
-    pub fn check_frame_size(
+    fn check_frame_size(
         is_initial: bool,
         frame: &frame::Headers,
         stream: &mut Ptr,

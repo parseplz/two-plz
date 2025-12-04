@@ -21,7 +21,7 @@ pub trait Resolve {
 // We can never have more than `StreamId::MAX` streams in the store,
 // so we can save a smaller index (u32 vs usize).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct SlabIndex(u32);
+pub(crate) struct SlabIndex(u32);
 
 #[derive(Debug)]
 pub struct Store {
@@ -168,14 +168,4 @@ impl Resolve for Store {
 struct Indices {
     pub head: Key,
     pub tail: Key,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_store_insert() {
-        let store = Store::new();
-    }
 }

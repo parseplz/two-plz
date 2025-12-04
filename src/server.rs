@@ -1,26 +1,15 @@
 use crate::codec::UserError;
-use crate::proto::streams::store::{Resolve, Store};
 use crate::{
     Codec, Connection,
     builder::{BuildConnection, Builder},
-    frame,
     frame::StreamId,
-    frame::headers::Pseudo,
-    message::{
-        request::Request,
-        response::{Response, ResponseLine},
-    },
-    proto::{config::ConnectionConfig, streams::streams_ref::StreamRef},
+    message::{request::Request, response::Response},
+    proto::{config::ConnectionConfig, streams::StreamRef},
     role::Role,
 };
-use bytes::{Buf, Bytes};
+use bytes::Bytes;
 use futures::future::poll_fn;
-use http::{HeaderMap, HeaderValue};
-use std::pin::Pin;
-use std::{
-    io::Error,
-    task::{Context, Poll},
-};
+use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 // ===== Builder =====
@@ -108,7 +97,7 @@ where
     type Item = Result<(Request, SendResponse), crate::frame::Error>;
 
     fn poll_next(
-        mut self: Pin<&mut Self>,
+        mut self: std::pin::Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         self.poll_accept(cx)

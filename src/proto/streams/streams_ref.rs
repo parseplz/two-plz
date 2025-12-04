@@ -1,27 +1,22 @@
 use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
-use tracing::{debug, trace};
+use tracing::trace;
 
 use crate::{
     codec::UserError,
     error::Reason,
-    frame::Frame,
-    message::{
-        InfoLine, TwoTwo, TwoTwoFrame, request::Request, response::Response,
-    },
+    message::{TwoTwoFrame, request::Request, response::Response},
     proto::{
         error::Initiator,
         streams::{
-            buffer::Buffer,
             inner::Inner,
             opaque_streams_ref::OpaqueStreamRef,
             send_buffer::SendBuffer,
-            store::{Key, Ptr, Resolve},
+            store::{Ptr, Resolve},
             streams::queue_body_trailer,
         },
     },
-    server::Server,
 };
 
 /// Reference to the stream state
@@ -78,7 +73,7 @@ impl StreamRef<Bytes> {
                     counts,
                     &mut actions.task,
                 )
-            });
+            })?;
         trace!("[+] added| header");
 
         let mut stream = me.store.resolve(self.opaque.key);

@@ -1,17 +1,14 @@
-use bytes::{Buf, Bytes};
+use bytes::Bytes;
 use tokio::io::AsyncWrite;
-use tracing::{trace, trace_span};
+use tracing::trace;
 
 use crate::{
     Codec,
-    client::ResponseFuture,
     codec::{SendError, UserError},
     frame::{self, Frame},
     message::{TwoTwoFrame, request::Request},
     proto::{
-        WindowSize,
         config::ConnectionConfig,
-        error::Initiator,
         streams::{
             buffer::Buffer,
             inner::Inner,
@@ -362,10 +359,10 @@ impl<B> Drop for Streams<B> {
     fn drop(&mut self) {
         if let Ok(mut inner) = self.inner.lock() {
             inner.refs -= 1;
-            if inner.refs == 1 {
-                if let Some(task) = inner.actions.task.take() {
-                    task.wake();
-                }
+            if inner.refs == 1
+                && let Some(task) = inner.actions.task.take()
+            {
+                task.wake();
             }
         }
     }

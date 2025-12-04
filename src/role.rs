@@ -1,11 +1,8 @@
+use crate::frame::{Reason, StreamId, headers::Pseudo};
+use crate::message::{request::Request, response::Response};
 use crate::proto::ProtoError;
 use crate::proto::streams::Open;
-use bytes::BytesMut;
 use http::HeaderMap;
-
-use crate::frame::{Reason, StreamId, headers::Pseudo};
-
-use crate::message::{request::Request, response::Response};
 
 #[derive(Debug)]
 pub enum PollMessage {
@@ -34,7 +31,7 @@ impl Role {
     }
 
     /// Returns true if the remote peer can initiate a stream with the given ID.
-    pub fn ensure_can_open(
+    pub(crate) fn ensure_can_open(
         &self,
         id: StreamId,
         mode: Open,

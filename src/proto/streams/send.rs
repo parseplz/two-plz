@@ -1,4 +1,3 @@
-use bytes::Buf;
 use bytes::Bytes;
 use tokio::io::AsyncWrite;
 use tracing::trace;
@@ -13,13 +12,11 @@ use crate::frame::Reason;
 use crate::proto::ProtoError;
 use crate::proto::config::ConnectionConfig;
 use crate::proto::error::Initiator;
-use crate::proto::streams::Counts;
 use crate::proto::streams::Resolve;
 use crate::proto::streams::Store;
 use crate::proto::streams::buffer::Buffer;
+use crate::proto::streams::counts::Counts;
 use crate::proto::streams::flow_control::FlowControl;
-use crate::proto::streams::flow_control::Window;
-use crate::proto::streams::send_buffer::SendBuffer;
 use crate::proto::streams::store::Ptr;
 use crate::proto::streams::store::Queue;
 use crate::proto::streams::stream;
@@ -30,9 +27,7 @@ use std::task::Context;
 use std::task::Poll;
 use std::task::Waker;
 
-use crate::{
-    frame::StreamId, frame::StreamIdOverflow, proto::WindowSize, role::Role,
-};
+use crate::{frame::StreamId, frame::StreamIdOverflow, proto::WindowSize};
 
 #[derive(Debug)]
 pub struct Send {
@@ -183,7 +178,7 @@ impl Send {
         store: &mut Store,
         counts: &mut Counts,
         task: &mut Option<Waker>,
-    ) -> Result<(), super::ProtoError> {
+    ) -> Result<(), ProtoError> {
         if let Some(val) = settings.is_push_enabled() {
             self.is_push_enabled = val
         }
@@ -553,14 +548,14 @@ impl Send {
         counts: &mut Counts,
     ) -> Option<Ptr<'s>> {
         // check for any pending open streams
-        if counts.can_inc_num_send_streams() {
-            if let Some(mut stream) = self.pending_open.pop(store) {
-                trace!("pop pending open| {:?}", stream.id);
-                counts.inc_num_send_streams(&mut stream);
-                // TODO
-                // stream.notify_send();
-                return Some(stream);
-            }
+        if counts.can_inc_num_send_streams()
+            && let Some(mut stream) = self.pending_open.pop(store)
+        {
+            trace!("pop pending open| {:?}", stream.id);
+            counts.inc_num_send_streams(&mut stream);
+            // TODO
+            // stream.notify_send();
+            return Some(stream);
         }
         None
     }
@@ -636,7 +631,8 @@ impl Send {
                                 }
                                 stream.connection_window_allocated +=
                                     allocated;
-                                self.flow.dec_window(allocated);
+                                // TODO: error handling
+                                let _ = self.flow.dec_window(allocated);
                             }
 
                             // empty data frame

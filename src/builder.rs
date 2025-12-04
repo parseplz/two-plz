@@ -1,4 +1,4 @@
-use bytes::{Buf, Bytes};
+use bytes::Bytes;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::proto::config::ConnectionConfig;

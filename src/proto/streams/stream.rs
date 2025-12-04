@@ -63,7 +63,7 @@ pub(crate) struct Stream {
     pub recv_flow: FlowControl,
     pub content_length: ContentLength,
     /// When the RecvStream drop occurs, no data should be received.
-    /// TODO: why? 
+    /// TODO: why?
     pub _is_recv: bool,
     /// Task tracking receiving frames
     pub recv_task: Option<Waker>,
@@ -84,7 +84,7 @@ pub(crate) struct Stream {
 
     /// ===== Push Promise =====
     /// The stream's pending push promises
-    pub pending_push_promises: Queue<NextAccept>,
+    pub(super) pending_push_promises: Queue<NextAccept>,
 }
 
 impl Stream {
@@ -170,8 +170,7 @@ impl Stream {
             self.ref_count == 0 &&
             // The stream is not in any queue
             // send queues
-            !self.is_pending_send && !self.is_pending_send_capacity && 
-            !self.is_pending_open &&
+            !self.is_pending_send && !self.is_pending_send_capacity && !self.is_pending_open &&
             // recv queues
             !self.is_pending_accept && !self.is_pending_complete
             && self.reset_at.is_none()

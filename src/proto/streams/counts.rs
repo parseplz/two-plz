@@ -1,4 +1,4 @@
-use tracing::{debug, error, trace};
+use tracing::debug;
 
 use crate::{
     frame,

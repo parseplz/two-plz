@@ -27,7 +27,7 @@ struct PendingPing {
 }
 
 #[derive(Debug)]
-pub(crate) enum PingAction {
+pub enum PingAction {
     MustAck,
     Unknown,
     Shutdown,
@@ -91,16 +91,16 @@ impl PingHandler {
             dst.buffer(Ping::pong(pong).into())
                 .expect("invalid pong frame");
         }
-        if let Some(ref mut ping) = self.pending_ping {
-            if !ping.sent {
-                if !dst.poll_ready(cx)?.is_ready() {
-                    return Poll::Pending;
-                }
-
-                dst.buffer(Ping::new(ping.payload).into())
-                    .expect("invalid ping frame");
-                ping.sent = true;
+        if let Some(ref mut ping) = self.pending_ping
+            && !ping.sent
+        {
+            if !dst.poll_ready(cx)?.is_ready() {
+                return Poll::Pending;
             }
+
+            dst.buffer(Ping::new(ping.payload).into())
+                .expect("invalid ping frame");
+            ping.sent = true;
         }
         Poll::Ready(Ok(()))
     }

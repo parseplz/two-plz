@@ -8,7 +8,7 @@ use crate::{
     Codec,
     frame::Reason,
     frame::Settings,
-    proto::{self, ProtoError, streams::streams::Streams},
+    proto::{self, ProtoError, streams::Streams},
 };
 
 pub enum SettingsAction {

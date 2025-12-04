@@ -9,22 +9,20 @@ use crate::proto::error::Initiator;
 use crate::proto::go_away::GoAway;
 use crate::proto::settings::SettingsAction;
 use crate::proto::settings::SettingsHandler;
-use crate::proto::streams::streams::Streams;
-use crate::proto::streams::streams_ref::StreamRef;
+use crate::proto::streams::StreamRef;
+use crate::proto::streams::Streams;
 use crate::role::Role;
 
 use bytes::Bytes;
 use futures::Stream;
 use tokio::io::{AsyncRead, AsyncWrite};
+use tracing::trace;
 
-use crate::frame::{Headers, Settings};
+use crate::frame::Settings;
 use crate::{
     codec::{Codec, UserError},
-    frame::{Frame, Ping, StreamId},
-    proto::{
-        config::ConnectionConfig,
-        ping_pong::{PingAction, PingHandler},
-    },
+    frame::{Frame, StreamId},
+    proto::{config::ConnectionConfig, ping_pong::PingHandler},
 };
 
 pub enum ReadAction {
@@ -45,8 +43,8 @@ enum ConnectionState {
 }
 
 pub struct Connection<T> {
-    pub codec: Codec<T, Bytes>,
-    pub streams: Streams<Bytes>,
+    codec: Codec<T, Bytes>,
+    pub(crate) streams: Streams<Bytes>,
     goaway_handler: GoAway,
     ping_handler: PingHandler,
     settings_handler: SettingsHandler,
@@ -84,8 +82,8 @@ where
         }
     }
 
-    // ===== Server =====
-    pub fn next_accept(&mut self) -> Option<StreamRef<Bytes>> {
+    // ===== SERVER =====
+    pub(crate) fn next_accept(&mut self) -> Option<StreamRef<Bytes>> {
         self.streams.next_accept()
     }
 
@@ -118,13 +116,14 @@ where
 
     // ======== FRAMES ============
     pub fn recv_frame(&mut self, frame: Frame) -> Result<(), ProtoError> {
+        dbg!("recvd| {:?}", frame.kind());
         match frame {
             Frame::Data(data) => self.streams.recv_data(data),
             Frame::Headers(headers) => self.streams.recv_header(headers),
-            Frame::Priority(priority) => todo!(),
+            Frame::Priority(_priority) => todo!(),
             Frame::Reset(reset) => self.streams.recv_reset(reset),
             Frame::Settings(settings) => self.recv_settings(settings),
-            Frame::PushPromise(push_promise) => todo!(),
+            Frame::PushPromise(_push_promise) => todo!(),
             Frame::Ping(ping) => {
                 let action = self.ping_handler.handle(ping);
                 if action.is_shutdown() {
@@ -189,6 +188,7 @@ where
         let span = self.span.clone();
         let _e = span.enter();
         loop {
+            trace!(connection.state = ?self.state);
             match self.state {
                 ConnectionState::Open => {
                     let result = match self.poll2(cx) {
@@ -208,7 +208,7 @@ where
                     self.handle_poll2_result(result)?
                 }
                 ConnectionState::Closing(reason, initiator) => {
-                    tracing::trace!("closing after flush");
+                    trace!("closing after flush");
                     ready!(self.codec.shutdown(cx))?;
                     self.state = ConnectionState::Closed(reason, initiator);
                 }
@@ -223,7 +223,7 @@ where
     fn can_go_away(&self) -> bool {
         (self.error.is_some()
             || self
-                .go_away_handler
+                .goaway_handler
                 .should_close_on_idle())
             && !self.streams.has_streams()
     }
@@ -378,7 +378,7 @@ where
         if self
             .goaway_handler
             .going_away()
-            .map_or(false, |frame| frame.reason() == reason)
+            .is_some_and(|frame| frame.reason() == reason)
         {
             self.state = ConnectionState::Closing(reason, initiator);
             return;
@@ -442,28 +442,6 @@ where
             // important.
             (_, theirs) => Err(ProtoError::remote_go_away(debug_data, theirs)),
         }
-    }
-
-    // ===== client misc ====
-    /// Closes the connection by transitioning to a GOAWAY state
-    /// if there are no streams or references
-    pub fn maybe_close_connection_if_no_streams(&mut self) {
-        // If we poll() and realize that there are no streams or references
-        // then we can close the connection by transitioning to GOAWAY
-        if !self
-            .streams
-            .has_streams_or_other_references()
-        {
-            self.go_away_now(Reason::NO_ERROR);
-        }
-    }
-
-    /// Checks if there are any streams or references left
-    pub fn has_streams_or_other_references(&self) -> bool {
-        // If we poll() and realize that there are no streams or references
-        // then we can close the connection by transitioning to GOAWAY
-        self.streams
-            .has_streams_or_other_references()
     }
 
     // ==== GOAWAY =====

@@ -1,7 +1,3 @@
-use std::str::FromStr;
-
-use http::uri::InvalidUri;
-
 use crate::hpack::BytesStr;
 
 // Require the scheme to not be too long in order to enable further
@@ -41,7 +37,7 @@ impl PartialEq for Scheme {
         match (self, other) {
             (&Standard(Http), &Standard(Http)) => true,
             (&Standard(Https), &Standard(Https)) => true,
-            (&Other(ref a), &Other(ref b)) => a == b,
+            (Other(a), Other(b)) => a == b,
             (&None, &None) => unreachable!(),
             _ => false,
         }

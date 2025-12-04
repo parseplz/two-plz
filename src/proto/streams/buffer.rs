@@ -22,17 +22,6 @@ impl<T> Buffer<T> {
     pub fn is_empty(&self) -> bool {
         self.slab.is_empty()
     }
-
-    pub fn remove_linked_slots(&mut self, mut head: usize) {
-        loop {
-            let entry = self.slab.remove(head);
-            if let Some(next) = entry.next {
-                head = next;
-            } else {
-                break;
-            }
-        }
-    }
 }
 
 // Linked list
@@ -124,35 +113,4 @@ impl Deque {
 struct Indices {
     head: usize,
     tail: usize,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_buffer_remove() {
-        let mut buf = Buffer::new();
-        for i in 0..5 {
-            let _ = buf.slab.insert(Slot {
-                value: i,
-                next: Some(i + 1),
-            });
-        }
-
-        for i in 0..5 {
-            let _ = buf.slab.insert(Slot {
-                value: i * 10,
-                next: None,
-            });
-        }
-
-        buf.remove_linked_slots(0);
-        let mut drain = buf.slab.drain();
-
-        // check
-        for i in 1..5 {
-            assert_eq!(drain.next().unwrap().value, i * 10);
-        }
-    }
 }

@@ -25,7 +25,6 @@ pub mod error;
 pub mod ext;
 pub mod frame;
 pub mod hpack;
-pub mod io;
 pub mod message;
 pub mod preface;
 pub mod proto;

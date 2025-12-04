@@ -73,7 +73,7 @@ impl<T> From<(StreamId, TwoTwo<T>)> for TwoTwoFrame
 where
     T: InfoLine,
 {
-    fn from((stream_id, mut message): (StreamId, TwoTwo<T>)) -> Self {
+    fn from((stream_id, message): (StreamId, TwoTwo<T>)) -> Self {
         let (body, trailer) = (message.body, message.trailer);
         let pseudo = message.info_line.into_pseudo();
         let mut header =
