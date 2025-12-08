@@ -87,6 +87,19 @@ where
         }
         Poll::Pending
     }
+
+    pub fn poll_closed(
+        &mut self,
+        cx: &mut Context,
+    ) -> Poll<Result<(), OpError>> {
+        self.connection
+            .poll(cx)
+            .map_err(Into::into)
+    }
+
+    pub fn num_wired_streams(&self) -> usize {
+        self.connection.num_wired_streams()
+    }
 }
 
 #[cfg(feature = "stream")]
