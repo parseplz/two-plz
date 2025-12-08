@@ -51,7 +51,7 @@ impl Counts {
         Counts {
             role,
             max_send_streams: config
-                .local_settings
+                .peer_settings
                 .max_concurrent_streams()
                 .map(|v| v as usize)
                 .unwrap_or(usize::MAX),
@@ -266,6 +266,16 @@ impl Counts {
         if stream.is_released() {
             debug!("removed stream| {:?}", stream.id);
             stream.remove();
+        }
+    }
+}
+
+impl Drop for Counts {
+    fn drop(&mut self) {
+        use std::thread;
+
+        if !thread::panicking() {
+            debug_assert!(!self.has_streams());
         }
     }
 }
