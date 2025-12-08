@@ -116,7 +116,6 @@ where
 
     // ======== FRAMES ============
     pub fn recv_frame(&mut self, frame: Frame) -> Result<(), ProtoError> {
-        dbg!("recvd| {:?}", frame.kind());
         match frame {
             Frame::Data(data) => self.streams.recv_data(data),
             Frame::Headers(headers) => self.streams.recv_header(headers),
@@ -151,12 +150,12 @@ where
     // ===== Settings =====
     pub fn recv_settings(
         &mut self,
-        local: Settings,
+        settings: Settings,
     ) -> Result<(), ProtoError> {
-        if let SettingsAction::ApplyLocal(settings) =
-            self.settings_handler.recv(local)?
+        if let SettingsAction::ApplyLocal(local_settings) =
+            self.settings_handler.recv(settings)?
         {
-            self.apply_local_settings(settings)?;
+            self.apply_local_settings(local_settings)?;
         }
         Ok(())
     }
@@ -478,6 +477,11 @@ where
         // Notify all streams of reason we're abruptly closing.
         self.streams
             .handle_error(ProtoError::user_go_away(e));
+    }
+
+    // ===== Misc =====
+    pub fn num_wired_streams(&self) -> usize {
+        self.streams.num_wired_streams()
     }
 
     // ===== Test =====

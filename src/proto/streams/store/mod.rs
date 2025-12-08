@@ -133,6 +133,10 @@ impl Store {
     pub(crate) fn num_active_streams(&self) -> usize {
         self.ids.len()
     }
+
+    pub(crate) fn num_wired_streams(&self) -> usize {
+        self.slab.len()
+    }
 }
 
 impl Index<Key> for Store {

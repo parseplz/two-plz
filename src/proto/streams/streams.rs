@@ -348,6 +348,11 @@ impl Streams<Bytes> {
         let me = self.inner.lock().unwrap();
         me.store.num_active_streams()
     }
+
+    pub(crate) fn num_wired_streams(&self) -> usize {
+        let me = self.inner.lock().unwrap();
+        me.store.num_wired_streams()
+    }
 }
 
 impl<B> Clone for Streams<B> {
