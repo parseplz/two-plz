@@ -114,6 +114,10 @@ impl SendRequest {
                 inner: s,
             })
     }
+
+    pub fn num_active_streams(&self) -> usize {
+        self.inner.num_active_streams()
+    }
 }
 
 // ===== Response Future =====

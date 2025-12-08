@@ -129,6 +129,10 @@ impl Store {
 
         Ok(())
     }
+
+    pub(crate) fn num_active_streams(&self) -> usize {
+        self.ids.len()
+    }
 }
 
 impl Index<Key> for Store {

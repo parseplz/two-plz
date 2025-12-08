@@ -342,6 +342,12 @@ impl Streams<Bytes> {
         let mut me = self.inner.lock().map_err(|_| ())?;
         me.recv_eof(&self.send_buffer, clear_pending_accept)
     }
+
+    // ===== Misc ====
+    pub(crate) fn num_active_streams(&self) -> usize {
+        let me = self.inner.lock().unwrap();
+        me.store.num_active_streams()
+    }
 }
 
 impl<B> Clone for Streams<B> {
