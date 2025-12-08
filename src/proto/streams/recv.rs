@@ -628,6 +628,17 @@ impl Recv {
         // Receive an error
         stream.state.handle_error(err);
 
+        // clear pending recv queue
+        if stream.is_pending_complete {
+            while let Some(frame) = stream
+                .pending_recv
+                .pop_front(&mut self.buffer)
+            {
+                trace!(?frame, "dropping recvd frames");
+            }
+            stream.is_pending_complete = false;
+        }
+
         // If a receiver is waiting, notify it
         stream.notify_recv();
         // TODO: future
