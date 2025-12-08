@@ -251,6 +251,30 @@ where
         self
     }
 
+    /// Sets the maximum number of pending-accept remotely-reset streams.
+    ///
+    /// Streams that have been received by the peer, but not accepted by the
+    /// user, can also receive a RST_STREAM. This is a legitimate pattern: one
+    /// could send a request and then shortly after, realize it is not needed,
+    /// sending a CANCEL.
+    ///
+    /// However, since those streams are now "closed", they don't count towards
+    /// the max concurrent streams. So, they will sit in the accept queue,
+    /// using memory.
+    ///
+    /// When the number of remotely-reset streams sitting in the pending-accept
+    /// queue reaches this maximum value, a connection error with the code of
+    /// `ENHANCE_YOUR_CALM` will be sent to the peer, and returned by the
+    /// `Future`.
+    ///
+    pub fn max_pending_accept_reset_streams(
+        &mut self,
+        max: usize,
+    ) -> &mut Self {
+        self.remote_reset_stream_max = max;
+        self
+    }
+
     // TODO
     // Sets the first stream ID to something other than 1.
     //pub fn initial_stream_id(&mut self, stream_id: u32) -> &mut Self {
