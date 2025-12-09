@@ -283,18 +283,19 @@ impl Handle {
         T: Into<frame::Settings>,
     {
         let settings = settings.into();
+        // read preface
+        self.read_preface().await.unwrap();
         // Send a settings frame
         self.send(settings.into())
             .await
             .unwrap();
-        self.read_preface().await.unwrap();
 
+        // read settings
         let settings = match self.next().await {
             Some(frame) => match frame.unwrap() {
                 Frame::Settings(settings) => {
                     // Send the ACK
                     let ack = frame::Settings::ack();
-
                     // TODO: Don't unwrap?
                     self.send(ack.into()).await.unwrap();
 
@@ -309,10 +310,9 @@ impl Handle {
             }
         };
 
+        // read ack
         let frame = self.next().await.unwrap().unwrap();
         let f = assert_settings!(frame);
-
-        // Is ACK
         assert!(f.is_ack());
 
         settings
@@ -334,11 +334,13 @@ impl Handle {
     {
         self.write_preface().await;
 
+        // send settings
         let settings = settings.into();
         self.send(settings.into())
             .await
             .unwrap();
 
+        // read settings
         let frame = self
             .next()
             .await
@@ -348,13 +350,12 @@ impl Handle {
 
         // Send the ACK
         let ack = frame::Settings::ack();
-
         // TODO: Don't unwrap?
         self.send(ack.into()).await.unwrap();
 
+        // read ack
         let frame = self.next().await;
         let f = assert_settings!(frame.unwrap().unwrap());
-
         // Is ACK
         assert!(f.is_ack());
 

@@ -1,10 +1,5 @@
 pub use two_plz;
-
-pub use two_plz::client;
 use two_plz::client::ClientConnection;
-pub use two_plz::ext::Protocol;
-pub use two_plz::frame::StreamId;
-pub use two_plz::server;
 pub use two_plz::*;
 
 // Re-export mock
@@ -34,6 +29,18 @@ pub use {
     bytes, futures, http, tokio::io as tokio_io, tracing, tracing_subscriber,
 };
 
+// Re-export two-plz
+pub use two_plz::client;
+pub use two_plz::client::ClientBuilder;
+pub use two_plz::ext::Protocol;
+pub use two_plz::frame::StreamId;
+pub use two_plz::message::request::Request;
+pub use two_plz::message::response::Response;
+pub use two_plz::message::response::ResponseBuilder;
+pub use two_plz::message::response::ResponseLine;
+pub use two_plz::server;
+pub use two_plz::server::ServerBuilder;
+
 // Re-export primary future types
 pub use futures::{Future, Sink, Stream};
 
@@ -46,9 +53,7 @@ pub use super::future_ext::{
 pub use super::client_ext::SendRequestExt;
 
 // Re-export HTTP types
-pub use http::{
-    HeaderMap, Method, Request, Response, StatusCode, Version, uri,
-};
+pub use http::{HeaderMap, Method, StatusCode, Version, uri};
 
 pub use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -56,6 +61,8 @@ pub use tokio::io::{AsyncRead, AsyncWrite};
 
 pub use std::thread;
 pub use std::time::Duration;
+
+pub use frame::Reason;
 
 pub static MAGIC_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 

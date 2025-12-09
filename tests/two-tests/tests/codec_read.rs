@@ -1,7 +1,4 @@
-use support::{
-    build_test_request,
-    prelude::{client::ClientBuilder, frame::Reason, *},
-};
+use support::{build_test_request, prelude::*};
 
 #[tokio::test]
 async fn read_none() {
@@ -242,7 +239,7 @@ async fn read_goaway_with_debug_data() {
     };
 
     let data = poll_frame!(GoAway, codec);
-    assert_eq!(data.reason(), Reason::ENHANCE_YOUR_CALM);
+    assert_eq!(data.reason(), frame::Reason::ENHANCE_YOUR_CALM);
     assert_eq!(data.last_stream_id(), 1);
     assert_eq!(&**data.debug_data(), b"too_many_pings");
 
