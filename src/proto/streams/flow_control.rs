@@ -28,7 +28,15 @@ impl FlowControl {
     }
 
     pub fn available(&self) -> WindowSize {
-        self.capacity.as_size()
+        self.window.as_size()
+    }
+
+    pub fn dec_window(&mut self, sz: WindowSize) -> Result<(), Reason> {
+        self.window.decrease_by(sz)
+    }
+
+    pub fn inc_window(&mut self, sz: WindowSize) -> Result<(), Reason> {
+        self.window.increase_by(sz)
     }
 
     /// Check if should send WINDOW_UPDATE
@@ -39,21 +47,13 @@ impl FlowControl {
 
         let unclaimed = self.capacity.0 - self.window.0;
         let threshold =
-            self.window.0 / UNCLAIMED_DENOMINATOR * UNCLAIMED_NUMERATOR;
+            self.capacity.0 / UNCLAIMED_DENOMINATOR * UNCLAIMED_NUMERATOR;
 
         if unclaimed < threshold {
             None
         } else {
             Some(unclaimed as WindowSize)
         }
-    }
-
-    pub fn dec_window(&mut self, sz: WindowSize) -> Result<(), Reason> {
-        self.window.decrease_by(sz)
-    }
-
-    pub fn inc_window(&mut self, sz: WindowSize) -> Result<(), Reason> {
-        self.window.increase_by(sz)
     }
 }
 
