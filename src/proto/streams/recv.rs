@@ -179,6 +179,7 @@ impl Recv {
             process_remaining_frames(&mut response, stream, &mut self.buffer);
             Poll::Ready(Ok(response))
         } else {
+            stream.state.ensure_recv_open()?;
             stream.recv_task = Some(cx.waker().clone());
             Poll::Pending
         }
