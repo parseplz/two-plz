@@ -208,11 +208,14 @@ impl Recv {
             return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
         }
 
+        self.dec_connection_window(size)?;
+
+        // toggle check_connection_window_update
+        self.check_connection_window_update = true;
         if is_ignoring_frame {
-            return self.dec_connection_window(size);
+            return Ok(());
         }
 
-        self.dec_connection_window(size)?;
         if stream.recv_flow.window_size() < size {
             // http://httpwg.org/specs/rfc7540.html#WINDOW_UPDATE
             // > A receiver MAY respond with a stream error (Section 5.4.2) or
@@ -293,8 +296,6 @@ impl Recv {
             }
         }
 
-        // toggle check_connection_window_update
-        self.check_connection_window_update = true;
         // add stream key to check for window update
         self.check_stream_window_update = Some(stream.key);
         trace!("[+] check stream window update| {:?}", stream.id);
