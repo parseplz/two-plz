@@ -8,6 +8,7 @@ pub struct ResponseBuilder {
     pub status: StatusCode,
     pub headers: HeaderMap<HeaderValue>,
     pub body: Option<BytesMut>,
+    pub trailer: Option<HeaderMap<HeaderValue>>,
 }
 
 impl ResponseBuilder {
@@ -20,6 +21,16 @@ impl ResponseBuilder {
         self
     }
 
+    pub fn body(mut self, b: BytesMut) -> Self {
+        self.body = Some(b);
+        self
+    }
+
+    pub fn trailer(mut self, t: HeaderMap<HeaderValue>) -> Self {
+        self.trailer = Some(t);
+        self
+    }
+
     pub fn build(self) -> Response {
         Response {
             info_line: ResponseLine {
@@ -27,7 +38,7 @@ impl ResponseBuilder {
             },
             headers: self.headers,
             body: self.body,
-            trailer: None,
+            trailer: self.trailer,
         }
     }
 }
