@@ -389,15 +389,13 @@ impl Inner {
                 })
             }
         });
-
         actions.conn_error = Some(err);
-
         Ok(())
     }
 
-    pub fn handle_error<B>(
+    pub fn handle_error(
         &mut self,
-        send_buffer: &SendBuffer<B>,
+        send_buffer: &SendBuffer<Bytes>,
         err: ProtoError,
     ) -> StreamId {
         let actions = &mut self.actions;
@@ -420,9 +418,7 @@ impl Inner {
                     .handle_error(send_buffer, stream, counts);
             })
         });
-
         actions.conn_error = Some(err);
-
         last_processed_id
     }
 
