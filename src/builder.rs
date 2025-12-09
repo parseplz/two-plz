@@ -90,13 +90,13 @@ where
     // ===== Flow Control =====
 
     // connection level
-    pub fn initial_connection_window_size(&mut self, size: u32) -> &mut Self {
+    pub fn initial_connection_window_size(mut self, size: u32) -> Self {
         self.initial_connection_window_size = Some(size);
         self
     }
 
     // stream level
-    pub fn initial_window_size(&mut self, size: u32) -> &mut Self {
+    pub fn initial_window_size(mut self, size: u32) -> Self {
         self.settings
             .set_initial_window_size(Some(size));
         self
@@ -113,7 +113,7 @@ where
     ///
     /// The value **must** be between 16,384 and 16,777,215. The default value
     /// is 16,384.
-    pub fn max_frame_size(&mut self, max: u32) -> &mut Self {
+    pub fn max_frame_size(mut self, max: u32) -> Self {
         self.settings
             .set_max_frame_size(Some(max));
         self
@@ -128,7 +128,7 @@ where
     ///
     /// This setting is also used to limit the maximum amount of data that is
     /// buffered to decode HEADERS frames.
-    pub fn max_header_list_size(&mut self, max: u32) -> &mut Self {
+    pub fn max_header_list_size(mut self, max: u32) -> Self {
         self.settings
             .set_max_header_list_size(Some(max));
         self
@@ -157,7 +157,7 @@ where
     /// See [Section 5.1.2] in the HTTP/2 spec for more details.
     ///
     /// [Section 5.1.2]: https://http2.github.io/http2-spec/#rfc.section.5.1.2
-    pub fn max_concurrent_streams(&mut self, max: u32) -> &mut Self {
+    pub fn max_concurrent_streams(mut self, max: u32) -> Self {
         self.settings
             .set_max_concurrent_streams(Some(max));
         self
@@ -170,7 +170,7 @@ where
     /// equal to or less than the header table size specified by the sender.
     ///
     /// The default value is 4,096.
-    pub fn header_table_size(&mut self, size: u32) -> &mut Self {
+    pub fn header_table_size(mut self, size: u32) -> Self {
         self.settings
             .set_header_table_size(Some(size));
         self
@@ -197,7 +197,7 @@ where
     /// error, forcing the connection to terminate.
     ///
     /// The default value is currently 50.
-    pub fn max_concurrent_reset_streams(&mut self, max: usize) -> &mut Self {
+    pub fn max_concurrent_reset_streams(mut self, max: usize) -> Self {
         self.local_reset_stream_max = max;
         self
     }
@@ -221,7 +221,7 @@ where
     /// error, forcing the connection to terminate.
     ///
     /// The default value is currently 1 second.
-    pub fn reset_stream_duration(&mut self, dur: Duration) -> &mut Self {
+    pub fn reset_stream_duration(mut self, dur: Duration) -> Self {
         self.reset_stream_duration = dur;
         self
     }
@@ -244,9 +244,9 @@ where
     ///
     /// The default value is currently 1024, but could change.
     pub fn max_local_error_reset_streams(
-        &mut self,
+        mut self,
         max: Option<usize>,
-    ) -> &mut Self {
+    ) -> Self {
         self.local_max_error_reset_streams = max;
         self
     }
@@ -267,10 +267,7 @@ where
     /// `ENHANCE_YOUR_CALM` will be sent to the peer, and returned by the
     /// `Future`.
     ///
-    pub fn max_pending_accept_reset_streams(
-        &mut self,
-        max: usize,
-    ) -> &mut Self {
+    pub fn max_pending_accept_reset_streams(mut self, max: usize) -> Self {
         self.remote_reset_stream_max = max;
         self
     }
@@ -285,7 +282,7 @@ where
     //
 
     pub async fn handshake<T>(
-        &mut self,
+        self,
         io: T,
     ) -> Result<R::Connection<T>, PrefaceError>
     where
