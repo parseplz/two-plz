@@ -80,10 +80,9 @@ impl MockH2 for tokio_test::io::Builder {
 
     fn handshake_read_settings(&mut self, settings: &[u8]) -> &mut Self {
         self.write(MAGIC_PREFACE)
-            // Settings frame
-            .write(frames::SETTINGS)
+            .write(frames::NEW_SETTINGS)
             .read(settings)
-            .read(frames::SETTINGS_ACK)
+            .write(frames::SETTINGS_ACK)
     }
 }
 

@@ -84,7 +84,9 @@ macro_rules! poll_frame {
 #[macro_export]
 macro_rules! assert_default_settings {
     ($settings: expr) => {{
-        assert_frame_eq($settings, frame::Settings::default());
+        let mut frame = frame::Settings::default();
+        frame.set_enable_push(false);
+        assert_frame_eq($settings, frame);
     }};
 }
 
