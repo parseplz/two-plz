@@ -31,6 +31,16 @@ impl RequestBuilder {
         self
     }
 
+    pub fn body(mut self, b: BytesMut) -> Self {
+        self.body = Some(b);
+        self
+    }
+
+    pub fn trailer(mut self, t: HeaderMap<HeaderValue>) -> Self {
+        self.trailer = Some(t);
+        self
+    }
+
     pub fn build(self) -> Request {
         let info_line = RequestLine {
             method: self.method,
