@@ -120,9 +120,9 @@ where
 }
 
 pub enum PrefaceState<T> {
-    SendPreface(T, Settings), // client only
-    SendLocalSettings(PrefaceConn<T>),
+    SendPreface(T, Settings),    // client only
     ReadPreface(PrefaceConn<T>), // server only
+    SendLocalSettings(PrefaceConn<T>),
     ReadPeerSettings(PrefaceConn<T>),
     SendPeerSettingsAck(PrefaceConn<T>),
     Flush(PrefaceConn<T>),
@@ -189,6 +189,18 @@ where
                 }
             }
             Self::SendPeerSettingsAck(mut conn) => {
+                // apply peer settings
+                let settings = conn.remote_settings.as_ref().unwrap();
+                info!("[+] applying peer settings| {:?}", settings);
+                if let Some(val) = settings.header_table_size() {
+                    conn.stream
+                        .set_send_header_table_size(val as usize);
+                }
+
+                if let Some(val) = settings.max_frame_size() {
+                    conn.stream
+                        .set_max_send_frame_size(val as usize);
+                }
                 info!("[+] send peer settings ack");
                 conn.poll_settings_ack()
                     .in_state(PrefaceErrorState::PollClientSettingsAck)?;
