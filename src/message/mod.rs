@@ -51,6 +51,10 @@ impl<T> TwoTwo<T> {
     pub fn set_headers(&mut self, headers: HeaderMap) {
         self.headers = headers;
     }
+
+    pub fn trailers(&self) -> Option<&HeaderMap> {
+        self.trailer.as_ref()
+    }
 }
 
 pub struct TwoTwoFrame {
