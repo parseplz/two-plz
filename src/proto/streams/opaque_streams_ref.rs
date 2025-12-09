@@ -1,3 +1,5 @@
+use tracing::trace;
+
 use crate::frame::StreamId;
 use crate::message::response::Response;
 use crate::proto::ProtoError;
@@ -78,7 +80,7 @@ impl Drop for OpaqueStreamRef {
         me.refs -= 1;
         let mut stream = me.store.resolve(self.key);
 
-        tracing::trace!("drop_stream_ref| {:?}", stream.id);
+        trace!("drop_stream_ref| {:?}", stream.id);
 
         // decrement the stream's ref count by 1.
         stream.ref_dec();
@@ -93,6 +95,7 @@ impl Drop for OpaqueStreamRef {
             && stream.is_closed()
             && let Some(task) = actions.task.take()
         {
+            trace!("stream already closed");
             task.wake();
         }
 

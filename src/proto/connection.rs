@@ -17,6 +17,7 @@ use bytes::Bytes;
 use futures::Stream;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::trace;
+use tracing::trace_span;
 
 use crate::frame::Settings;
 use crate::{
@@ -76,7 +77,7 @@ where
             ),
             codec,
             role: role.clone(),
-            span: tracing::debug_span!("conn", "{}", role.as_str()),
+            span: trace_span!("conn", "{}", role.as_str()),
             streams: Streams::new(role, config),
             error: None,
         }

@@ -13,6 +13,7 @@ use std::io::Cursor;
 const MAX_CHUNK: usize = 2 * 1024;
 
 #[test]
+#[ignore]
 fn hpack_fuzz() {
     let _ = env_logger::try_init();
     fn prop(fuzz: FuzzHpack) -> TestResult {

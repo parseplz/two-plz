@@ -42,8 +42,8 @@ enum Local {
 impl SettingsHandler {
     pub(crate) fn new(local: Settings) -> Self {
         SettingsHandler {
-            // We assume the initial local SETTINGS were flushed during
-            // the handshake process.
+            // initial local SETTINGS were flushed during the handshake process
+            // and is waiting for ACK from peer
             local: Local::WaitingAck(local),
             remote: None,
         }

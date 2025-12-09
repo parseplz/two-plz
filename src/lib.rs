@@ -1,4 +1,10 @@
-#![allow(warnings, dead_code)]
+#![allow(dead_code)]
+#![allow(
+    clippy::new_without_default,
+    clippy::large_enum_variant,
+    clippy::result_large_err,
+    clippy::len_without_is_empty
+)]
 
 macro_rules! proto_err {
     (conn: $($msg:tt)+) => {

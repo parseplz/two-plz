@@ -285,7 +285,7 @@ where
     //
 
     pub async fn handshake<T>(
-        self,
+        &mut self,
         io: T,
     ) -> Result<R::Connection<T>, PrefaceError>
     where
@@ -308,7 +308,6 @@ where
         let mut preface = PrefaceConn::try_from(state)?;
         let remote_settings = preface.take_remote_settings();
         let config = self.build_config(remote_settings);
-
         Ok(R::build(preface.role, config, preface.stream))
     }
 

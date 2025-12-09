@@ -1,4 +1,5 @@
 use crate::codec::UserError;
+use crate::error::OpError;
 use crate::{
     Codec, Connection,
     builder::{BuildConnection, Builder},
