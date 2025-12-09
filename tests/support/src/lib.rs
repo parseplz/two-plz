@@ -10,10 +10,13 @@ pub mod util;
 mod client_ext;
 mod future_ext;
 
-use http::Method;
+use bytes::BytesMut;
+use http::header::HOST;
+use http::{HeaderMap, Method, StatusCode};
 use two_plz::hpack::BytesStr;
 use two_plz::message::request::uri::{Scheme, Uri};
 use two_plz::message::request::{Request, RequestBuilder};
+use two_plz::message::response::{Response, ResponseLine};
 
 pub use crate::client_ext::SendRequestExt;
 pub use crate::future_ext::TestFuture;
@@ -38,4 +41,48 @@ macro_rules! trace_init {
         );
         let _e = span.enter();
     };
+}
+
+pub fn build_test_request() -> Request {
+    let mut uri = Uri::default();
+    uri = uri.authority(BytesStr::from_static("http2.akamai.com"));
+    uri = uri.scheme(Scheme::HTTPS);
+    RequestBuilder::new()
+        .method(Method::GET)
+        .uri(uri)
+        .build()
+}
+
+pub fn build_test_request_post(host: &str) -> Request {
+    let mut uri = Uri::default();
+    uri = uri.authority(BytesStr::unchecked_from_slice(host.as_bytes()));
+    uri = uri.scheme(Scheme::HTTPS);
+    RequestBuilder::new()
+        .method(Method::POST)
+        .uri(uri)
+        .body("hello".into())
+        .build()
+}
+
+pub fn build_test_response() -> Response {
+    let scode = ResponseLine {
+        status: StatusCode::from_u16(200).unwrap(),
+    };
+    let mut headers = HeaderMap::new();
+    headers.insert(HOST, "example.com".parse().unwrap());
+    headers.insert("Jeans", "pant".parse().unwrap());
+    // body
+    //let mut body = BytesMut::with_capacity(65535 * 1000);
+    //for _ in 0..10000 {
+    //    body.put(&b"dead body"[..]);
+    //}
+    //let body = BytesMut::from("dead body");
+    let body = BytesMut::new();
+    let body = Some(body);
+    //let body = None;
+
+    // trailer
+    let trailers = Some(headers.clone());
+    //let trailers = None;
+    Response::new(scode, headers, body, trailers)
 }
