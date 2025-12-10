@@ -509,8 +509,11 @@ impl Inner {
             let frame = frame::WindowUpdate::new(stream_id, size);
             dst.buffer(frame.into())
                 .expect("invalid WINDOW_UPDATE frame");
-            let mut stream = self.store.find_mut(&stream_id).unwrap();
-            let _ = stream.recv_flow.inc_window(size);
+            if let Some(mut stream) = self.store.find_mut(&stream_id) {
+                let _ = stream.recv_flow.inc_window(size);
+            } else {
+                error!("send window update not found| {:?}  ", stream_id);
+            }
         }
 
         self.actions
@@ -568,6 +571,7 @@ impl Inner {
         ))?;
 
         // Nothing else to do, track the task
+        trace!("task parked");
         self.actions.task = Some(cx.waker().clone());
         Poll::Ready(Ok(()))
     }
