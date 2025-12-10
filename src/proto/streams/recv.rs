@@ -208,6 +208,7 @@ impl Recv {
             return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
         }
 
+        // dec connection window
         self.dec_connection_window(size)?;
 
         // toggle check_connection_window_update
@@ -264,15 +265,14 @@ impl Recv {
             }
         }
 
-        // update stream flow control
+        // dec stream flow control
         stream
             .recv_flow
             .dec_window(size)
             .map_err(ProtoError::library_go_away)?;
 
-        let event = Event::Data(frame.into_payload());
-
         // Push the frame onto the recv buffer
+        let event = Event::Data(frame.into_payload());
         stream
             .pending_recv
             .push_back(&mut self.buffer, event);
@@ -296,8 +296,10 @@ impl Recv {
             }
         }
 
-        // add stream key to check for window update
-        self.check_stream_window_update = Some(stream.key);
+        // if !is_eos, add stream key to check for window update
+        if !is_eos {
+            self.check_stream_window_update = Some(stream.key);
+        }
         trace!("[+] check stream window update| {:?}", stream.id);
         Ok(())
     }
@@ -700,7 +702,8 @@ impl Recv {
             self.pending_reset_expired.push(stream);
         } else {
             trace!(
-                "enqueue_reset_expiration| dropped {:?}, over max_concurrent_reset_streams",
+                "enqueue_reset_expiration| dropped {:?}, over \
+                max_concurrent_reset_streams",
                 stream.id
             );
         }
