@@ -388,7 +388,6 @@ pub fn queue_body_trailer(
     trailer_frame: Option<frame::Headers>,
     send_buffer: &mut Buffer<Frame>,
 ) {
-    let set_closed = data_frame.is_some() || trailer_frame.is_some();
     if let Some(frame) = data_frame {
         trace!("[+] added| data");
         stream.remaining_data_len = Some(frame.payload().len());
@@ -402,9 +401,5 @@ pub fn queue_body_trailer(
         stream
             .pending_send
             .push_back(send_buffer, frame.into());
-    }
-
-    if set_closed {
-        stream.state.send_close();
     }
 }

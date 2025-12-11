@@ -733,11 +733,13 @@ impl Send {
                                 if stream.remaining_data_len.is_none() {
                                     trace!("data| completed");
                                     if stream.pending_send.is_empty() {
+                                        stream.state.send_close();
                                         trace!("data| eos");
                                         data_frame.set_end_stream(true);
                                     }
                                 } else {
-                                    trace!("data| remaining");
+                                    trace!("trailer| remaining");
+                                    stream.is_sending_trailer = true;
                                     stream
                                         .pending_send
                                         .push_front(buffer, frame.into());
@@ -753,6 +755,9 @@ impl Send {
                                     stream.remaining_data_len.unwrap()
                                 );
                                 self.try_assign_capacity(&mut stream);
+                            }
+                            if stream.is_sending_trailer {
+                               stream.state.send_close();
                             }
                             Frame::Headers(header)
                         }
