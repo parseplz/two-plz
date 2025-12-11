@@ -247,7 +247,7 @@ impl Counts {
         is_reset_counted: bool,
     ) {
         let span =
-            span!(Level::TRACE, "transition after", "| {:?}| ", stream.id);
+            span!(Level::TRACE, "transition after| ", "{:?}| ", stream.id);
         let _enter = span.enter();
         if stream.is_closed() {
             trace!("closed");

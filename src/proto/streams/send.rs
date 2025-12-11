@@ -410,7 +410,7 @@ impl Send {
         let remaining_data_len = if let Some(rem) = stream.remaining_data_len {
             rem
         } else {
-            trace!("[-] no remaining data");
+            trace!("no remaining data");
             return;
         };
         trace!("remaining| {remaining_data_len}");
@@ -421,7 +421,7 @@ impl Send {
         // check stream capacity
         // when, connection window update
         if stream_available == 0 {
-            trace!("[-] stream flow unavailable");
+            trace!("stream flow unavailable");
             return;
         }
 
@@ -429,7 +429,7 @@ impl Send {
         // 1. stream window update
         // 2. settings initial frame size change
         if self.flow.available() == 0 {
-            trace!("[-] con flow unavailable");
+            trace!("conn flow unavailable");
             self.pending_capacity.push(stream);
             return;
         }
@@ -640,16 +640,18 @@ impl Send {
                                 } else {
                                     continue;
                                 };
+                            trace!("remaining data len| {remaining_data_len}");
                             // Get the amount of capacity remaining for stream's
                             // window.
                             let stream_available =
                                 stream.send_flow.available();
+                            trace!("stream flow| {stream_available}");
 
                             // Zero length data frames always have capacity to
                             // be sent.
                             if stream_available == 0 && remaining_data_len > 0
                             {
-                                trace!("[-] no stream flow");
+                                trace!("no stream flow");
                                 // Ensure that the stream is waiting for
                                 // connection level capacity
                                 //
@@ -679,9 +681,13 @@ impl Send {
                                     remaining_data_len as u32,
                                 );
                                 if allocated == 0 {
+                                    trace!(
+                                        "no conn capacity| added to pending capacity"
+                                    );
                                     self.pending_capacity.push(&mut stream);
                                     continue;
                                 }
+                                trace!("allocated| {allocated}");
                                 stream.connection_window_allocated +=
                                     allocated;
                                 // TODO: error handling
@@ -706,6 +712,8 @@ impl Send {
                                     stream.connection_window_allocated,
                                 );
 
+                                trace!("min data| {len}");
+
                                 // There *must* be be enough connection level
                                 // capacity at this point.
                                 debug_assert!(
@@ -723,6 +731,16 @@ impl Send {
                                     .remaining_data_len
                                     .map(|rem| rem - len as usize)
                                     .filter(|&rem| rem > 0);
+
+                                trace!(
+                                    "remaining data len| {:?}",
+                                    stream.remaining_data_len
+                                );
+                                trace!(
+                                    "stream remaining allocated| {0}",
+                                    stream.connection_window_allocated
+                                );
+                                trace!("stream flow| {stream_available}");
 
                                 // split the buf
                                 let data = frame
@@ -757,7 +775,7 @@ impl Send {
                                 self.try_assign_capacity(&mut stream);
                             }
                             if stream.is_sending_trailer {
-                               stream.state.send_close();
+                                stream.state.send_close();
                             }
                             Frame::Headers(header)
                         }
@@ -828,15 +846,14 @@ impl Send {
             if let Some(mut stream) = self.pop_pending_open(store, counts) {
                 self.pending_send
                     .push_front(&mut stream);
-                self.try_assign_capacity(&mut stream);
             }
 
             match self.pop_frame(buffer, store, max_frame_len, counts) {
                 Some(frame) => {
+                    trace!("frame buffered| {:?}", frame);
                     dst.buffer(frame)
                         .expect("invalid frame");
                     ready!(dst.poll_ready(cx))?;
-                    trace!("frame sent");
                 }
                 None => {
                     ready!(dst.flush(cx))?;

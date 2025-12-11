@@ -117,6 +117,7 @@ where
 
     // ======== FRAMES ============
     pub fn recv_frame(&mut self, frame: Frame) -> Result<(), ProtoError> {
+        trace!("recv frame| {:?}", &frame);
         match frame {
             Frame::Data(data) => self.streams.recv_data(data),
             Frame::Headers(headers) => self.streams.recv_header(headers),

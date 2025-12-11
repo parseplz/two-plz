@@ -84,6 +84,13 @@ where
         let result = self.inner.poll(cx).map_err(Into::into);
         // if we had streams/refs, and don't anymore, wake up one more time to
         // ensure proper shutdown
+
+        //dbg!(result.is_pending());
+        //dbg!(had_streams_or_refs);
+        //dbg!(
+        //    self.inner
+        //        .has_streams_or_other_references()
+        //);
         if result.is_pending()
             && had_streams_or_refs
             && !self

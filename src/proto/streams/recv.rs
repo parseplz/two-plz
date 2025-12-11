@@ -282,7 +282,7 @@ impl Recv {
         if !is_eos {
             self.check_stream_window_update = Some(stream.key);
         }
-        trace!("[+] check stream window update| {:?}", stream.id);
+        trace!("to check wu| {:?}", stream.id);
         Ok(())
     }
 
@@ -821,6 +821,7 @@ impl Recv {
                             > reset_duration
                     })
             {
+                trace!("clearing expired| {:?}", stream.id);
                 counts.transition_after(stream, true);
             }
         }
