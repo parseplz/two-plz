@@ -136,10 +136,6 @@ impl ResponseFuture {
     pub fn stream_id(&self) -> StreamId {
         self.inner.stream_id()
     }
-
-    pub fn send_reset(&mut self, reason: Reason) {
-        self.inner.send_reset(reason)
-    }
 }
 
 impl Future for ResponseFuture {
