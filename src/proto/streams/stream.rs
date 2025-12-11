@@ -85,6 +85,9 @@ pub(crate) struct Stream {
     /// ===== Push Promise =====
     /// The stream's pending push promises
     pub(super) pending_push_promises: Queue<NextAccept>,
+
+    // ===== trailers =====
+    pub is_sending_trailer: bool,
 }
 
 impl Stream {
@@ -129,6 +132,8 @@ impl Stream {
             next_reset_expire: None,
             // push promise
             pending_push_promises: Queue::new(),
+            // trailers
+            is_sending_trailer: false,
         }
     }
 
