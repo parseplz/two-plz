@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use tracing::warn;
 
 use crate::frame::Frame;
 use crate::frame::Reason;
@@ -57,6 +58,10 @@ impl Actions {
                 if counts.can_inc_num_local_error_resets() {
                     counts.inc_num_local_error_resets();
                 } else {
+                    warn!(
+                        "local reset limit reached| {:?}",
+                        counts.max_local_error_resets().unwrap()
+                    );
                     return Err(crate::proto::error::GoAway {
                         reason: Reason::ENHANCE_YOUR_CALM,
                         debug_data: "too_many_internal_resets".into(),
@@ -103,9 +108,14 @@ impl Actions {
                 );
                 self.recv
                     .enqueue_reset_expiration(stream, counts);
+                // if a RecvStream is parked, ensure it's notified
                 stream.notify_recv();
                 Ok(())
             } else {
+                warn!(
+                    "local reset limit reached| {:?}",
+                    counts.max_local_error_resets().unwrap()
+                );
                 Err(ProtoError::library_go_away_data(
                     Reason::ENHANCE_YOUR_CALM,
                     "too_many_internal_resets",

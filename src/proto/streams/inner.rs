@@ -27,7 +27,9 @@ use std::task::Poll;
 use crate::role::Role;
 use bytes::Bytes;
 use tokio::io::AsyncWrite;
+use tracing::Level;
 use tracing::error;
+use tracing::span;
 use tracing::trace;
 
 /// Fields needed to manage state related to managing the set of streams. This
@@ -105,19 +107,9 @@ impl Inner {
 
         self.counts
             .transition(stream, |counts, stream| {
-                let sz = frame.payload().len();
                 let res = actions
                     .recv
                     .recv_data(frame, stream, &role);
-
-                // Any stream error after receiving a DATA frame means
-                // we won't give the data to the user, and so they can't
-                // release the capacity. We do it automatically.
-                if let Err(ProtoError::Reset(..)) = res {
-                    actions
-                        .recv
-                        .dec_connection_window(sz as WindowSize)?;
-                }
                 actions.reset_on_recv_stream_err(
                     send_buffer,
                     stream,
@@ -134,11 +126,14 @@ impl Inner {
         frame: frame::Headers,
     ) -> Result<(), ProtoError> {
         let id = frame.stream_id();
+        let span = span!(Level::TRACE, "recv headers| ", "{:?}| ", id);
+        let _enter = span.enter();
         let role = self.counts.role();
 
         // The GOAWAY process has begun. All streams with a greater ID than
         // specified as part of GOAWAY should be ignored.
         if id > self.actions.recv.max_stream_id() {
+            trace!("> max stream id| ignoring");
             return Ok(());
         }
 
@@ -154,7 +149,7 @@ impl Inner {
             // Locally reset streams must ignore frames "for some time".
             // This is because the remote may have sent trailers before
             // receiving the RST_STREAM frame.
-            trace!("recv_headers| ignoring trailers on|{:?}", stream.id);
+            trace!("local_error");
             return Ok(());
         }
 
@@ -162,42 +157,72 @@ impl Inner {
         let mut send_buffer = send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
 
-        self.counts.transition(stream, |counts, stream| {
-            let res = if stream.state.is_recv_headers() {
-                match actions.recv.recv_headers(frame, stream, counts) {
-                    Ok(()) => Ok(()),
-                    Err(RecvHeaderBlockError::Oversize(resp)) => {
-                        // server => 431 error 
-                        if let Some(resp) = resp {
-                            let sent = actions.send.send_headers(
-                                resp, send_buffer, stream, counts, &mut actions.task);
-                            debug_assert!(sent.is_ok(), "oversize response should not fail");
-                            actions.send.schedule_implicit_reset(
-                                stream,
-                                Reason::PROTOCOL_ERROR,
-                                counts,
-                                &mut actions.task);
-                            actions.recv.enqueue_reset_expiration(stream, counts);
-                            Ok(())
-                        } else {
-                            // client => ProtoError
-                            Err(ProtoError::library_reset(stream.id, Reason::PROTOCOL_ERROR))
+        self.counts
+            .transition(stream, |counts, stream| {
+                let res = if stream.state.is_recv_headers() {
+                    match actions
+                        .recv
+                        .recv_headers(frame, stream, counts)
+                    {
+                        Ok(()) => Ok(()),
+                        Err(RecvHeaderBlockError::Oversize(resp)) => {
+                            error!("header oversized");
+                            // server => 431 error
+                            if let Some(resp) = resp {
+                                let sent = actions.send.send_headers(
+                                    resp,
+                                    send_buffer,
+                                    stream,
+                                    counts,
+                                    &mut actions.task,
+                                );
+                                debug_assert!(
+                                    sent.is_ok(),
+                                    "oversize response should not fail"
+                                );
+                                actions.send.schedule_implicit_reset(
+                                    stream,
+                                    Reason::PROTOCOL_ERROR,
+                                    counts,
+                                    &mut actions.task,
+                                );
+                                actions
+                                    .recv
+                                    .enqueue_reset_expiration(stream, counts);
+                                Ok(())
+                            } else {
+                                // client => ProtoError
+                                Err(ProtoError::library_reset(
+                                    stream.id,
+                                    Reason::PROTOCOL_ERROR,
+                                ))
+                            }
                         }
-                    },
-                    Err(RecvHeaderBlockError::State(e)) => Err(e),
-                }
-            } else {
-                // Trailers
-                if !frame.is_end_stream() {
-                    // Receiving trailers that don't set EOS is a "malformed"
-                    // message. Malformed messages are a stream error.
-                    proto_err!(stream: "trailers withour EOS| stream={:?}", stream.id);
-                    return Err(ProtoError::library_reset(stream.id, Reason::PROTOCOL_ERROR));
-                }
-                actions.recv.recv_trailers(frame, stream, &role)
-            };
-            actions.reset_on_recv_stream_err(send_buffer, stream, counts, res)
-        })
+                        Err(RecvHeaderBlockError::State(e)) => Err(e),
+                    }
+                } else {
+                    trace!("trailers");
+                    // Trailers
+                    if !frame.is_end_stream() {
+                        // Receiving trailers that don't set EOS is a "malformed"
+                        // message. Malformed messages are a stream error.
+                        error!("trailers withour EOS");
+                        return Err(ProtoError::library_reset(
+                            stream.id,
+                            Reason::PROTOCOL_ERROR,
+                        ));
+                    }
+                    actions
+                        .recv
+                        .recv_trailers(frame, stream, &role)
+                };
+                actions.reset_on_recv_stream_err(
+                    send_buffer,
+                    stream,
+                    counts,
+                    res,
+                )
+            })
     }
 
     #[inline(always)]
@@ -208,10 +233,11 @@ impl Inner {
     ) -> Result<Option<Key>, ProtoError> {
         let key = match self.store.find_entry(id) {
             Entry::Occupied(entry) => {
-                trace!("new entry| {:?}", id);
+                trace!("new entry");
                 entry.key()
             }
             Entry::Vacant(entry) => {
+                trace!("vacant");
                 // Client: it's possible to send a request, and then send
                 // a RST_STREAM while the response HEADERS were in transit.
                 //
@@ -224,7 +250,7 @@ impl Inner {
                         .actions
                         .is_forgotten_stream(role, id)
                     {
-                        error!("insert_or_create| forgotten stream| {:?}", id);
+                        error!("insert_or_create| forgotten stream");
                         return Err(ProtoError::library_reset(
                             id,
                             Reason::STREAM_CLOSED,
@@ -241,6 +267,7 @@ impl Inner {
                     role,
                 )? {
                     Some(stream_id) => {
+                        trace!("open| Y");
                         let stream = Stream::new(
                             stream_id,
                             self.actions.send.init_window_sz(),
@@ -248,7 +275,10 @@ impl Inner {
                         );
                         entry.insert(stream)
                     }
-                    None => return Ok(None),
+                    None => {
+                        trace!("open| N");
+                        return Ok(None);
+                    }
                 }
             }
         };
@@ -256,20 +286,23 @@ impl Inner {
     }
 
     // ===== Reset =====
-    pub fn recv_reset<B>(
+    pub fn recv_reset(
         &mut self,
-        send_buffer: &SendBuffer<B>,
+        send_buffer: &SendBuffer<Bytes>,
         frame: frame::Reset,
     ) -> Result<(), ProtoError> {
         let id = frame.stream_id();
+        let span = span!(Level::TRACE, "recv reset| ", "{:?}| ", id);
+        let _enter = span.enter();
         if id.is_zero() {
-            proto_err!(conn: "recv_reset| invalid stream ID 0");
+            error!("invalid stream ID 0");
             return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
         }
 
         // The GOAWAY process has begun. All streams with a greater ID than
         // specified as part of GOAWAY should be ignored.
         if id > self.actions.recv.max_stream_id() {
+            trace!("> max stream id| ignoring");
             return Ok(());
         }
 
@@ -290,9 +323,11 @@ impl Inner {
 
         self.counts
             .transition(stream, |counts, stream| {
+                // notify stream
                 actions
                     .recv
                     .recv_reset(frame, stream, counts)?;
+                // clear stream queue
                 actions
                     .send
                     .handle_error(send_buffer, stream, counts);
@@ -307,9 +342,12 @@ impl Inner {
         id: StreamId,
         reason: Reason,
     ) -> Result<(), crate::proto::error::GoAway> {
+        let span = span!(Level::TRACE, "send reset| ", "{:?}| ", id);
+        let _enter = span.enter();
         let key = match self.store.find_entry(id) {
             Entry::Occupied(e) => e.key(),
             Entry::Vacant(e) => {
+                trace!("vacant");
                 // Resetting a stream we don't know about? That could be OK...
                 //
                 // 1. As a server, we just received a request, but that request
@@ -335,7 +373,6 @@ impl Inner {
                         .recv
                         .maybe_reset_next_stream_id(id);
                 }
-
                 let stream = Stream::new(id, 0, 0);
                 e.insert(stream)
             }
@@ -393,35 +430,6 @@ impl Inner {
         Ok(())
     }
 
-    pub fn handle_error(
-        &mut self,
-        send_buffer: &SendBuffer<Bytes>,
-        err: ProtoError,
-    ) -> StreamId {
-        let actions = &mut self.actions;
-        let counts = &mut self.counts;
-        let mut send_buffer = send_buffer.inner.lock().unwrap();
-        let send_buffer = &mut *send_buffer;
-
-        let last_processed_id = actions.recv.last_processed_id();
-
-        self.store.for_each(|stream| {
-            counts.transition(stream, |counts, stream| {
-                // notify receivers
-                actions
-                    .recv
-                    .handle_error(&err, &mut *stream);
-                // clear pending buffer
-                // TODO: should reclaim capacity ?
-                actions
-                    .send
-                    .handle_error(send_buffer, stream, counts);
-            })
-        });
-        actions.conn_error = Some(err);
-        last_processed_id
-    }
-
     // ===== WINDOW UPDATE =====
     pub fn recv_window_update(
         &mut self,
@@ -430,6 +438,9 @@ impl Inner {
     ) -> Result<(), ProtoError> {
         let id = frame.stream_id();
         let size = frame.size_increment();
+
+        let span = span!(Level::TRACE, "recv window update| ", "{:?}| ", id);
+        let _enter = span.enter();
 
         let mut send_buffer = send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
@@ -466,6 +477,7 @@ impl Inner {
                     res,
                 );
             } else {
+                trace!("vacant");
                 self.actions
                     .ensure_not_idle(self.counts.role(), id)
                     .map_err(ProtoError::library_go_away)?;
@@ -475,6 +487,74 @@ impl Inner {
         Ok(())
     }
 
+    // ===== Misc =====
+    pub fn handle_error(
+        &mut self,
+        send_buffer: &SendBuffer<Bytes>,
+        err: ProtoError,
+    ) -> StreamId {
+        let actions = &mut self.actions;
+        let counts = &mut self.counts;
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+
+        let last_processed_id = actions.recv.last_processed_id();
+
+        self.store.for_each(|stream| {
+            counts.transition(stream, |counts, stream| {
+                // notify receivers
+                actions
+                    .recv
+                    .handle_error(&err, &mut *stream);
+                // TODO: should reclaim capacity ?
+                // clear pending buffer
+                actions
+                    .send
+                    .handle_error(send_buffer, stream, counts);
+            })
+        });
+        actions.conn_error = Some(err);
+        last_processed_id
+    }
+
+    // ===== EOF =====
+    pub fn recv_eof(
+        &mut self,
+        send_buffer: &SendBuffer<Bytes>,
+        clear_pending_accept: bool,
+    ) -> Result<(), ()> {
+        let actions = &mut self.actions;
+        let counts = &mut self.counts;
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+        if actions.conn_error.is_none() {
+            actions.conn_error = Some(
+                io::Error::new(
+                    io::ErrorKind::BrokenPipe,
+                    "connection closed because of a broken pipe",
+                )
+                .into(),
+            );
+        }
+
+        self.store.for_each(|stream| {
+            counts.transition(stream, |counts, stream| {
+                // notify
+                actions.recv.recv_eof(stream);
+
+                // clear queues and reclaim capacity
+                actions
+                    .send
+                    .handle_error(send_buffer, stream, counts);
+            })
+        });
+
+        // clear send and recv queues
+        actions.clear_queues(clear_pending_accept, &mut self.store, counts);
+        Ok(())
+    }
+
+    // ===== Poll ======
     pub fn poll_window_update<T>(
         &mut self,
         cx: &mut Context,
@@ -492,6 +572,7 @@ impl Inner {
         }
 
         if let Some(size) = self.should_send_connection_window_update() {
+            trace!("polling conn window update");
             ready!(dst.poll_ready(cx))?;
             let frame = frame::WindowUpdate::new(StreamId::ZERO, size);
             dst.buffer(frame.into())
@@ -505,6 +586,7 @@ impl Inner {
         if let Some((stream_id, size)) =
             self.should_send_stream_window_update()
         {
+            trace!("polling stream window update| {:?}", stream_id);
             ready!(dst.poll_ready(cx))?;
             let frame = frame::WindowUpdate::new(stream_id, size);
             dst.buffer(frame.into())
@@ -561,7 +643,7 @@ impl Inner {
     {
         let mut send_buffer = send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
-        trace!("[+] polling streams");
+        trace!("polling streams");
         ready!(self.actions.send.poll_complete(
             cx,
             send_buffer,
@@ -574,42 +656,5 @@ impl Inner {
         trace!("task parked");
         self.actions.task = Some(cx.waker().clone());
         Poll::Ready(Ok(()))
-    }
-
-    // ===== EOF =====
-    pub fn recv_eof<B>(
-        &mut self,
-        send_buffer: &SendBuffer<B>,
-        clear_pending_accept: bool,
-    ) -> Result<(), ()> {
-        let actions = &mut self.actions;
-        let counts = &mut self.counts;
-        let mut send_buffer = send_buffer.inner.lock().unwrap();
-        let send_buffer = &mut *send_buffer;
-        if actions.conn_error.is_none() {
-            actions.conn_error = Some(
-                io::Error::new(
-                    io::ErrorKind::BrokenPipe,
-                    "connection closed because of a broken pipe",
-                )
-                .into(),
-            );
-        }
-
-        self.store.for_each(|stream| {
-            counts.transition(stream, |counts, stream| {
-                // notify
-                actions.recv.recv_eof(stream);
-
-                // clear queues and reclaim capacity
-                actions
-                    .send
-                    .handle_error(send_buffer, stream, counts);
-            })
-        });
-
-        // clear send and recv queues
-        actions.clear_queues(clear_pending_accept, &mut self.store, counts);
-        Ok(())
     }
 }

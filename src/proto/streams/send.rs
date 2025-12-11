@@ -1,5 +1,6 @@
 use bytes::Bytes;
 use tokio::io::AsyncWrite;
+use tracing::error;
 use tracing::trace;
 use tracing::trace_span;
 
@@ -94,6 +95,7 @@ impl Send {
         stream: &mut Ptr,
         task: &mut Option<Waker>,
     ) {
+        trace!("queue frame| {:?}", stream.id);
         stream
             .pending_send
             .push_back(buffer, frame);
@@ -108,26 +110,13 @@ impl Send {
     ) {
         // If the stream is waiting to be opened, nothing more to do.
         if stream.is_send_ready() {
+            trace!("schedule send| {:?}", stream.id);
             // Queue the stream
             self.pending_send.push(stream);
             if let Some(task) = task.take() {
                 task.wake();
             }
         }
-    }
-
-    /// Clear the send queue for a stream
-    pub fn clear_stream_queue<B>(
-        &mut self,
-        buffer: &mut Buffer<Frame<B>>,
-        stream: &mut Ptr,
-    ) {
-        let span = trace_span!("clear_queue", ?stream.id);
-        let _e = span.enter();
-        while let Some(frame) = stream.pending_send.pop_front(buffer) {
-            trace!(?frame, "dropping");
-        }
-        stream.remaining_data_len = None;
     }
 
     // ===== Headers =====
@@ -149,7 +138,7 @@ impl Send {
         if counts
             .role()
             .is_local_init(frame.stream_id())
-        // TODO
+        // TODO: pp
         //&& !stream.is_pending_push
         {
             pending_open = true;
@@ -168,6 +157,82 @@ impl Send {
             task.wake();
         }
         Ok(())
+    }
+
+    fn check_headers(fields: &http::HeaderMap) -> Result<(), UserError> {
+        // 8.1.2.2. Connection-Specific Header Fields
+        if fields.contains_key(http::header::CONNECTION)
+            || fields.contains_key(http::header::TRANSFER_ENCODING)
+            || fields.contains_key(http::header::UPGRADE)
+            || fields.contains_key("keep-alive")
+            || fields.contains_key("proxy-connection")
+        {
+            tracing::debug!("illegal connection-specific headers found");
+            return Err(UserError::MalformedHeaders);
+        } else if let Some(te) = fields.get(http::header::TE)
+            && te != "trailers"
+        {
+            tracing::debug!("illegal connection-specific headers found");
+            return Err(UserError::MalformedHeaders);
+        }
+        Ok(())
+    }
+
+    // ===== reset =====
+    pub fn send_reset(
+        &mut self,
+        reason: Reason,
+        initiator: Initiator,
+        stream: &mut Ptr,
+        buffer: &mut Buffer<Frame<Bytes>>,
+        counts: &mut Counts,
+        task: &mut Option<Waker>,
+    ) {
+        let is_reset = stream.state.is_reset();
+        let is_closed = stream.state.is_closed();
+        let is_empty = stream.pending_send.is_empty();
+
+        if is_reset {
+            // Don't double reset
+            trace!("already reset");
+            return;
+        }
+
+        // Transition the state to reset no matter what.
+        stream.set_reset(reason, initiator);
+
+        // If closed AND the send queue is flushed, then the stream cannot be
+        // reset explicitly, either. Implicit resets can still be queued.
+        if is_closed && is_empty {
+            trace!("already closed",);
+            return;
+        }
+
+        // Clear all pending outbound frames.
+        self.clear_stream_queue(buffer, stream);
+
+        // add reset to the send queue
+        trace!("send reset| {:?}", stream.id);
+        let frame = frame::Reset::new(stream.id, reason);
+        self.queue_frame(frame.into(), buffer, stream, task);
+        self.reclaim_all_capacity(stream, counts);
+    }
+
+    pub fn schedule_implicit_reset(
+        &mut self,
+        stream: &mut Ptr,
+        reason: Reason,
+        counts: &mut Counts,
+        task: &mut Option<Waker>,
+    ) {
+        trace!("scheduled reset| {:?}", stream.id);
+        if stream.state.is_closed() {
+            // Stream is already closed, nothing more to do
+            return;
+        }
+        stream.state.set_scheduled_reset(reason);
+        self.reclaim_all_capacity(stream, counts);
+        self.schedule_send(stream, task);
     }
 
     // ===== settings =====
@@ -267,6 +332,30 @@ impl Send {
             }
         }
 
+        Ok(())
+    }
+
+    // ===== GoAway =====
+    pub(super) fn recv_go_away(
+        &mut self,
+        last_stream_id: StreamId,
+    ) -> Result<(), ProtoError> {
+        if last_stream_id > self.max_stream_id {
+            // The remote endpoint sent a `GOAWAY` frame indicating a stream
+            // that we never sent, or that we have already terminated on account
+            // of previous `GOAWAY` frame. In either case, that is illegal.
+            // (When sending multiple `GOAWAY`s, "Endpoints MUST NOT increase
+            // the value they send in the last stream identifier, since the
+            // peers might already have retried unprocessed requests on another
+            // connection.")
+            error!(
+                "recv_go_away| last_stream_id ({:?}) > max_stream_id ({:?})",
+                last_stream_id, self.max_stream_id,
+            );
+            return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+
+        self.max_stream_id = last_stream_id;
         Ok(())
     }
 
@@ -405,72 +494,25 @@ impl Send {
         }
     }
 
-    // ===== reset =====
-    pub fn send_reset(
+    // ===== Misc ====
+    pub fn init_window_sz(&self) -> WindowSize {
+        self.init_stream_window_sz
+    }
+
+    pub fn open(&mut self) -> Result<StreamId, UserError> {
+        let stream_id = self.ensure_next_stream_id()?;
+        self.next_stream_id = stream_id.next_id();
+        Ok(stream_id)
+    }
+
+    pub fn ensure_next_stream_id(&self) -> Result<StreamId, UserError> {
+        self.next_stream_id
+            .map_err(|_| UserError::OverflowedStreamId)
+    }
+
+    pub fn handle_error(
         &mut self,
-        reason: Reason,
-        initiator: Initiator,
-        stream: &mut Ptr,
         buffer: &mut Buffer<Frame<Bytes>>,
-        counts: &mut Counts,
-        task: &mut Option<Waker>,
-    ) {
-        let is_reset = stream.state.is_reset();
-        let is_closed = stream.state.is_closed();
-        let is_empty = stream.pending_send.is_empty();
-        let stream_id = stream.id;
-
-        if is_reset {
-            // Don't double reset
-            tracing::trace!(
-                "-> RST_STREAM| {:?}| N| already reset",
-                stream_id
-            );
-            return;
-        }
-
-        // Transition the state to reset no matter what.
-        stream.set_reset(reason, initiator);
-
-        // If closed AND the send queue is flushed, then the stream cannot be
-        // reset explicitly, either. Implicit resets can still be queued.
-        if is_closed && is_empty {
-            tracing::trace!(
-                "-> RST_STREAM| {:?}| N| already closed",
-                stream_id
-            );
-            return;
-        }
-
-        // Clear all pending outbound frames.
-        self.clear_stream_queue(buffer, stream);
-
-        // add reset to the send queue
-        let frame = frame::Reset::new(stream.id, reason);
-        self.queue_frame(frame.into(), buffer, stream, task);
-        self.reclaim_all_capacity(stream, counts);
-    }
-
-    pub fn schedule_implicit_reset(
-        &mut self,
-        stream: &mut Ptr,
-        reason: Reason,
-        counts: &mut Counts,
-        task: &mut Option<Waker>,
-    ) {
-        trace!("scheduled reset| {:?}", stream.id);
-        if stream.state.is_closed() {
-            // Stream is already closed, nothing more to do
-            return;
-        }
-        stream.state.set_scheduled_reset(reason);
-        self.reclaim_all_capacity(stream, counts);
-        self.schedule_send(stream, task);
-    }
-
-    pub fn handle_error<B>(
-        &mut self,
-        buffer: &mut Buffer<Frame<B>>,
         stream: &mut Ptr,
         counts: &mut Counts,
     ) {
@@ -492,56 +534,67 @@ impl Send {
         }
     }
 
-    // ===== GoAway =====
-    pub(super) fn recv_go_away(
+    /// ===== Clear =====
+    pub fn clear_queues(&mut self, store: &mut Store, counts: &mut Counts) {
+        self.clear_pending_capacity(store, counts);
+        self.clear_pending_send(store, counts);
+        self.clear_pending_open(store, counts);
+    }
+
+    pub fn clear_pending_capacity(
         &mut self,
-        last_stream_id: StreamId,
-    ) -> Result<(), ProtoError> {
-        if last_stream_id > self.max_stream_id {
-            // The remote endpoint sent a `GOAWAY` frame indicating a stream
-            // that we never sent, or that we have already terminated on account
-            // of previous `GOAWAY` frame. In either case, that is illegal.
-            // (When sending multiple `GOAWAY`s, "Endpoints MUST NOT increase
-            // the value they send in the last stream identifier, since the
-            // peers might already have retried unprocessed requests on another
-            // connection.")
-            proto_err!(conn:
-                "recv_go_away| last_stream_id ({:?}) > max_stream_id ({:?})",
-                last_stream_id, self.max_stream_id,
-            );
-            return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        let span = tracing::trace_span!("clear_pending_capacity");
+        let _e = span.enter();
+        while let Some(stream) = self.pending_capacity.pop(store) {
+            counts.transition(stream, |_, stream| {
+                tracing::trace!(?stream.id, "clear_pending_capacity");
+            })
         }
-
-        self.max_stream_id = last_stream_id;
-        Ok(())
     }
 
-    // ===== Misc ====
-    pub fn init_window_sz(&self) -> WindowSize {
-        self.init_stream_window_sz
+    pub fn clear_pending_send(
+        &mut self,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        while let Some(mut stream) = self.pending_send.pop(store) {
+            let is_pending_reset = stream.is_pending_reset_expiration();
+            if let Some(reason) = stream.state.get_scheduled_reset() {
+                stream.set_reset(reason, Initiator::Library);
+            }
+            counts.transition_after(stream, is_pending_reset);
+        }
     }
 
-    fn check_headers(fields: &http::HeaderMap) -> Result<(), UserError> {
-        // 8.1.2.2. Connection-Specific Header Fields
-        if fields.contains_key(http::header::CONNECTION)
-            || fields.contains_key(http::header::TRANSFER_ENCODING)
-            || fields.contains_key(http::header::UPGRADE)
-            || fields.contains_key("keep-alive")
-            || fields.contains_key("proxy-connection")
-        {
-            tracing::debug!("illegal connection-specific headers found");
-            return Err(UserError::MalformedHeaders);
-        } else if let Some(te) = fields.get(http::header::TE)
-            && te != "trailers"
-        {
-            tracing::debug!("illegal connection-specific headers found");
-            return Err(UserError::MalformedHeaders);
+    pub fn clear_pending_open(
+        &mut self,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        while let Some(stream) = self.pending_open.pop(store) {
+            let is_pending_reset = stream.is_pending_reset_expiration();
+            counts.transition_after(stream, is_pending_reset);
         }
-        Ok(())
+    }
+
+    /// Clear the send queue for a stream
+    pub fn clear_stream_queue(
+        &mut self,
+        buffer: &mut Buffer<Frame<Bytes>>,
+        stream: &mut Ptr,
+    ) {
+        let span = trace_span!("clear_queue", ?stream.id);
+        let _e = span.enter();
+        while let Some(frame) = stream.pending_send.pop_front(buffer) {
+            trace!(?frame, "dropping");
+        }
+        stream.remaining_data_len = None;
     }
 
     // ===== polling =====
-
     fn pop_pending_open<'s>(
         &mut self,
         store: &'s mut Store,
@@ -553,8 +606,8 @@ impl Send {
         {
             trace!("pop pending open| {:?}", stream.id);
             counts.inc_num_send_streams(&mut stream);
-            // TODO
-            // stream.notify_send();
+            // TODO: ws
+            //stream.notify_send();
             return Some(stream);
         }
         None
@@ -655,7 +708,9 @@ impl Send {
 
                                 // There *must* be be enough connection level
                                 // capacity at this point.
-                                debug_assert!(len <= self.flow.available());
+                                debug_assert!(
+                                    len <= stream.connection_window_allocated
+                                );
                                 // consume
                                 //      - stream flow control
                                 //      - connection window allocated
@@ -783,63 +838,6 @@ impl Send {
                     return Poll::Ready(Ok(()));
                 }
             }
-        }
-    }
-
-    pub fn ensure_next_stream_id(&self) -> Result<StreamId, UserError> {
-        self.next_stream_id
-            .map_err(|_| UserError::OverflowedStreamId)
-    }
-
-    pub fn open(&mut self) -> Result<StreamId, UserError> {
-        let stream_id = self.ensure_next_stream_id()?;
-        self.next_stream_id = stream_id.next_id();
-        Ok(stream_id)
-    }
-
-    /// ===== EOF =====
-    pub fn clear_queues(&mut self, store: &mut Store, counts: &mut Counts) {
-        self.clear_pending_capacity(store, counts);
-        self.clear_pending_send(store, counts);
-        self.clear_pending_open(store, counts);
-    }
-
-    pub fn clear_pending_capacity(
-        &mut self,
-        store: &mut Store,
-        counts: &mut Counts,
-    ) {
-        let span = tracing::trace_span!("clear_pending_capacity");
-        let _e = span.enter();
-        while let Some(stream) = self.pending_capacity.pop(store) {
-            counts.transition(stream, |_, stream| {
-                tracing::trace!(?stream.id, "clear_pending_capacity");
-            })
-        }
-    }
-
-    pub fn clear_pending_send(
-        &mut self,
-        store: &mut Store,
-        counts: &mut Counts,
-    ) {
-        while let Some(mut stream) = self.pending_send.pop(store) {
-            let is_pending_reset = stream.is_pending_reset_expiration();
-            if let Some(reason) = stream.state.get_scheduled_reset() {
-                stream.set_reset(reason, Initiator::Library);
-            }
-            counts.transition_after(stream, is_pending_reset);
-        }
-    }
-
-    pub fn clear_pending_open(
-        &mut self,
-        store: &mut Store,
-        counts: &mut Counts,
-    ) {
-        while let Some(stream) = self.pending_open.pop(store) {
-            let is_pending_reset = stream.is_pending_reset_expiration();
-            counts.transition_after(stream, is_pending_reset);
         }
     }
 }

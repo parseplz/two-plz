@@ -2,7 +2,7 @@ use std::task::{Context, Poll};
 
 use bytes::{Buf, Bytes};
 use tokio::io::AsyncWrite;
-use tracing::trace;
+use tracing::{error, trace};
 
 use crate::{
     Codec,
@@ -63,7 +63,7 @@ impl SettingsHandler {
                 Local::ToSend(..) | Local::Synced => {
                     // We haven't sent any SETTINGS frames to be ACKed, so
                     // this is very bizarre! Remote is either buggy or malicious.
-                    proto_err!(conn: "received unexpected settings ack");
+                    error!("received unexpected settings ack");
                     Err(proto::ProtoError::library_go_away(
                         Reason::PROTOCOL_ERROR,
                     ))

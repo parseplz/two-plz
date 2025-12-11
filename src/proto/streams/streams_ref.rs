@@ -21,12 +21,12 @@ use crate::{
 
 /// Reference to the stream state
 #[derive(Debug)]
-pub(crate) struct StreamRef<B> {
+pub(crate) struct StreamRef {
     pub opaque: OpaqueStreamRef,
-    pub send_buffer: Arc<SendBuffer<B>>,
+    pub send_buffer: Arc<SendBuffer<Bytes>>,
 }
 
-impl StreamRef<Bytes> {
+impl StreamRef {
     pub fn new(
         inner: Arc<Mutex<Inner>>,
         ptr: &mut Ptr,
@@ -120,7 +120,7 @@ impl StreamRef<Bytes> {
     }
 }
 
-impl<B> Clone for StreamRef<B> {
+impl Clone for StreamRef {
     fn clone(&self) -> Self {
         StreamRef {
             opaque: self.opaque.clone(),

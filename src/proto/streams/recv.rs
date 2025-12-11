@@ -6,7 +6,7 @@ use std::{
 
 use bytes::{Bytes, BytesMut};
 use http::HeaderMap;
-use tracing::trace;
+use tracing::{Level, error, span, trace, warn};
 
 use crate::{
     Codec,
@@ -103,6 +103,7 @@ pub struct Recv {
 
     /// Check whether connection window update needs to be sent
     pub check_connection_window_update: bool,
+
     /// Stream to check for sending pending window update
     pub check_stream_window_update: Option<Key>,
 }
@@ -153,36 +154,17 @@ impl Recv {
             .map(|ptr| ptr.key())
     }
 
-    pub fn poll_response(
-        &mut self,
-        cx: &Context,
-        stream: &mut Ptr,
-    ) -> Poll<Result<Response, ProtoError>> {
-        if stream.state.is_recv_end_stream() {
-            let mut response = match stream
-                .pending_recv
-                .pop_front(&mut self.buffer)
-            {
-                Some(Event::Headers(PollMessage::Client(response))) => {
-                    response
-                }
-                Some(_) => {
-                    unreachable!("client stream queue must start with Headers")
-                }
-                None => {
-                    return Poll::Ready(Err(ProtoError::library_reset(
-                        stream.id,
-                        Reason::PROTOCOL_ERROR,
-                    )));
-                }
-            };
-            process_remaining_frames(&mut response, stream, &mut self.buffer);
-            Poll::Ready(Ok(response))
-        } else {
-            stream.state.ensure_recv_open()?;
-            stream.recv_task = Some(cx.waker().clone());
-            Poll::Pending
-        }
+    // ===== Request =====
+    pub fn take_request(&mut self, stream: &mut Ptr) -> Request {
+        let mut request = match stream
+            .pending_recv
+            .pop_front(&mut self.buffer)
+        {
+            Some(Event::Headers(PollMessage::Server(request))) => request,
+            _ => unreachable!("server stream queue must start with Headers"),
+        };
+        process_remaining_frames(&mut request, stream, &mut self.buffer);
+        request
     }
 
     // ===== Data =====
@@ -197,6 +179,11 @@ impl Recv {
         // this is just a sanity check.
         assert!(size <= MAX_WINDOW_SIZE as usize);
         let size = size as WindowSize;
+        // dec connection window
+        self.dec_connection_window(size)?;
+        // toggle check_connection_window_update
+        self.check_connection_window_update = true;
+
         let is_ignoring_frame = stream.state.is_local_error();
 
         // check if stream in recv data state
@@ -208,11 +195,6 @@ impl Recv {
             return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
         }
 
-        // dec connection window
-        self.dec_connection_window(size)?;
-
-        // toggle check_connection_window_update
-        self.check_connection_window_update = true;
         if is_ignoring_frame {
             return Ok(());
         }
@@ -330,8 +312,10 @@ impl Recv {
             Self::parse_content_length(stream, &frame)?;
         }
 
+        let is_server = counts.role().is_server();
+
         if frame.is_over_size() {
-            Self::ret_frame_oversize_err(is_initial, stream, counts)?;
+            Self::ret_frame_oversize_err(is_initial, is_server, stream)?;
         }
 
         let stream_id = frame.stream_id();
@@ -339,8 +323,8 @@ impl Recv {
         let (pseudo, fields) = frame.into_parts();
 
         // check extended protocol and response headers in request
-        if !self.is_extended_protocol_usage_correct(stream, &pseudo, counts)
-            && !Self::are_response_headers_in_request(stream, &pseudo, counts)
+        if !self.is_extended_protocol_usage_correct(&pseudo, is_server)
+            && !Self::are_response_headers_in_request(&pseudo, is_server)
         {
             return Err(ProtoError::library_reset(
                 stream.id,
@@ -363,11 +347,11 @@ impl Recv {
                 // Only servers can receive a headers frame that initiates the
                 // stream. This is verified in `Streams` before calling this
                 // function.
-                if counts.role().is_server() {
+                if is_server {
                     // Correctness: never push a stream to `pending_accept`
                     // without having the corresponding headers frame pushed to
                     // `stream.pending_recv`.
-                    trace!("[+] added {:#?}| to pending accept", stream_id);
+                    trace!("added to| pending accept");
                     self.pending_accept.push(stream);
                 } else {
                     // for client we notify the response has arrived
@@ -375,7 +359,7 @@ impl Recv {
                 }
             } else {
                 // if not EOS, add to pending complete
-                trace!("[+] added {:?}| to pending complete", stream_id);
+                trace!("added to| pending complete");
                 self.pending_complete.push(stream);
             }
         }
@@ -396,19 +380,17 @@ impl Recv {
             .get(header::CONTENT_LENGTH)
         {
             let content_length = frame::headers::parse_u64(
-                    content_length.as_bytes(),
-                )
-                .map_err(|_| {
-                    proto_err!(stream: "could not parse content-length| stream={:?}", stream.id);
-                    ProtoError::library_reset(
-                        stream.id,
-                        Reason::PROTOCOL_ERROR,
-                    )
-                })?;
+                content_length.as_bytes(),
+            )
+            .map_err(|e| {
+                error!("content-length parse| {:?}", e);
+                ProtoError::library_reset(stream.id, Reason::PROTOCOL_ERROR)
+            })?;
 
             stream.content_length =
                 ContentLength::Remaining(content_length, content_length);
-            // END_STREAM on headers frame with non-zero content-length is malformed.
+            // END_STREAM on headers frame with non-zero content-length is
+            // malformed.
             // https://datatracker.ietf.org/doc/html/rfc9113#section-8.1.1
             if frame.is_end_stream()
                 && content_length > 0
@@ -417,7 +399,7 @@ impl Recv {
                     .status
                     .is_none_or(|status| status != 204 && status != 304)
             {
-                proto_err!(stream: "recv_headers with END_STREAM| content-length is not zero| stream={:?};", stream.id);
+                error!("headers with END_STREAM| content-length is not zero");
                 return Err(ProtoError::library_reset(
                     stream.id,
                     Reason::PROTOCOL_ERROR,
@@ -430,8 +412,8 @@ impl Recv {
     #[inline(always)]
     fn ret_frame_oversize_err(
         is_initial: bool,
+        is_server: bool,
         stream: &mut Ptr,
-        counts: &mut Counts,
     ) -> Result<(), RecvHeaderBlockError<Option<frame::Headers>>> {
         // A frame is over size if the decoded header block was bigger than
         // SETTINGS_MAX_HEADER_LIST_SIZE.
@@ -444,13 +426,9 @@ impl Recv {
         // So, if role is a server, we'll send a 431. In either case,
         // an error is recorded, which will send a REFUSED_STREAM,
         // since we don't want any of the data frames either.
-        tracing::debug!(
-            "stream error REQUEST_HEADER_FIELDS_TOO_LARGE -- \
-                recv_headers| frame is over size| stream={:?}",
-            stream.id
-        );
+        error!("frame is over size",);
         // server
-        if counts.role().is_server() && is_initial {
+        if is_server && is_initial {
             let mut response = frame::Headers::new(
                 stream.id,
                 Pseudo::response(
@@ -469,15 +447,17 @@ impl Recv {
     #[inline(always)]
     fn is_extended_protocol_usage_correct(
         &mut self,
-        stream: &mut Ptr,
         pseudo: &Pseudo,
-        counts: &mut Counts,
+        is_server: bool,
     ) -> bool {
         if pseudo.protocol.is_some()
-            && counts.role().is_server()
+            && is_server
             && !self.is_extended_connect_protocol_enabled
         {
-            proto_err!(stream: "cannot use :protocol if extended connect protocol is disabled; stream={:?}", stream.id);
+            error!(
+                "cannot use :protocol if extended connect protocol is \
+                disabled"
+            );
             false
         } else {
             true
@@ -486,42 +466,15 @@ impl Recv {
 
     #[inline(always)]
     fn are_response_headers_in_request(
-        stream: &mut Ptr,
         pseudo: &Pseudo,
-        counts: &mut Counts,
+        is_server: bool,
     ) -> bool {
-        if pseudo.status.is_some() && counts.role().is_server() {
-            proto_err!(stream: "cannot use :status header for requests; stream={:?}", stream.id);
+        if pseudo.status.is_some() && is_server {
+            error!("cannot use :status header for requests");
             false
         } else {
             true
         }
-    }
-
-    /// check if the ID is the next expected and within the limit of total no
-    /// of recv streams
-    pub fn can_open(
-        &mut self,
-        id: StreamId,
-        mode: Open,
-        counts: &mut Counts,
-        role: &Role,
-    ) -> Result<Option<StreamId>, ProtoError> {
-        assert!(self.refused.is_none());
-        role.ensure_can_open(id, mode)?;
-        let next_id = self.next_stream_id()?;
-        if id < next_id {
-            proto_err!(conn: "id ({:?}) < next_id ({:?})", id, next_id);
-            return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
-        }
-        self.next_stream_id = id.next_id();
-
-        if !counts.can_inc_num_recv_streams() {
-            self.refused = Some(id);
-            return Ok(None);
-        }
-
-        Ok(Some(id))
     }
 
     /// Transition the stream based on receiving trailers
@@ -538,7 +491,7 @@ impl Recv {
             .ensure_content_length_zero()
             .is_err()
         {
-            proto_err!(stream: "recv_trailers| content-length is not zero| stream={:?};",  stream.id);
+            error!("recv_trailers| content-length is not zero",);
             return Err(ProtoError::library_reset(
                 stream.id,
                 Reason::PROTOCOL_ERROR,
@@ -566,90 +519,6 @@ impl Recv {
         Ok(())
     }
 
-    // ===== Settings =====
-    pub fn apply_local_settings(
-        &mut self,
-        settings: &frame::Settings,
-        store: &mut Store,
-    ) -> Result<(), ProtoError> {
-        if let Some(val) = settings.is_extended_connect_protocol_enabled() {
-            self.is_extended_connect_protocol_enabled = val;
-        }
-
-        if let Some(target) = settings.initial_window_size() {
-            let old_sz = self.init_stream_window_sz;
-            self.init_stream_window_sz = target;
-
-            match target.cmp(&old_sz) {
-                // We must decrease the (local) window on every open stream.
-                Ordering::Less => {
-                    let dec = old_sz - target;
-                    tracing::trace!("decrementing all windows; dec={}", dec);
-
-                    store.try_for_each(|mut stream| {
-                        stream
-                            .recv_flow
-                            .dec_window(dec)
-                            .map_err(ProtoError::library_go_away)?;
-                        Ok::<_, ProtoError>(())
-                    })?;
-                }
-                // We must increase the (local) window on every open stream.
-                Ordering::Greater => {
-                    let inc = target - old_sz;
-                    tracing::trace!("incrementing all windows; inc={}", inc);
-                    store.try_for_each(|mut stream| {
-                        // XXX: Shouldn't the peer have already noticed our
-                        // overflow and sent us a GOAWAY?
-                        stream
-                            .recv_flow
-                            .inc_window(inc)
-                            .map_err(ProtoError::library_go_away)?;
-                        Ok::<_, ProtoError>(())
-                    })?;
-                }
-                Ordering::Equal => (),
-            }
-        }
-        Ok(())
-    }
-
-    // ===== GOAWAY =====
-    pub fn go_away(&mut self, last_processed_id: StreamId) {
-        assert!(self.max_stream_id >= last_processed_id);
-        self.max_stream_id = last_processed_id;
-    }
-
-    /// Get the max ID of streams we can receive.
-    ///
-    /// This gets lowered if we send a GOAWAY frame.
-    pub fn max_stream_id(&self) -> StreamId {
-        self.max_stream_id
-    }
-
-    /// Handle a connection-level error
-    pub fn handle_error(&mut self, err: &ProtoError, stream: &mut Stream) {
-        // Receive an error
-        stream.state.handle_error(err);
-
-        // clear pending recv queue
-        if stream.is_pending_complete {
-            while let Some(frame) = stream
-                .pending_recv
-                .pop_front(&mut self.buffer)
-            {
-                trace!(?frame, "dropping recvd frames");
-            }
-            stream.is_pending_complete = false;
-        }
-
-        // If a receiver is waiting, notify it
-        stream.notify_recv();
-        // TODO: future
-        //stream.notify_send();
-        //stream.notify_push();
-    }
-
     // ===== RESET =====
     pub fn recv_reset(
         &mut self,
@@ -669,18 +538,24 @@ impl Recv {
             if counts.can_inc_num_remote_reset_streams() {
                 counts.inc_num_remote_reset_streams();
             } else {
+                warn!(
+                    "remotely-reset pending-accept streams reached limit| ({:?})",
+                    counts.max_remote_reset_streams()
+                );
                 return Err(ProtoError::library_go_away_data(
                     Reason::ENHANCE_YOUR_CALM,
                     "too_many_resets",
                 ));
             }
         }
-
         stream
             .state
             .recv_reset(frame, stream.is_pending_send);
-        // TODO: Notify the stream ?
+        stream.notify_recv();
 
+        // TODO: ws
+        //stream.notify_push();
+        //stream.notify_send();
         Ok(())
     }
 
@@ -709,17 +584,84 @@ impl Recv {
         }
     }
 
-    pub fn maybe_reset_next_stream_id(&mut self, id: StreamId) {
-        if let Ok(next_id) = self.next_stream_id {
-            // !role::is_local_init should have been called beforehand
-            debug_assert_eq!(
-                id.is_server_initiated(),
-                next_id.is_server_initiated()
-            );
-            if id >= next_id {
-                self.next_stream_id = id.next_id();
+    // ===== Settings =====
+    pub fn apply_local_settings(
+        &mut self,
+        settings: &frame::Settings,
+        store: &mut Store,
+    ) -> Result<(), ProtoError> {
+        let span = span!(Level::TRACE, "apply local settings| ");
+        let _enter = span.enter();
+        if let Some(val) = settings.is_extended_connect_protocol_enabled() {
+            self.is_extended_connect_protocol_enabled = val;
+        }
+
+        if let Some(target) = settings.initial_window_size() {
+            let old_sz = self.init_stream_window_sz;
+            self.init_stream_window_sz = target;
+
+            match target.cmp(&old_sz) {
+                // We must decrease the (local) window on every open stream.
+                Ordering::Less => {
+                    let dec = old_sz - target;
+                    trace!("decrementing| {}", dec);
+
+                    store.try_for_each(|mut stream| {
+                        stream
+                            .recv_flow
+                            .dec_window(dec)
+                            .map_err(ProtoError::library_go_away)?;
+                        Ok::<_, ProtoError>(())
+                    })?;
+                }
+                // We must increase the (local) window on every open stream.
+                Ordering::Greater => {
+                    let inc = target - old_sz;
+                    trace!("incrementing| {}", inc);
+                    store.try_for_each(|mut stream| {
+                        // XXX: Shouldn't the peer have already noticed our
+                        // overflow and sent us a GOAWAY?
+                        stream
+                            .recv_flow
+                            .inc_window(inc)
+                            .map_err(ProtoError::library_go_away)?;
+                        Ok::<_, ProtoError>(())
+                    })?;
+                }
+                Ordering::Equal => (),
             }
         }
+        Ok(())
+    }
+
+    // ===== GOAWAY =====
+    pub fn go_away(&mut self, last_processed_id: StreamId) {
+        assert!(self.max_stream_id >= last_processed_id);
+        self.max_stream_id = last_processed_id;
+    }
+
+    /// Handle a connection-level error
+    pub fn handle_error(&mut self, err: &ProtoError, stream: &mut Stream) {
+        // Receive an error
+        stream.state.handle_error(err);
+
+        // TODO: partial messages
+        //// clear pending recv queue
+        if stream.is_pending_complete {
+            while let Some(frame) = stream
+                .pending_recv
+                .pop_front(&mut self.buffer)
+            {
+                trace!(?frame, "dropping recvd frames");
+            }
+            stream.is_pending_complete = false;
+        }
+
+        // If a receiver is waiting, notify it
+        stream.notify_recv();
+        // TODO: ws
+        //stream.notify_send();
+        //stream.notify_push();
     }
 
     // ====== Window Update =====
@@ -751,6 +693,48 @@ impl Recv {
     }
 
     // ===== Misc ======
+
+    pub fn init_window_sz(&self) -> WindowSize {
+        self.init_stream_window_sz
+    }
+
+    pub fn last_processed_id(&self) -> StreamId {
+        self.last_processed_id
+    }
+
+    /// check if the ID is the next expected and within the limit of total no
+    /// of recv streams
+    pub fn can_open(
+        &mut self,
+        id: StreamId,
+        mode: Open,
+        counts: &mut Counts,
+        role: &Role,
+    ) -> Result<Option<StreamId>, ProtoError> {
+        assert!(self.refused.is_none());
+        role.ensure_can_open(id, mode)?;
+        let next_id = self.next_stream_id()?;
+        if id < next_id {
+            error!("id ({:?}) < next_id ({:?})", id, next_id);
+            return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
+        }
+        self.next_stream_id = id.next_id();
+
+        if !counts.can_inc_num_recv_streams() {
+            self.refused = Some(id);
+            return Ok(None);
+        }
+
+        Ok(Some(id))
+    }
+
+    /// Get the max ID of streams we can receive.
+    ///
+    /// This gets lowered if we send a GOAWAY frame.
+    pub fn max_stream_id(&self) -> StreamId {
+        self.max_stream_id
+    }
+
     pub fn next_stream_id(&self) -> Result<StreamId, ProtoError> {
         if let Ok(id) = self.next_stream_id {
             Ok(id)
@@ -759,25 +743,59 @@ impl Recv {
         }
     }
 
-    /// Returns the ID of the last processed stream
-    pub fn last_processed_id(&self) -> StreamId {
-        self.last_processed_id
+    pub fn maybe_reset_next_stream_id(&mut self, id: StreamId) {
+        if let Ok(next_id) = self.next_stream_id {
+            // !role::is_local_init should have been called beforehand
+            debug_assert_eq!(
+                id.is_server_initiated(),
+                next_id.is_server_initiated()
+            );
+            if id >= next_id {
+                self.next_stream_id = id.next_id();
+            }
+        }
     }
 
-    pub fn init_window_sz(&self) -> WindowSize {
-        self.init_stream_window_sz
+    // ===== EOF =====
+    pub fn recv_eof(&mut self, stream: &mut Stream) {
+        stream.state.recv_eof();
+        stream.notify_recv();
+        // TODO: ws
+        //stream.notify_send();
+        //stream.notify_push();
     }
 
-    pub fn take_request(&mut self, stream: &mut Ptr) -> Request {
-        let mut request = match stream
-            .pending_recv
-            .pop_front(&mut self.buffer)
-        {
-            Some(Event::Headers(PollMessage::Server(request))) => request,
-            _ => unreachable!("server stream queue must start with Headers"),
-        };
-        process_remaining_frames(&mut request, stream, &mut self.buffer);
-        request
+    // ===== Clear =====
+    pub fn clear_queues(
+        &mut self,
+        clear_pending_accept: bool,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        self.clear_all_reset_streams(store, counts);
+        if clear_pending_accept {
+            self.clear_all_pending_accept(store, counts);
+        }
+    }
+
+    fn clear_all_reset_streams(
+        &mut self,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        while let Some(stream) = self.pending_reset_expired.pop(store) {
+            counts.transition_after(stream, true);
+        }
+    }
+
+    fn clear_all_pending_accept(
+        &mut self,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        while let Some(stream) = self.pending_accept.pop(store) {
+            counts.transition_after(stream, false);
+        }
     }
 
     pub fn clear_expired_reset_streams(
@@ -808,6 +826,7 @@ impl Recv {
         }
     }
 
+    // ===== Poll =====
     pub(crate) fn send_pending_refusal<T>(
         &mut self,
         cx: &mut Context<'_>,
@@ -825,45 +844,35 @@ impl Recv {
         self.refused = None;
         Poll::Ready(Ok(()))
     }
-
-    // ===== EOF =====
-    pub fn recv_eof(&mut self, stream: &mut Stream) {
-        stream.state.recv_eof();
-        stream.notify_recv();
-        // TODO: ws
-        //stream.notify_send();
-        //stream.notify_push();
-    }
-
-    pub fn clear_queues(
+    pub fn poll_response(
         &mut self,
-        clear_pending_accept: bool,
-        store: &mut Store,
-        counts: &mut Counts,
-    ) {
-        self.clear_all_reset_streams(store, counts);
-        if clear_pending_accept {
-            self.clear_all_pending_accept(store, counts);
-        }
-    }
-
-    fn clear_all_reset_streams(
-        &mut self,
-        store: &mut Store,
-        counts: &mut Counts,
-    ) {
-        while let Some(stream) = self.pending_reset_expired.pop(store) {
-            counts.transition_after(stream, true);
-        }
-    }
-
-    fn clear_all_pending_accept(
-        &mut self,
-        store: &mut Store,
-        counts: &mut Counts,
-    ) {
-        while let Some(stream) = self.pending_accept.pop(store) {
-            counts.transition_after(stream, false);
+        cx: &Context,
+        stream: &mut Ptr,
+    ) -> Poll<Result<Response, ProtoError>> {
+        if stream.state.is_recv_end_stream() {
+            let mut response = match stream
+                .pending_recv
+                .pop_front(&mut self.buffer)
+            {
+                Some(Event::Headers(PollMessage::Client(response))) => {
+                    response
+                }
+                Some(_) => {
+                    unreachable!("client stream queue must start with Headers")
+                }
+                None => {
+                    return Poll::Ready(Err(ProtoError::library_reset(
+                        stream.id,
+                        Reason::PROTOCOL_ERROR,
+                    )));
+                }
+            };
+            process_remaining_frames(&mut response, stream, &mut self.buffer);
+            Poll::Ready(Ok(response))
+        } else {
+            stream.state.ensure_recv_open()?;
+            stream.recv_task = Some(cx.waker().clone());
+            Poll::Pending
         }
     }
 }

@@ -1,10 +1,9 @@
-use tracing::{debug, trace};
-
 use crate::{
     frame,
     proto::{config::ConnectionConfig, streams::store::Ptr},
     role::Role,
 };
+use tracing::{Level, span, trace};
 
 #[derive(Debug)]
 pub struct Counts {
@@ -29,6 +28,12 @@ pub struct Counts {
     /// Current number of pending locally reset streams
     num_local_reset_streams: usize,
 
+    /// Max number of "pending accept" streams that were remotely reset
+    max_remote_reset_streams: usize,
+
+    /// Current number of "pending accept" streams that were remotely reset
+    num_remote_reset_streams: usize,
+
     /// Maximum number of locally reset streams due to protocol error across
     /// the lifetime of the connection.
     ///
@@ -38,12 +43,6 @@ pub struct Counts {
     /// Total number of locally reset streams due to protocol error across the
     /// lifetime of the connection.
     num_local_error_reset_streams: usize,
-
-    /// Maximum number of pending remotely reset streams
-    max_remote_reset_streams: usize,
-
-    /// Current number of pending remotely reset streams
-    num_remote_reset_streams: usize,
 }
 
 impl Counts {
@@ -74,6 +73,7 @@ impl Counts {
 
     /// Returns true when the next opened stream will reach capacity of
     /// outbound streams
+    /// TODO: needed ?
     pub fn next_send_stream_will_reach_capacity(&self) -> bool {
         self.max_send_streams <= (self.num_send_streams + 1)
     }
@@ -83,6 +83,9 @@ impl Counts {
     }
 
     // ===== local error resets ====
+    pub fn max_local_error_resets(&self) -> Option<usize> {
+        self.max_local_error_reset_streams
+    }
 
     /// Returns true if we can issue another local reset due to protocol error.
     pub fn can_inc_num_local_error_resets(&self) -> bool {
@@ -100,25 +103,7 @@ impl Counts {
         self.num_local_error_reset_streams += 1;
     }
 
-    pub fn max_local_error_resets(&self) -> Option<usize> {
-        self.max_local_error_reset_streams
-    }
-
     // ===== recv =====
-    fn dec_num_streams(&mut self, stream: &mut Ptr) {
-        assert!(stream.is_counted);
-
-        if self.role.is_local_init(stream.id) {
-            assert!(self.num_send_streams > 0);
-            self.num_send_streams -= 1;
-            stream.is_counted = false;
-        } else {
-            assert!(self.num_recv_streams > 0);
-            self.num_recv_streams -= 1;
-            stream.is_counted = false;
-        }
-    }
-
     pub(crate) fn max_recv_streams(&self) -> usize {
         self.max_recv_streams
     }
@@ -164,7 +149,7 @@ impl Counts {
         stream.is_counted = true;
     }
 
-    // ===== Local Reset =====
+    // ===== Reset pending accept =====
     pub fn can_inc_num_reset_streams(&self) -> bool {
         self.max_local_reset_streams > self.num_local_reset_streams
     }
@@ -184,22 +169,13 @@ impl Counts {
         self.num_local_reset_streams += 1;
     }
 
-    // ===== SETTINGS =====
-    pub fn apply_remote_settings(&mut self, settings: &frame::Settings) {
-        self.max_send_streams = settings
-            .max_concurrent_streams()
-            .map(|v| v as usize)
-            .unwrap_or(usize::MAX)
+    // ===== Remote Reset =====
+    pub(crate) fn max_remote_reset_streams(&self) -> usize {
+        self.max_remote_reset_streams
     }
 
-    // ===== Remote Reset =====
     pub fn can_inc_num_remote_reset_streams(&self) -> bool {
         self.max_remote_reset_streams > self.num_remote_reset_streams
-    }
-
-    pub fn dec_num_remote_reset_streams(&mut self) {
-        assert!(self.num_remote_reset_streams > 0);
-        self.num_remote_reset_streams -= 1;
     }
 
     /// Increments the number of pending reset streams.
@@ -212,11 +188,34 @@ impl Counts {
         self.num_remote_reset_streams += 1;
     }
 
-    pub(crate) fn max_remote_reset_streams(&self) -> usize {
-        self.max_remote_reset_streams
+    pub fn dec_num_remote_reset_streams(&mut self) {
+        assert!(self.num_remote_reset_streams > 0);
+        self.num_remote_reset_streams -= 1;
+    }
+
+    // ===== SETTINGS =====
+    pub fn apply_remote_settings(&mut self, settings: &frame::Settings) {
+        self.max_send_streams = settings
+            .max_concurrent_streams()
+            .map(|v| v as usize)
+            .unwrap_or(usize::MAX)
     }
 
     // ===== Misc =====
+    fn dec_num_streams(&mut self, stream: &mut Ptr) {
+        assert!(stream.is_counted);
+
+        if self.role.is_local_init(stream.id) {
+            assert!(self.num_send_streams > 0);
+            self.num_send_streams -= 1;
+            stream.is_counted = false;
+        } else {
+            assert!(self.num_recv_streams > 0);
+            self.num_recv_streams -= 1;
+            stream.is_counted = false;
+        }
+    }
+
     pub fn role(&self) -> Role {
         self.role.clone()
     }
@@ -247,10 +246,13 @@ impl Counts {
         mut stream: Ptr,
         is_reset_counted: bool,
     ) {
+        let span =
+            span!(Level::TRACE, "transition after", "| {:?}| ", stream.id);
+        let _enter = span.enter();
         if stream.is_closed() {
-            trace!("{:?}| closed", stream.id);
+            trace!("closed");
             if !stream.is_pending_reset_expiration() {
-                trace!("unlinked stream| {:?}", stream.id);
+                trace!("unlinked");
                 stream.unlink();
                 if is_reset_counted {
                     self.dec_num_reset_streams();
@@ -265,9 +267,10 @@ impl Counts {
 
         // Release the stream if it requires releasing
         if stream.is_released() {
-            let id = stream.id;
             stream.remove();
-            trace!("removed stream| {:?}", id);
+            trace!("removed");
+        } else {
+            trace!("stream not released");
         }
     }
 }

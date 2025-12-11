@@ -120,7 +120,7 @@ where
 
 #[derive(Debug)]
 pub struct SendResponse {
-    inner: StreamRef<Bytes>,
+    inner: StreamRef,
 }
 
 impl SendResponse {

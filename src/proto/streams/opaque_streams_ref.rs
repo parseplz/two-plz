@@ -64,6 +64,7 @@ impl Clone for OpaqueStreamRef {
 
 impl Drop for OpaqueStreamRef {
     fn drop(&mut self) {
+        // TODO: clear receive buffer
         let mut me = match self.inner.lock() {
             Ok(inner) => inner,
             Err(_) => {

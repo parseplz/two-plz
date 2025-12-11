@@ -56,6 +56,7 @@ impl Streams<Bytes> {
         }
     }
 
+    // ===== Send =====
     pub fn send_request(
         &mut self,
         request: Request,
@@ -135,9 +136,9 @@ impl Streams<Bytes> {
 
         Ok(OpaqueStreamRef::new(self.inner.clone(), &mut stream))
     }
-    // ===== send =====
 
-    pub fn next_accept(&mut self) -> Option<StreamRef<Bytes>> {
+    // ===== Recv =====
+    pub fn next_accept(&mut self) -> Option<StreamRef> {
         let mut me = self.inner.lock().unwrap();
         let me = &mut *me;
         me.actions
@@ -167,6 +168,8 @@ impl Streams<Bytes> {
             })
     }
 
+    // ===== FRAMES =====
+
     // ===== Data =====
     pub fn recv_data(&mut self, frame: frame::Data) -> Result<(), ProtoError> {
         let mut me = self.inner.lock().unwrap();
@@ -180,6 +183,24 @@ impl Streams<Bytes> {
     ) -> Result<(), ProtoError> {
         let mut me = self.inner.lock().unwrap();
         me.recv_headers(&self.send_buffer, frame)
+    }
+
+    // ===== Reset =====
+    pub fn recv_reset(
+        &mut self,
+        frame: frame::Reset,
+    ) -> Result<(), ProtoError> {
+        let mut me = self.inner.lock().unwrap();
+        me.recv_reset(&self.send_buffer, frame)
+    }
+
+    pub fn send_reset(
+        &mut self,
+        id: StreamId,
+        reason: Reason,
+    ) -> Result<(), crate::proto::error::GoAway> {
+        let mut me = self.inner.lock().unwrap();
+        me.send_reset(&self.send_buffer, id, reason)
     }
 
     // ===== Settings =====
@@ -232,24 +253,6 @@ impl Streams<Bytes> {
             .go_away(last_processed_id);
     }
 
-    // ===== Reset =====
-    pub fn recv_reset(
-        &mut self,
-        frame: frame::Reset,
-    ) -> Result<(), ProtoError> {
-        let mut me = self.inner.lock().unwrap();
-        me.recv_reset(&self.send_buffer, frame)
-    }
-
-    pub fn send_reset(
-        &mut self,
-        id: StreamId,
-        reason: Reason,
-    ) -> Result<(), crate::proto::error::GoAway> {
-        let mut me = self.inner.lock().unwrap();
-        me.send_reset(&self.send_buffer, id, reason)
-    }
-
     // ===== Window Update =====
     pub fn poll_window_update<T>(
         &mut self,
@@ -282,6 +285,12 @@ impl Streams<Bytes> {
     {
         let mut me = self.inner.lock().unwrap();
         me.poll_complete(&self.send_buffer, cx, dst)
+    }
+
+    // ===== EOF =====
+    pub fn recv_eof(&mut self, clear_pending_accept: bool) -> Result<(), ()> {
+        let mut me = self.inner.lock().map_err(|_| ())?;
+        me.recv_eof(&self.send_buffer, clear_pending_accept)
     }
 
     // ===== misc =====
@@ -337,13 +346,7 @@ impl Streams<Bytes> {
         me.handle_error(&self.send_buffer, e)
     }
 
-    // ===== EOF =====
-    pub fn recv_eof(&mut self, clear_pending_accept: bool) -> Result<(), ()> {
-        let mut me = self.inner.lock().map_err(|_| ())?;
-        me.recv_eof(&self.send_buffer, clear_pending_accept)
-    }
-
-    // ===== Misc ====
+    // ===== Test only ====
     pub(crate) fn num_active_streams(&self) -> usize {
         let me = self.inner.lock().unwrap();
         me.store.num_active_streams()

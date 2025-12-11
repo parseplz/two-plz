@@ -46,9 +46,9 @@ enum ConnectionState {
 pub struct Connection<T> {
     codec: Codec<T, Bytes>,
     pub(crate) streams: Streams<Bytes>,
-    goaway_handler: GoAway,
-    ping_handler: PingHandler,
     settings_handler: SettingsHandler,
+    ping_handler: PingHandler,
+    goaway_handler: GoAway,
     role: Role,
     state: ConnectionState,
     span: tracing::Span,
@@ -70,11 +70,11 @@ where
     ) -> Self {
         Connection {
             state: ConnectionState::Open,
-            goaway_handler: GoAway::new(),
-            ping_handler: PingHandler::new(),
             settings_handler: SettingsHandler::new(
                 config.local_settings.clone(),
             ),
+            ping_handler: PingHandler::new(),
+            goaway_handler: GoAway::new(),
             codec,
             role: role.clone(),
             span: trace_span!("conn", "{}", role.as_str()),
@@ -84,7 +84,7 @@ where
     }
 
     // ===== SERVER =====
-    pub(crate) fn next_accept(&mut self) -> Option<StreamRef<Bytes>> {
+    pub(crate) fn next_accept(&mut self) -> Option<StreamRef> {
         self.streams.next_accept()
     }
 
@@ -181,6 +181,47 @@ where
         }
         self.streams
             .apply_local_settings(&settings)
+    }
+
+    // ==== GOAWAY =====
+    // send goaway - shutdown
+    // TODO: Expose Api
+    fn go_away_graceful(&mut self, id: StreamId, e: Reason) {
+        let frame = frame::GoAway::new(id, e);
+        // sets recv.last_processed_id
+        self.streams.send_go_away(id);
+        self.goaway_handler
+            .enqueue_go_away(frame);
+    }
+
+    // send goaway - immediate
+    fn go_away_now(&mut self, e: Reason) {
+        let last_processed_id = self.streams.last_processed_id();
+        let frame = frame::GoAway::new(last_processed_id, e);
+        self.goaway_handler.go_away_now(frame);
+    }
+
+    // send_goaway - immediate with data
+    fn go_away_now_data(&mut self, e: Reason, data: Bytes) {
+        let last_processed_id = self.streams.last_processed_id();
+        let frame = frame::GoAway::with_debug_data(last_processed_id, e, data);
+        self.goaway_handler.go_away_now(frame);
+    }
+
+    // TODO Expose Api
+    fn go_away_from_user(&mut self, e: Reason) {
+        let last_processed_id = self.streams.last_processed_id();
+        let frame = frame::GoAway::new(last_processed_id, e);
+        self.goaway_handler
+            .go_away_from_user(frame);
+        // Notify all streams of reason we're abruptly closing.
+        self.streams
+            .handle_error(ProtoError::user_go_away(e));
+    }
+
+    // ===== Misc =====
+    pub fn num_wired_streams(&self) -> usize {
+        self.streams.num_wired_streams()
     }
 
     // ===== POLLING =====
@@ -393,7 +434,7 @@ where
         &mut self,
         cx: &mut Context,
     ) -> Poll<Result<(), ProtoError>> {
-        let span = tracing::trace_span!("control frames");
+        let span = tracing::trace_span!("poll| control frames");
         let _e = span.enter();
         ready!(
             self.ping_handler
@@ -442,53 +483,6 @@ where
             // important.
             (_, theirs) => Err(ProtoError::remote_go_away(debug_data, theirs)),
         }
-    }
-
-    // ==== GOAWAY =====
-    // send goaway - shutdown
-    // TODO: Expose Api
-    fn go_away_graceful(&mut self, id: StreamId, e: Reason) {
-        let frame = frame::GoAway::new(id, e);
-        // sets recv.last_processed_id
-        self.streams.send_go_away(id);
-        self.goaway_handler
-            .enqueue_go_away(frame);
-    }
-
-    // send goaway - immediate
-    fn go_away_now(&mut self, e: Reason) {
-        let last_processed_id = self.streams.last_processed_id();
-        let frame = frame::GoAway::new(last_processed_id, e);
-        self.goaway_handler.go_away_now(frame);
-    }
-
-    // send_goaway - immediate with data
-    fn go_away_now_data(&mut self, e: Reason, data: Bytes) {
-        let last_processed_id = self.streams.last_processed_id();
-        let frame = frame::GoAway::with_debug_data(last_processed_id, e, data);
-        self.goaway_handler.go_away_now(frame);
-    }
-
-    // TODO Expose Api
-    fn go_away_from_user(&mut self, e: Reason) {
-        let last_processed_id = self.streams.last_processed_id();
-        let frame = frame::GoAway::new(last_processed_id, e);
-        self.goaway_handler
-            .go_away_from_user(frame);
-        // Notify all streams of reason we're abruptly closing.
-        self.streams
-            .handle_error(ProtoError::user_go_away(e));
-    }
-
-    // ===== Misc =====
-    pub fn num_wired_streams(&self) -> usize {
-        self.streams.num_wired_streams()
-    }
-
-    // ===== Test =====
-    #[cfg(feature = "test-util")]
-    pub fn read_frame(&mut self) -> Result<Frame, ProtoError> {
-        self.codec.read_frame()
     }
 }
 

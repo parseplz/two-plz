@@ -3,6 +3,7 @@ use crate::message::{request::Request, response::Response};
 use crate::proto::ProtoError;
 use crate::proto::streams::Open;
 use http::HeaderMap;
+use tracing::error;
 
 #[derive(Debug)]
 pub enum PollMessage {
@@ -39,7 +40,7 @@ impl Role {
         if self.is_server() {
             // Ensure that the ID is a valid client initiated ID
             if mode.is_push_promise() || !id.is_client_initiated() {
-                proto_err!(conn: "cannot open stream {:?} - not client initiated", id);
+                error!("cannot open stream {:?} | not client initiated", id);
                 return Err(ProtoError::library_go_away(
                     Reason::PROTOCOL_ERROR,
                 ));
@@ -49,7 +50,7 @@ impl Role {
         } else {
             // Ensure that the ID is a valid server initiated ID
             if !mode.is_push_promise() || !id.is_server_initiated() {
-                proto_err!(conn: "cannot open stream {:?} - not server initiated", id);
+                error!("cannot open stream {:?}| not server initiated", id);
                 return Err(ProtoError::library_go_away(
                     Reason::PROTOCOL_ERROR,
                 ));
