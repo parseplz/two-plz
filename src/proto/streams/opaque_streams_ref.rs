@@ -46,6 +46,23 @@ impl OpaqueStreamRef {
             .recv
             .poll_response(cx, &mut stream)
     }
+
+    pub fn send_reset(&mut self, reason: Reason) {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        let stream = me.store.resolve(self.key);
+        let actions = &mut me.actions;
+
+        me.counts
+            .transition(stream, |counts, stream| {
+                actions.send.schedule_implicit_reset(
+                    stream,
+                    reason,
+                    counts,
+                    &mut actions.task,
+                );
+            })
+    }
 }
 
 impl Clone for OpaqueStreamRef {

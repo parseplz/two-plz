@@ -9,7 +9,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::{
     Codec, Connection,
     builder::{BuildConnection, Builder},
-    error::OpError,
+    error::{OpError, Reason},
     frame::StreamId,
     message::{request::Request, response::Response},
     proto::{config::ConnectionConfig, streams::Streams},
@@ -135,6 +135,10 @@ pub struct ResponseFuture {
 impl ResponseFuture {
     pub fn stream_id(&self) -> StreamId {
         self.inner.stream_id()
+    }
+
+    pub fn send_reset(&mut self, reason: Reason) {
+        self.inner.send_reset(reason)
     }
 }
 
