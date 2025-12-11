@@ -87,6 +87,9 @@ impl Inner {
                     // consume connection flow control
                     self.actions
                         .recv
+                        .check_connection_window_update = true;
+                    self.actions
+                        .recv
                         .dec_connection_window(sz)?;
                     return Err(ProtoError::library_reset(
                         id,
