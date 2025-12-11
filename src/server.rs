@@ -1,5 +1,5 @@
 use crate::codec::UserError;
-use crate::error::OpError;
+use crate::error::{OpError, Reason};
 use crate::{
     Codec, Connection,
     builder::{BuildConnection, Builder},
@@ -129,5 +129,9 @@ impl SendResponse {
         response: Response,
     ) -> Result<(), UserError> {
         self.inner.send_response(response)
+    }
+
+    pub fn send_reset(&mut self, reason: Reason) {
+        self.inner.send_reset(reason)
     }
 }
