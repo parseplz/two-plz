@@ -754,10 +754,11 @@ impl Send {
                                         stream.state.send_close();
                                         trace!("data| eos");
                                         data_frame.set_end_stream(true);
+                                    } else {
+                                        trace!("trailer| remaining");
+                                        stream.is_sending_trailer = true;
                                     }
                                 } else {
-                                    trace!("trailer| remaining");
-                                    stream.is_sending_trailer = true;
                                     stream
                                         .pending_send
                                         .push_front(buffer, frame.into());
