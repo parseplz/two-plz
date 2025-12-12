@@ -6,6 +6,7 @@ use tracing::trace;
 use crate::{
     codec::UserError,
     error::Reason,
+    frame::StreamId,
     message::{TwoTwoFrame, request::Request, response::Response},
     proto::{
         error::Initiator,
@@ -89,7 +90,6 @@ impl StreamRef {
         Ok(())
     }
 
-    // TODO: expose API
     pub fn send_reset(&mut self, reason: Reason) {
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
@@ -117,6 +117,10 @@ impl StreamRef {
                 unreachable!("Initiator::User should not error sending reset");
             }
         }
+    }
+
+    pub fn stream_id(&self) -> StreamId {
+        self.opaque.stream_id()
     }
 }
 

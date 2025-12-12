@@ -118,6 +118,7 @@ where
     }
 }
 
+// ===== SendResponse =====
 #[derive(Debug)]
 pub struct SendResponse {
     inner: StreamRef,
@@ -133,5 +134,9 @@ impl SendResponse {
 
     pub fn send_reset(&mut self, reason: Reason) {
         self.inner.send_reset(reason)
+    }
+
+    pub fn stream_id(&self) -> StreamId {
+        self.inner.stream_id()
     }
 }
