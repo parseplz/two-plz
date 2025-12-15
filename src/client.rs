@@ -9,10 +9,13 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::{
     Codec, Connection,
     builder::{BuildConnection, Builder},
-    error::{OpError, Reason},
+    error::OpError,
     frame::StreamId,
     message::{request::Request, response::Response},
-    proto::{config::ConnectionConfig, streams::Streams},
+    proto::{
+        config::ConnectionConfig,
+        streams::{PartialResponse, Streams},
+    },
     role::Role,
 };
 

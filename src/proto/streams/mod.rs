@@ -16,6 +16,7 @@ mod streams_ref;
 
 pub(crate) use opaque_streams_ref::OpaqueStreamRef;
 pub(crate) use recv::Open;
+pub(crate) use recv::PartialResponse;
 pub(crate) use recv::Recv;
 pub(crate) use send::Send;
 use store::{Ptr, Resolve, Store};

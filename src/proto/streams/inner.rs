@@ -66,6 +66,8 @@ impl Inner {
         frame: frame::Data,
     ) -> Result<(), ProtoError> {
         let id = frame.stream_id();
+        let span = span!(Level::TRACE, "recv data| ", "{:?}| ", id);
+        let _enter = span.enter();
         let stream = match self.store.find_mut(&id) {
             Some(stream) => stream,
             None => {
@@ -79,6 +81,7 @@ impl Inner {
                     .actions
                     .is_forgotten_stream(&self.counts.role(), id)
                 {
+                    trace!("forgotten stream");
                     let sz = frame.payload().len();
                     // This should have been enforced at the codec::FramedRead
                     // layer, so this is just a sanity check.
@@ -236,7 +239,7 @@ impl Inner {
     ) -> Result<Option<Key>, ProtoError> {
         let key = match self.store.find_entry(id) {
             Entry::Occupied(entry) => {
-                trace!("new entry");
+                trace!("occupied");
                 entry.key()
             }
             Entry::Vacant(entry) => {
@@ -330,7 +333,9 @@ impl Inner {
                 actions
                     .recv
                     .recv_reset(frame, stream, counts)?;
+
                 // clear stream queue
+                // reclaim capacity
                 actions
                     .send
                     .handle_error(send_buffer, stream, counts);

@@ -2,9 +2,9 @@ use tracing::trace;
 
 use crate::frame::StreamId;
 use crate::message::response::Response;
-use crate::proto::ProtoError;
 use crate::proto::streams::action::Actions;
 use crate::proto::streams::counts::Counts;
+use crate::proto::streams::recv::PartialResponse;
 use crate::{frame::Reason, proto::streams::Resolve};
 use std::task::{Context, Poll};
 use std::{
@@ -64,7 +64,6 @@ impl Clone for OpaqueStreamRef {
 
 impl Drop for OpaqueStreamRef {
     fn drop(&mut self) {
-        // TODO: clear receive buffer
         let mut me = match self.inner.lock() {
             Ok(inner) => inner,
             Err(_) => {
@@ -103,6 +102,7 @@ impl Drop for OpaqueStreamRef {
         me.counts
             .transition(stream, |counts, stream| {
                 maybe_cancel(stream, actions, counts);
+                // TODO: release capacity and clear received and buffer
 
                 if stream.ref_count == 0 {
                     // We won't be able to reach our push promises anymore

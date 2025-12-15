@@ -79,7 +79,7 @@ where
         }
 
         if let Some(inner) = self.connection.next_accept() {
-            tracing::trace!("received incoming");
+            tracing::trace!("accepted");
             let request = inner.take_request();
             let respond = SendResponse {
                 inner,

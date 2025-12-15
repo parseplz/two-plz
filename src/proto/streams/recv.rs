@@ -192,10 +192,12 @@ impl Recv {
             // STREAM_CLOSED instead...
             // Receiving a DATA frame when not expecting one is a protocol
             // error.
+            error!("unexpected DATA frame| stream={:?}", stream.id);
             return Err(ProtoError::library_go_away(Reason::PROTOCOL_ERROR));
         }
 
         if is_ignoring_frame {
+            trace!("ignoring");
             return Ok(());
         }
 

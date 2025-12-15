@@ -1,7 +1,8 @@
 use std::sync::{Arc, Mutex};
+use tracing::Level;
 
 use bytes::Bytes;
-use tracing::trace;
+use tracing::{span, trace};
 
 use crate::{
     codec::UserError,
@@ -55,10 +56,10 @@ impl StreamRef {
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
         let stream = me.store.resolve(self.opaque.key);
-        let span =
-            tracing::debug_span!("[+] send response| ", "{:?}", stream.id);
-        let _ = span.enter();
         let actions = &mut me.actions;
+        let span = span!(Level::TRACE, "send response|", "{:?}| ", stream.id);
+        let _enter = span.enter();
+
         if stream.state.is_remote_reset() {
             trace!("remote reset");
             if let Some(task) = actions.task.take() {
@@ -66,6 +67,7 @@ impl StreamRef {
             }
             return Err(UserError::InactiveStreamId);
         }
+
         let mut send_buffer = self.send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
         let mut response_frames = TwoTwoFrame::from((stream.id, response));
@@ -82,7 +84,7 @@ impl StreamRef {
                     &mut actions.task,
                 )
             })?;
-        trace!("[+] added| header");
+        trace!("added| header");
 
         let mut stream = me.store.resolve(self.opaque.key);
 
@@ -93,7 +95,7 @@ impl StreamRef {
             send_buffer,
         );
 
-        trace!("[+] response queued");
+        trace!("response queued");
         Ok(())
     }
 

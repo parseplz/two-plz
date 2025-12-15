@@ -1,3 +1,5 @@
+use tracing::trace;
+
 use crate::proto::error::Initiator;
 use crate::proto::streams::buffer::Deque;
 use crate::proto::streams::flow_control::FlowControl;
@@ -238,6 +240,7 @@ impl Stream {
     // ===== task =====
     pub fn notify_recv(&mut self) {
         if let Some(task) = self.recv_task.take() {
+            trace!("notified");
             task.wake();
         }
     }

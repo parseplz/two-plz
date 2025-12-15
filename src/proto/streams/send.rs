@@ -586,10 +586,10 @@ impl Send {
         buffer: &mut Buffer<Frame<Bytes>>,
         stream: &mut Ptr,
     ) {
-        let span = trace_span!("clear_queue", ?stream.id);
+        let span = trace_span!("clear_queue| ", ?stream.id);
         let _e = span.enter();
         while let Some(frame) = stream.pending_send.pop_front(buffer) {
-            trace!(?frame, "dropping");
+            trace!("dropping| {:?}", frame);
         }
         stream.remaining_data_len = None;
     }
@@ -623,6 +623,8 @@ impl Send {
         loop {
             match self.pending_send.pop(store) {
                 Some(mut stream) => {
+                    let span = trace_span!("pop frame| ", ?stream.id);
+                    let _ = span.enter();
                     // It's possible that this stream, besides having data to
                     // send, is also queued to send a reset, and thus is
                     // already in the queue to wait for "some time" after a
