@@ -1,4 +1,3 @@
-use futures::StreamExt;
 use support::{build_test_request, prelude::*};
 
 #[tokio::test]
@@ -38,38 +37,55 @@ async fn recv_trailers_only() {
 async fn send_trailers_immediately() {
     support::trace_init!();
 
-    let mock = mock_io::Builder::new()
-        .handshake()
-        // Write GET /
-        .write(&[
-            0, 0, 0x10, 1, 4, 0, 0, 0, 1, 0x82, 0x87, 0x41, 0x8B, 0x9D, 0x29,
-            0xAC, 0x4B, 0x8F, 0xA8, 0xE9, 0x19, 0x97, 0x21, 0xE9, 0x84, 0, 0,
-            0x0A, 1, 5, 0, 0, 0, 1, 0x40, 0x83, 0xF6, 0x7A, 0x66, 0x84, 0x9C,
-            0xB4, 0x50, 0x7F,
-        ])
-        // Read response
-        .read(&[
-            0, 0, 1, 1, 4, 0, 0, 0, 1, 0x88, 0, 0, 0x0B, 0, 1, 0, 0, 0, 1,
-            0x68, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0x77, 0x6F, 0x72, 0x6C, 0x64,
-        ])
-        .build();
+    let (io, mut srv) = mock::new();
 
-    let (mut conn, mut client) = ClientBuilder::new()
-        .handshake(mock)
-        .await
-        .unwrap();
+    let client_fut = async move {
+        let (mut conn, mut client) = ClientBuilder::new()
+            .handshake(io)
+            .await
+            .unwrap();
 
-    // Send the request
-    let mut request = build_test_request();
-    let mut trailers = HeaderMap::new();
-    trailers.insert("zomg", "hello".parse().unwrap());
-    request.set_trailer(trailers);
+        let mut request = build_test_request();
 
-    let resp_fut = client.send_request(request).unwrap();
-    let resp: Response = conn.run(resp_fut).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-    assert_eq!(resp.body_as_ref(), Some(&"hello world"[..].into()));
-    assert!(resp.trailers().is_none());
+        let mut trailers = HeaderMap::new();
+        trailers.insert("zomg", "hello".parse().unwrap());
+        request.set_trailer(trailers);
 
-    conn.await.unwrap();
+        tracing::info!("sending request with trailers");
+        let response_fut = client.send_request(request).unwrap();
+
+        let response = conn.drive(response_fut).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.body_as_ref(), Some(&"hello world"[..].into()));
+        assert!(response.trailers().is_none());
+
+        conn.await.unwrap();
+    };
+
+    let srv_fut = async move {
+        let settings = srv.assert_client_handshake().await;
+        assert_default_settings!(settings);
+
+        srv.recv_frame(frames::headers(1).request(
+            "GET",
+            "https",
+            "http2.akamai.com",
+            "/",
+        ))
+        .await;
+
+        srv.recv_frame(
+            frames::headers(1)
+                .field("zomg", "hello") // expected trailer
+                .eos(),
+        )
+        .await;
+        srv.send_frame(frames::headers(1).response(200))
+            .await;
+        srv.send_frame(frames::data(1, b"hello world").eos())
+            .await;
+        idle_ms(100).await;
+    };
+
+    join(srv_fut, client_fut).await;
 }
