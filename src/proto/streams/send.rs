@@ -308,7 +308,7 @@ impl Send {
                         Ok::<_, ProtoError>(())
                     })?;
                     if total_reclaimed > 0 {
-                        self.assign_connection_capacity(
+                        let _ = self.recv_connection_window_update(
                             total_reclaimed,
                             store,
                             counts,
@@ -367,13 +367,12 @@ impl Send {
         counts: &mut Counts,
     ) -> Result<(), Reason> {
         self.flow.inc_window(inc)?;
-        self.assign_connection_capacity(inc, store, counts);
+        self.assign_connection_capacity(store, counts);
         Ok(())
     }
 
     pub fn assign_connection_capacity<R>(
         &mut self,
-        inc: WindowSize,
         store: &mut R,
         counts: &mut Counts,
     ) where
@@ -490,7 +489,11 @@ impl Send {
     ) {
         let allocated = stream.connection_window_allocated;
         if allocated > 0 {
-            self.assign_connection_capacity(allocated, stream, counts);
+            let _ = self.recv_connection_window_update(
+                allocated,
+                stream.store_mut(),
+                counts,
+            );
         }
     }
 
