@@ -888,3 +888,38 @@ fn process_remaining_frames<T>(
     }
     message.set_body(body);
 }
+
+pub struct PartialResponse {
+    response: Option<Response>,
+    remote_err: Option<ProtoError>,
+    local_err: Option<ProtoError>,
+}
+
+impl PartialResponse {
+    fn new(
+        response: Option<Response>,
+        remote_err: Option<ProtoError>,
+        local_err: Option<ProtoError>,
+    ) -> Self {
+        Self {
+            response,
+            remote_err,
+            local_err,
+        }
+    }
+
+    fn empty_queue(id: StreamId) -> Self {
+        let err = ProtoError::library_reset(id, Reason::PROTOCOL_ERROR);
+        Self::new(None, None, Some(err))
+    }
+}
+
+impl std::fmt::Debug for PartialResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PartialResponse")
+            .field("response", &self.response)
+            .field("remote_err", &self.remote_err)
+            .field("local_err", &self.local_err)
+            .finish()
+    }
+}
