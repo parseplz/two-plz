@@ -260,22 +260,7 @@ impl Recv {
             .push_back(&mut self.buffer, event);
 
         if is_eos {
-            // server => move eos streams from pending_complete to
-            //           pending_accept
-            // client => drop
-            if role.is_client() {
-                stream.notify_recv();
-            }
-            while let Some(mut stream) = self
-                .pending_complete
-                .pop_if(stream.store_mut(), |stream| {
-                    stream.state.is_recv_end_stream()
-                })
-            {
-                if role.is_server() {
-                    self.pending_accept.push(&mut stream);
-                }
-            }
+            self.move_from_pending_complete(stream, role);
         }
 
         // if !is_eos, add stream key to check for window update
@@ -344,23 +329,7 @@ impl Recv {
                 .push_back(&mut self.buffer, Event::Headers(message));
 
             if is_eos {
-                // Only servers can receive a headers frame that initiates the
-                // stream. This is verified in `Streams` before calling this
-                // function.
-                if is_server {
-                    // Correctness: never push a stream to `pending_accept`
-                    // without having the corresponding headers frame pushed to
-                    // `stream.pending_recv`.
-                    trace!("added to| pending accept");
-                    self.pending_accept.push(stream);
-                } else {
-                    // for client we notify the response has arrived
-                    stream.notify_recv();
-                }
-            } else {
-                // if not EOS, add to pending complete
-                trace!("added to| pending complete");
-                self.pending_complete.push(stream);
+                self.move_from_pending_complete(stream, &role);
             }
         }
 
@@ -501,21 +470,7 @@ impl Recv {
         stream
             .pending_recv
             .push_back(&mut self.buffer, Event::Trailers(frame.into_fields()));
-
-        // server move streams from pending complete to pending_accept
-        while let Some(mut stream) = self
-            .pending_complete
-            .pop_if(stream.store_mut(), |stream| {
-                stream.state.is_recv_end_stream()
-            })
-        {
-            if role.is_server() {
-                self.pending_accept.push(&mut stream);
-            }
-        }
-
-        // since trailer is EOS we can notify client
-        stream.notify_recv();
+        self.move_from_pending_complete(stream, role);
         Ok(())
     }
 
@@ -551,6 +506,7 @@ impl Recv {
         stream
             .state
             .recv_reset(frame, stream.is_pending_send);
+
         stream.notify_recv();
 
         // TODO: ws
@@ -753,6 +709,27 @@ impl Recv {
             if id >= next_id {
                 self.next_stream_id = id.next_id();
             }
+        }
+    }
+
+    // called only when EOS is received for a stream
+    // server - move streams from pending_complete to pending_accept
+    // client - pop pending_complete and notify the client for current stream
+    fn move_from_pending_complete(&mut self, stream: &mut Ptr, role: &Role) {
+        while let Some(mut stream) = self
+            .pending_complete
+            .pop_if(stream.store_mut(), |stream| {
+                stream.state.is_recv_end_stream()
+            })
+        {
+            if role.is_server() {
+                trace!("moved to pending accept| {:?}", stream.id);
+                self.pending_accept.push(&mut stream);
+            }
+        }
+        if role.is_client() {
+            trace!("notifying recv");
+            stream.notify_recv();
         }
     }
 
