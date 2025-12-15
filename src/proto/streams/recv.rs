@@ -769,6 +769,7 @@ impl Recv {
         counts: &mut Counts,
     ) {
         self.clear_all_reset_streams(store, counts);
+        self.clear_all_pending_complete(store, counts);
         if clear_pending_accept {
             self.clear_all_pending_accept(store, counts);
         }
@@ -790,6 +791,16 @@ impl Recv {
         counts: &mut Counts,
     ) {
         while let Some(stream) = self.pending_accept.pop(store) {
+            counts.transition_after(stream, false);
+        }
+    }
+
+    fn clear_all_pending_complete(
+        &mut self,
+        store: &mut Store,
+        counts: &mut Counts,
+    ) {
+        while let Some(stream) = self.pending_complete.pop(store) {
             counts.transition_after(stream, false);
         }
     }
