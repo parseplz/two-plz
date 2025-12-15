@@ -612,13 +612,7 @@ impl Recv {
         self.max_stream_id = last_processed_id;
     }
 
-    /// Handle a connection-level error
-    pub fn handle_error(&mut self, err: &ProtoError, stream: &mut Stream) {
-        // Receive an error
-        stream.state.handle_error(err);
-
-        // TODO: partial messages
-        //// clear pending recv queue
+    pub fn clear_stream_queue(&mut self, stream: &mut Stream) {
         if stream.is_pending_complete {
             while let Some(frame) = stream
                 .pending_recv
@@ -628,6 +622,15 @@ impl Recv {
             }
             stream.is_pending_complete = false;
         }
+    }
+
+    /// Handle a connection-level error
+    pub fn handle_error(&mut self, err: &ProtoError, stream: &mut Stream) {
+        // Receive an error
+        stream.state.handle_error(err);
+
+        // TODO: partial messages
+        self.clear_stream_queue(stream);
 
         // If a receiver is waiting, notify it
         stream.notify_recv();
