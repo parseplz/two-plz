@@ -2,6 +2,11 @@ pub use two_plz;
 use two_plz::client::ClientConnection;
 pub use two_plz::*;
 
+// Re-export Request and Response build functions
+pub use super::build_test_request;
+pub use super::build_test_request_post;
+pub use super::build_test_response;
+
 // Re-export mock
 pub use super::mock::{self, idle_ms};
 
