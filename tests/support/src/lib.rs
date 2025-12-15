@@ -68,21 +68,8 @@ pub fn build_test_response() -> Response {
     let scode = ResponseLine {
         status: StatusCode::from_u16(200).unwrap(),
     };
-    let mut headers = HeaderMap::new();
-    headers.insert(HOST, "example.com".parse().unwrap());
-    headers.insert("Jeans", "pant".parse().unwrap());
-    // body
-    //let mut body = BytesMut::with_capacity(65535 * 1000);
-    //for _ in 0..10000 {
-    //    body.put(&b"dead body"[..]);
-    //}
-    //let body = BytesMut::from("dead body");
-    let body = BytesMut::new();
-    let body = Some(body);
-    //let body = None;
-
-    // trailer
-    let trailers = Some(headers.clone());
-    //let trailers = None;
+    let headers = HeaderMap::new();
+   let body = None;
+    let trailers = None;
     Response::new(scode, headers, body, trailers)
 }
