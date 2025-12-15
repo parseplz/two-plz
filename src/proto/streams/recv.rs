@@ -855,6 +855,23 @@ impl Recv {
     }
 }
 
+fn take_response(
+    stream: &mut Ptr,
+    buffer: &mut Buffer<Event>,
+) -> Result<Response, PartialResponse> {
+    let mut response = match stream.pending_recv.pop_front(buffer) {
+        Some(Event::Headers(PollMessage::Client(response))) => response,
+        Some(_) => {
+            unreachable!("client stream queue must start with Headers")
+        }
+        None => {
+            return Err(PartialResponse::empty_queue(stream.id));
+        }
+    };
+    process_remaining_frames(&mut response, stream, buffer);
+    Ok(response)
+}
+
 fn process_remaining_frames<T>(
     message: &mut TwoTwo<T>,
     stream: &mut Ptr,
