@@ -59,6 +59,13 @@ impl StreamRef {
             tracing::debug_span!("[+] send response| ", "{:?}", stream.id);
         let _ = span.enter();
         let actions = &mut me.actions;
+        if stream.state.is_remote_reset() {
+            trace!("remote reset");
+            if let Some(task) = actions.task.take() {
+                task.wake()
+            }
+            return Err(UserError::InactiveStreamId);
+        }
         let mut send_buffer = self.send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
         let mut response_frames = TwoTwoFrame::from((stream.id, response));
