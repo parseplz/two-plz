@@ -10,6 +10,7 @@ use tracing::{Level, error, span, trace, warn};
 
 use crate::{
     Codec,
+    error::OpError,
     frame::{
         self, DEFAULT_INITIAL_WINDOW_SIZE, Reason, StreamId, StreamIdOverflow,
         headers::Pseudo,
@@ -865,11 +866,9 @@ impl Recv {
             if let Err(e) = stream.state.ensure_recv_open() {
                 let inner_result =
                     match take_response(stream, &mut self.buffer) {
-                        Ok(partial) => {
-                            PartialResponse::new(Some(partial), Some(e), None)
-                        }
+                        Ok(partial) => PartialResponse::new(Some(partial), e),
                         Err(mut partial_with_err) => {
-                            partial_with_err.remote_err = Some(e);
+                            partial_with_err.err = e.into();
                             partial_with_err
                         }
                     };
@@ -934,30 +933,24 @@ fn process_remaining_frames<T>(
 
 pub struct PartialResponse {
     response: Option<Response>,
-    remote_err: Option<ProtoError>,
-    local_err: Option<ProtoError>,
+    err: OpError,
 }
 
 impl PartialResponse {
-    fn new(
-        response: Option<Response>,
-        remote_err: Option<ProtoError>,
-        local_err: Option<ProtoError>,
-    ) -> Self {
+    fn new(response: Option<Response>, e: ProtoError) -> Self {
         Self {
             response,
-            remote_err,
-            local_err,
+            err: e.into(),
         }
     }
 
     fn empty_queue(id: StreamId) -> Self {
         let err = ProtoError::library_reset(id, Reason::PROTOCOL_ERROR);
-        Self::new(None, None, Some(err))
+        Self::new(None, err)
     }
 
-    pub fn remote_err(&self) -> Option<&ProtoError> {
-        self.remote_err.as_ref()
+    pub fn err(&self) -> &OpError {
+        &self.err
     }
 }
 
@@ -965,8 +958,7 @@ impl std::fmt::Debug for PartialResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PartialResponse")
             .field("response", &self.response)
-            .field("remote_err", &self.remote_err)
-            .field("local_err", &self.local_err)
+            .field("err", &self.err)
             .finish()
     }
 }
