@@ -10,8 +10,6 @@ pub mod util;
 mod client_ext;
 mod future_ext;
 
-use bytes::BytesMut;
-use http::header::HOST;
 use http::{HeaderMap, Method, StatusCode};
 use two_plz::hpack::BytesStr;
 use two_plz::message::request::uri::{Scheme, Uri};
@@ -69,7 +67,7 @@ pub fn build_test_response() -> Response {
         status: StatusCode::from_u16(200).unwrap(),
     };
     let headers = HeaderMap::new();
-   let body = None;
+    let body = None;
     let trailers = None;
     Response::new(scode, headers, body, trailers)
 }
