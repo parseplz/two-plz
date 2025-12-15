@@ -848,8 +848,7 @@ impl Recv {
         stream: &mut Ptr,
     ) -> Poll<Result<Response, PartialResponse>> {
         if stream.state.is_recv_end_stream() {
-            let mut response = take_response(stream, &mut self.buffer)?;
-            process_remaining_frames(&mut response, stream, &mut self.buffer);
+            let response = take_response(stream, &mut self.buffer)?;
             Poll::Ready(Ok(response))
         } else {
             if let Err(e) = stream.state.ensure_recv_open() {
@@ -944,6 +943,10 @@ impl PartialResponse {
     fn empty_queue(id: StreamId) -> Self {
         let err = ProtoError::library_reset(id, Reason::PROTOCOL_ERROR);
         Self::new(None, None, Some(err))
+    }
+
+    pub fn remote_err(&self) -> Option<&ProtoError> {
+        self.remote_err.as_ref()
     }
 }
 
