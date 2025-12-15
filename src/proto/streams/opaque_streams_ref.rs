@@ -38,7 +38,7 @@ impl OpaqueStreamRef {
     pub fn poll_response(
         &mut self,
         cx: &Context,
-    ) -> Poll<Result<Response, ProtoError>> {
+    ) -> Poll<Result<Response, PartialResponse>> {
         let mut me = self.inner.lock().unwrap();
         let me = &mut *me;
         let mut stream = me.store.resolve(self.key);

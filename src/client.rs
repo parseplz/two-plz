@@ -139,7 +139,7 @@ impl ResponseFuture {
 }
 
 impl Future for ResponseFuture {
-    type Output = Result<Response, OpError>;
+    type Output = Result<Response, PartialResponse>;
 
     fn poll(
         mut self: Pin<&mut Self>,

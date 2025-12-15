@@ -822,33 +822,30 @@ impl Recv {
         self.refused = None;
         Poll::Ready(Ok(()))
     }
+
     pub fn poll_response(
         &mut self,
         cx: &Context,
         stream: &mut Ptr,
-    ) -> Poll<Result<Response, ProtoError>> {
+    ) -> Poll<Result<Response, PartialResponse>> {
         if stream.state.is_recv_end_stream() {
-            let mut response = match stream
-                .pending_recv
-                .pop_front(&mut self.buffer)
-            {
-                Some(Event::Headers(PollMessage::Client(response))) => {
-                    response
-                }
-                Some(_) => {
-                    unreachable!("client stream queue must start with Headers")
-                }
-                None => {
-                    return Poll::Ready(Err(ProtoError::library_reset(
-                        stream.id,
-                        Reason::PROTOCOL_ERROR,
-                    )));
-                }
-            };
+            let mut response = take_response(stream, &mut self.buffer)?;
             process_remaining_frames(&mut response, stream, &mut self.buffer);
             Poll::Ready(Ok(response))
         } else {
-            stream.state.ensure_recv_open()?;
+            if let Err(e) = stream.state.ensure_recv_open() {
+                let inner_result =
+                    match take_response(stream, &mut self.buffer) {
+                        Ok(partial) => {
+                            PartialResponse::new(Some(partial), Some(e), None)
+                        }
+                        Err(mut partial_with_err) => {
+                            partial_with_err.remote_err = Some(e);
+                            partial_with_err
+                        }
+                    };
+                return Poll::Ready(Err(inner_result));
+            };
             stream.recv_task = Some(cx.waker().clone());
             Poll::Pending
         }
