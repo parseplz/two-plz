@@ -632,6 +632,18 @@ impl Send {
                     let is_pending_reset =
                         stream.is_pending_reset_expiration();
 
+                    // local reference dropped
+                    if stream.state.is_remote_reset()
+                        || Some(Reason::CANCEL)
+                            == stream.state.get_scheduled_reset()
+                    {
+                        trace!(
+                            "remote reset| {}",
+                            stream.state.is_remote_reset()
+                        );
+                        self.clear_stream_queue(buffer, &mut stream);
+                    }
+
                     let frame = match stream.pending_send.pop_front(buffer) {
                         Some(Frame::Data(mut frame)) => {
                             let remaining_data_len =
