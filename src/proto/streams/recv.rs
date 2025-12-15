@@ -330,6 +330,20 @@ impl Recv {
                 .pending_recv
                 .push_back(&mut self.buffer, Event::Headers(message));
 
+            let role = counts.role();
+            // for server,
+            // if EOS is received for stream 3 and pending_complete contains
+            // stream 1, we just add stream 3 pending complete to maintain order
+            // when EOS for stream 1 is received, we add both stream 1 and
+            // stream 3 to pending_accept
+            //
+            // for client, we can just notify the client
+            if is_eos && role.is_client() {
+                stream.notify_recv();
+                return Ok(());
+            }
+
+            self.pending_complete.push(stream);
             if is_eos {
                 self.move_from_pending_complete(stream, &role);
             }
