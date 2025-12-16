@@ -51,7 +51,7 @@ pub use futures::{Future, Sink, Stream};
 
 // And our Future extensions
 pub use super::future_ext::{
-    TestFuture, join, join_all, join3, join4, select, try_join,
+    TestFuture, join, join_all, join3, join4, poll_once, select, try_join,
 };
 
 // Our client_ext helpers
@@ -77,7 +77,8 @@ pub static MAGIC_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 use futures::future;
 use futures::future::Either::*;
 pub use futures::future::poll_fn;
-use std::pin::Pin;
+pub use std::pin::Pin;
+pub use std::task::Poll;
 
 pub trait MockH2 {
     fn handshake(&mut self) -> &mut Self;

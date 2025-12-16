@@ -224,3 +224,14 @@ where
         }
     }
 }
+
+pub async fn poll_once<T, E>(conn: &mut T) -> Result<(), E>
+where
+    T: Future<Output = Result<(), E>> + Unpin,
+{
+    futures::future::poll_fn(|cx| match Pin::new(&mut *conn).poll(cx) {
+        Poll::Pending => Poll::Ready(Ok(())),
+        Poll::Ready(r) => Poll::Ready(r),
+    })
+    .await
+}
