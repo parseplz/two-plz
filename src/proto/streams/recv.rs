@@ -162,7 +162,10 @@ impl Recv {
             .pop_front(&mut self.buffer)
         {
             Some(Event::Headers(PollMessage::Server(request))) => request,
-            _ => unreachable!("server stream queue must start with Headers"),
+            _ => unreachable!(
+                "server stream queue must start with Headers| {:?}",
+                stream.id
+            ),
         };
         process_remaining_frames(&mut request, stream, &mut self.buffer);
         request
@@ -630,12 +633,11 @@ impl Recv {
     pub fn handle_error(&mut self, err: &ProtoError, stream: &mut Stream) {
         // Receive an error
         stream.state.handle_error(err);
-
-        // TODO: partial messages
         self.clear_stream_queue(stream);
 
         // If a receiver is waiting, notify it
         stream.notify_recv();
+
         // TODO: ws
         //stream.notify_send();
         //stream.notify_push();
@@ -961,6 +963,10 @@ impl PartialResponse {
 
     pub fn err(&self) -> &OpError {
         &self.err
+    }
+
+    pub fn take_partial_response(&mut self) -> Option<Response> {
+        self.response.take()
     }
 }
 
