@@ -495,7 +495,7 @@ impl Recv {
     pub fn recv_reset(
         &mut self,
         frame: frame::Reset,
-        stream: &mut Stream,
+        stream: &mut Ptr,
         counts: &mut Counts,
     ) -> Result<(), ProtoError> {
         // Reseting a stream that the user hasn't accepted is possible,
@@ -520,10 +520,12 @@ impl Recv {
                 ));
             }
         }
+
+        let is_pending_send = stream.is_pending_send;
         stream
             .state
-            .recv_reset(frame, stream.is_pending_send);
-
+            .recv_reset(frame, is_pending_send);
+        self.move_from_pending_complete(stream, &counts.role());
         stream.notify_recv();
 
         // TODO: ws
