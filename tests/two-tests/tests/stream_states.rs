@@ -243,10 +243,6 @@ async fn go_away_with_pending_accepting() {
             .await
             .unwrap();
 
-        //poll_fn(|cx| s.poll_closed(cx))
-        //    .await
-        //    .expect("server");
-
         let (_req_2, _send_response_2) = s.accept().await.unwrap().unwrap();
 
         recv_go_away_tx.send(()).unwrap();
@@ -940,7 +936,7 @@ async fn err_with_buffered_data() {
         let res = conn.drive(resp).await;
         assert!(res.is_err());
         tx.send(()).unwrap();
-        conn.await;
+        conn.await.unwrap();
     };
 
     let srv_fut = async move {
@@ -990,7 +986,7 @@ async fn send_err_with_buffered_data() {
         // A large body
         let body = BytesMut::zeroed(10);
         request.set_body(Some(body));
-        let mut resp = client
+        let resp = client
             .send_request(request)
             .expect("send_request");
         // Hack to drive the connection, trying to flush data
@@ -1009,7 +1005,7 @@ async fn send_err_with_buffered_data() {
     let srv_fut = async move {
         let mut settings = frame::Settings::default();
         settings.set_initial_window_size(Some(1));
-        let settings = srv
+        let _ = srv
             .assert_client_handshake_with_settings(settings)
             .await;
         srv.recv_frame(frames::headers(1).request(
@@ -1047,13 +1043,13 @@ async fn reset_new_stream_before_send() {
             .unwrap();
 
         // req 1
-        let mut request = build_test_request();
+        let request = build_test_request();
         let resp = client.send_request(request).unwrap();
         let resp = conn.drive(resp).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
         // req 2
-        let mut request = build_test_request();
+        let request = build_test_request();
         let resp = client.send_request(request).unwrap();
         let resp = conn.drive(resp).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -1116,19 +1112,14 @@ async fn explicit_reset_with_max_concurrent_stream() {
             let resp = client.send_request(request).unwrap();
             let resp = conn.drive(resp).await.unwrap();
             drop(resp);
-            poll_fn(|cx| match std::pin::Pin::new(&mut conn).poll(cx) {
-                Poll::Pending => Poll::Ready(Ok(())),
-                Poll::Ready(r) => Poll::Ready(r),
-            })
-            .await
-            .unwrap();
+            poll_once(&mut conn).await.unwrap();
         }
 
         // req 2
         let mut request = build_test_request_post("http2.akamai.com");
         request.set_body(Some(BytesMut::zeroed(1)));
         let resp = client.send_request(request).unwrap();
-        let resp = conn.drive(resp).await;
+        let _resp = conn.drive(resp).await;
         conn.await.expect("client");
     };
 
@@ -1201,12 +1192,7 @@ async fn implicit_cancel_with_max_concurrent_stream() {
             //let resp = conn.drive(resp_fut).await.unwrap();
             drop(resp);
 
-            poll_fn(|cx| match std::pin::Pin::new(&mut conn).poll(cx) {
-                Poll::Pending => Poll::Ready(Ok(())),
-                Poll::Ready(r) => Poll::Ready(r),
-            })
-            .await
-            .unwrap();
+            poll_once(&mut conn).await.unwrap();
         }
 
         {
