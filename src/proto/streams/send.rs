@@ -701,6 +701,9 @@ impl Send {
                                     trace!(
                                         "no conn capacity| added to pending capacity"
                                     );
+                                    stream
+                                        .pending_send
+                                        .push_front(buffer, frame.into());
                                     self.pending_capacity.push(&mut stream);
                                     continue;
                                 }
