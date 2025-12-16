@@ -621,7 +621,6 @@ impl Recv {
             {
                 trace!(?frame, "dropping recvd frames");
             }
-            stream.is_pending_complete = false;
         }
     }
 
