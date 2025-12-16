@@ -647,6 +647,8 @@ impl Send {
                             stream.state.is_remote_reset()
                         );
                         self.clear_stream_queue(buffer, &mut stream);
+                        counts.transition_after(stream, is_pending_reset);
+                        continue;
                     }
 
                     let frame = match stream.pending_send.pop_front(buffer) {
