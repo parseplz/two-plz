@@ -737,15 +737,24 @@ impl Recv {
     // server - move streams from pending_complete to pending_accept
     // client - pop pending_complete and notify the client for current stream
     fn move_from_pending_complete(&mut self, stream: &mut Ptr, role: &Role) {
-        while let Some(mut stream) = self
-            .pending_complete
-            .pop_if(stream.store_mut(), |stream| {
-                stream.state.is_recv_end_stream()
-            })
+        let span = span!(Level::TRACE, "move from pending complete| ");
+        let _enter = span.enter();
+
+        while let Some(mut stream) =
+            self.pending_complete
+                .pop_if(stream.store_mut(), |stream| {
+                    stream.state.is_recv_end_stream()
+                        || stream.state.is_remote_reset()
+                })
         {
             if role.is_server() {
-                trace!("moved to pending accept| {:?}", stream.id);
-                self.pending_accept.push(&mut stream);
+                if stream.state.is_remote_reset() {
+                    trace!("remote reset dropping frames| {:?}", stream.id);
+                    self.clear_stream_queue(&mut stream);
+                } else {
+                    trace!("moved to pending accept| {:?}", stream.id);
+                    self.pending_accept.push(&mut stream);
+                }
             }
         }
         if role.is_client() {
