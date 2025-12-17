@@ -1,5 +1,3 @@
-use futures::StreamExt;
-use support::assert_ping;
 use support::prelude::*;
 
 #[tokio::test]

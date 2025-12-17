@@ -1,5 +1,4 @@
 #![allow(warnings)]
-use futures::{FutureExt, StreamExt};
 use support::prelude::*;
 
 use std::io;

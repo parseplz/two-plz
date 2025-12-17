@@ -1,4 +1,4 @@
-use support::{build_test_request, prelude::*};
+use support::prelude::*;
 
 #[tokio::test]
 async fn write_continuation_frames() {

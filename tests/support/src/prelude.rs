@@ -1,7 +1,3 @@
-pub use two_plz;
-use two_plz::client::ClientConnection;
-pub use two_plz::*;
-
 // Re-export Request and Response build functions
 pub use super::build_test_request;
 pub use super::build_test_request_post;
@@ -35,7 +31,7 @@ pub use {
 };
 
 // Re-export two-plz
-pub use two_plz::client;
+pub use two_plz;
 pub use two_plz::client::ClientBuilder;
 pub use two_plz::ext::Protocol;
 pub use two_plz::frame::StreamId;
@@ -45,9 +41,16 @@ pub use two_plz::message::response::ResponseBuilder;
 pub use two_plz::message::response::ResponseLine;
 pub use two_plz::server;
 pub use two_plz::server::ServerBuilder;
+pub use two_plz::*;
 
 // Re-export primary future types
-pub use futures::{Future, Sink, Stream};
+pub use futures::{
+    Future, FutureExt, Sink, Stream, StreamExt, future, future::Either,
+    future::poll_fn,
+};
+pub use std::pin::Pin;
+pub use std::task::Context;
+pub use std::task::Poll;
 
 // And our Future extensions
 pub use super::future_ext::{
@@ -73,12 +76,6 @@ pub static MAGIC_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 // ===== Everything under here shouldn't be used =====
 // TODO: work on deleting this code
-
-use futures::future;
-use futures::future::Either::*;
-pub use futures::future::poll_fn;
-pub use std::pin::Pin;
-pub use std::task::Poll;
 
 pub trait MockH2 {
     fn handshake(&mut self) -> &mut Self;
@@ -106,7 +103,7 @@ pub trait ClientExt {
     ) -> Pin<Box<dyn Future<Output = F::Output> + 'a>>;
 }
 
-impl<T> ClientExt for ClientConnection<T>
+impl<T> ClientExt for client::ClientConnection<T>
 where
     T: AsyncRead + AsyncWrite + Unpin + 'static,
 {
@@ -116,6 +113,7 @@ where
     ) -> Pin<Box<dyn Future<Output = F::Output> + 'a>> {
         let res = future::select(self, f);
         Box::pin(async {
+            use Either::*;
             match res.await {
                 Left((Ok(_), b)) => {
                     // Connection is done...

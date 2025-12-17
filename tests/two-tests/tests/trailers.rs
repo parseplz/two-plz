@@ -1,4 +1,4 @@
-use support::{build_test_request, prelude::*};
+use support::prelude::*;
 
 #[tokio::test]
 async fn recv_trailers_only() {
@@ -58,7 +58,7 @@ async fn send_trailers_immediately() {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.body_as_ref(), Some(&"hello world"[..].into()));
         assert!(response.trailers().is_none());
-
+        idle_ms(100).await;
         conn.await.unwrap();
     };
 
