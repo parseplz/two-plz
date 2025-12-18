@@ -212,7 +212,7 @@ impl Inner {
                     if !frame.is_end_stream() {
                         // Receiving trailers that don't set EOS is a "malformed"
                         // message. Malformed messages are a stream error.
-                        error!("trailers withour EOS");
+                        error!("trailers without EOS");
                         return Err(ProtoError::library_reset(
                             stream.id,
                             Reason::PROTOCOL_ERROR,

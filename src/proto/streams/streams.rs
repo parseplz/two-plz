@@ -107,7 +107,6 @@ impl Streams<Bytes> {
         let data_frame = request_frames.take_data();
         let trailer_frame = request_frames.take_trailer();
 
-        // TODO: Error handling needed ?
         if let Err(e) = me.actions.send.send_headers(
             request_frames.header,
             send_buffer,
@@ -406,7 +405,7 @@ pub fn queue_body_trailer(
     send_buffer: &mut Buffer<Frame>,
 ) {
     if let Some(frame) = data_frame {
-        trace!("[+] added| data");
+        trace!("added| data");
         stream.remaining_data_len = Some(frame.payload().len());
         stream
             .pending_send
@@ -414,7 +413,7 @@ pub fn queue_body_trailer(
     }
 
     if let Some(frame) = trailer_frame {
-        trace!("[+] added| trailer");
+        trace!("added| trailer");
         stream
             .pending_send
             .push_back(send_buffer, frame.into());

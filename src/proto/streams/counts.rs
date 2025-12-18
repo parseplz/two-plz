@@ -262,6 +262,12 @@ impl Counts {
             if !stream.state.is_scheduled_reset() && stream.is_counted {
                 // Decrement the number of active streams.
                 self.dec_num_streams(&mut stream);
+            } else {
+                trace!(
+                    "scheduled reset| {}",
+                    stream.state.is_scheduled_reset()
+                );
+                trace!("counted| {}", stream.is_counted);
             }
         }
 
