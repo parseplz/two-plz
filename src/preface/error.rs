@@ -1,6 +1,10 @@
 use thiserror::Error;
 
-use crate::{codec::UserError, frame, proto};
+use crate::{
+    codec::UserError,
+    frame,
+    proto::{self, ProtoError},
+};
 
 #[derive(Debug, Error)]
 #[error("preface error: {state}: {err}")]
@@ -15,6 +19,10 @@ impl PrefaceError {
             state,
             err,
         }
+    }
+
+    pub fn err(&self) -> &PrefaceErrorKind {
+        &self.err
     }
 }
 
@@ -36,7 +44,7 @@ pub enum PrefaceErrorKind {
     #[error("user: {0}")]
     User(#[from] UserError),
     #[error("proto")]
-    Proto,
+    Proto(#[from] ProtoError),
     #[error("eof")]
     Eof,
     #[error("wrong frame")]
@@ -98,6 +106,6 @@ impl<T> IoStateExt<T> for Result<T, UserError> {
 impl<T> IoStateExt<T> for Result<T, proto::ProtoError> {
     #[inline]
     fn in_state(self, state: PrefaceErrorState) -> Result<T, PrefaceError> {
-        self.map_err(|_e| PrefaceError::new(state, PrefaceErrorKind::Proto))
+        self.map_err(|e| PrefaceError::new(state, PrefaceErrorKind::Proto(e)))
     }
 }
