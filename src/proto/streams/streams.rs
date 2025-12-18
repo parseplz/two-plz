@@ -356,6 +356,15 @@ impl Streams<Bytes> {
         let me = self.inner.lock().unwrap();
         me.store.num_wired_streams()
     }
+
+    pub(crate) fn is_extended_connect_protocol_enabled(&self) -> bool {
+        self.inner
+            .lock()
+            .unwrap()
+            .actions
+            .send
+            .is_extended_connect_protocol_enabled()
+    }
 }
 
 impl<B> Clone for Streams<B> {

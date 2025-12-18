@@ -537,6 +537,10 @@ impl Send {
         }
     }
 
+    pub(crate) fn is_extended_connect_protocol_enabled(&self) -> bool {
+        self.is_extended_connect_protocol_enabled
+    }
+
     /// ===== Clear =====
     pub fn clear_queues(&mut self, store: &mut Store, counts: &mut Counts) {
         self.clear_pending_capacity(store, counts);

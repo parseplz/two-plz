@@ -69,6 +69,16 @@ pub struct ClientConnection<T> {
     inner: Connection<T>,
 }
 
+impl<T> ClientConnection<T>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn is_extended_connect_protocol_enabled(&self) -> bool {
+        self.inner
+            .is_extended_connect_protocol_enabled()
+    }
+}
+
 impl<T> Future for ClientConnection<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,

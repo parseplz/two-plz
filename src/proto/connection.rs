@@ -221,6 +221,10 @@ where
     }
 
     // ===== Misc =====
+    pub(crate) fn is_extended_connect_protocol_enabled(&self) -> bool {
+        self.streams
+            .is_extended_connect_protocol_enabled()
+    }
     pub fn num_wired_streams(&self) -> usize {
         self.streams.num_wired_streams()
     }
