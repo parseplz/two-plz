@@ -50,13 +50,16 @@ pub struct RequestLine {
 
 impl InfoLine for RequestLine {
     fn into_pseudo(self) -> Pseudo {
-        // TODO
-        // let is_connect = self.method == Method::CONNECT;
+        let is_connect = self.method == Method::CONNECT;
         let mut pseudo =
             Pseudo::request(self.method, self.uri, self.extension);
 
-        if pseudo.scheme.is_none() {
+        if pseudo.scheme.is_none() && !is_connect {
             pseudo.set_scheme(Scheme::HTTP)
+        }
+
+        if is_connect {
+            pseudo.path = None;
         }
 
         pseudo
