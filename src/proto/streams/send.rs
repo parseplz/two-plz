@@ -82,8 +82,14 @@ impl Send {
             pending_capacity: Queue::new(),
             pending_open: Queue::new(),
             pending_send: Queue::new(),
-            is_push_enabled: false,
-            is_extended_connect_protocol_enabled: false,
+            is_push_enabled: config
+                .peer_settings
+                .is_push_enabled()
+                .unwrap_or_default(),
+            is_extended_connect_protocol_enabled: config
+                .peer_settings
+                .is_extended_connect_protocol_enabled()
+                .unwrap_or_default(),
         }
     }
 
