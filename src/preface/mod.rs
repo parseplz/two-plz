@@ -1,5 +1,6 @@
 use crate::codec::{Codec, UserError};
-use crate::frame::{Frame, Settings};
+use crate::frame::{self, Frame, Settings, StreamId};
+use crate::proto::ProtoError;
 use crate::role::Role;
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
@@ -102,15 +103,34 @@ where
         }
     }
 
-    pub async fn read_frame(&mut self) -> Result<Frame, PrefaceError> {
-        self.stream
+    pub async fn read_peer_settings(
+        &mut self,
+    ) -> Result<frame::Settings, PrefaceErrorKind> {
+        let frame = self
+            .stream
             .next()
             .await
-            .ok_or(PrefaceError::new(
-                PrefaceErrorState::ReadClientSettings,
-                PrefaceErrorKind::Eof,
-            ))?
-            .in_state(PrefaceErrorState::ReadClientSettings)
+            .ok_or(PrefaceErrorKind::Eof)?;
+        match frame {
+            Ok(frame) => {
+                if let Frame::Settings(settings) = frame {
+                    Ok(settings)
+                } else {
+                    Err(PrefaceErrorKind::WrongFrame(frame.kind()))
+                }
+            }
+            Err(ProtoError::GoAway(_, reason, _)) => {
+                let go_away = frame::GoAway::new(StreamId::ZERO, reason);
+                self.stream.buffer(go_away.into())?;
+                self.flush()
+                    .await
+                    .map_err(PrefaceErrorKind::Io)?;
+                Err(PrefaceErrorKind::Proto(ProtoError::library_go_away(
+                    reason,
+                )))
+            }
+            Err(e) => Err(PrefaceErrorKind::Proto(e)),
+        }
     }
 
     pub fn take_remote_settings(&mut self) -> Settings {
@@ -177,15 +197,17 @@ where
             }
             Self::ReadPeerSettings(mut conn) => {
                 info!("[+] read peer settings");
-                let frame = conn.read_frame().await?;
-                if let Frame::Settings(settings) = frame {
-                    conn.remote_settings = Some(settings);
-                    Self::SendPeerSettingsAck(conn)
-                } else {
-                    return Err(PrefaceError::new(
-                        PrefaceErrorState::ReadClientSettings,
-                        PrefaceErrorKind::WrongFrame(frame.kind()),
-                    ));
+                match conn.read_peer_settings().await {
+                    Ok(settings) => {
+                        conn.remote_settings = Some(settings);
+                        Self::SendPeerSettingsAck(conn)
+                    }
+                    Err(e) => {
+                        return Err(PrefaceError::new(
+                            PrefaceErrorState::ReadClientSettings,
+                            e,
+                        ));
+                    }
                 }
             }
             Self::SendPeerSettingsAck(mut conn) => {
