@@ -365,6 +365,14 @@ impl Streams<Bytes> {
             .send
             .is_extended_connect_protocol_enabled()
     }
+
+    pub(crate) fn max_send_streams(&self) -> usize {
+        self.inner
+            .lock()
+            .unwrap()
+            .counts
+            .max_send_streams()
+    }
 }
 
 impl<B> Clone for Streams<B> {

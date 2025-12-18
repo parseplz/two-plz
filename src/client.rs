@@ -77,6 +77,19 @@ where
         self.inner
             .is_extended_connect_protocol_enabled()
     }
+
+    /// Returns the maximum number of concurrent streams that may be initiated
+    /// by this client.
+    ///
+    /// This limit is configured by the server peer by sending the
+    /// [`SETTINGS_MAX_CONCURRENT_STREAMS` parameter][1] in a `SETTINGS` frame.
+    /// This method returns the currently acknowledged value received from the
+    /// remote.
+    ///
+    /// [1]: https://tools.ietf.org/html/rfc7540#section-5.1.2
+    pub fn max_concurrent_send_streams(&self) -> usize {
+        self.inner.max_send_streams()
+    }
 }
 
 impl<T> Future for ClientConnection<T>

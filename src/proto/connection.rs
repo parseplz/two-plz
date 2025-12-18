@@ -225,6 +225,11 @@ where
         self.streams
             .is_extended_connect_protocol_enabled()
     }
+
+    pub(crate) fn max_send_streams(&self) -> usize {
+        self.streams.max_send_streams()
+    }
+
     pub fn num_wired_streams(&self) -> usize {
         self.streams.num_wired_streams()
     }
