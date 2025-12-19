@@ -18,8 +18,8 @@ const SHUTDOWN_PAYLOAD: Payload =
 const USER_PAYLOAD: Payload = [0x3b, 0x7c, 0xdb, 0x7a, 0x0b, 0x87, 0x16, 0xb4];
 
 impl Ping {
-    pub(crate) const SHUTDOWN: Payload = SHUTDOWN_PAYLOAD;
-    pub(crate) const USER: Payload = USER_PAYLOAD;
+    pub const SHUTDOWN: Payload = SHUTDOWN_PAYLOAD;
+    pub const USER: Payload = USER_PAYLOAD;
 
     pub fn new(payload: Payload) -> Ping {
         Ping {
