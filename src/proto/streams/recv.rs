@@ -130,10 +130,7 @@ impl Recv {
                     .initial_connection_window_size
                     .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
             ),
-            init_stream_window_sz: config
-                .local_settings
-                .initial_window_size()
-                .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
+            init_stream_window_sz: DEFAULT_INITIAL_WINDOW_SIZE,
             last_processed_id: StreamId::ZERO,
             max_stream_id: StreamId::MAX,
             next_stream_id: Ok(next_stream_id.into()),
