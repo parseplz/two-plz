@@ -56,7 +56,7 @@ impl Counts {
                 .unwrap_or(usize::MAX),
             num_send_streams: 0,
             max_recv_streams: config
-                .peer_settings
+                .local_settings
                 .max_concurrent_streams()
                 .map(|v| v as usize)
                 .unwrap_or(usize::MAX),
