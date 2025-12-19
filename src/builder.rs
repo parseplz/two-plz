@@ -272,6 +272,12 @@ where
         self
     }
 
+    pub fn enable_connect_protocol(mut self) -> Self {
+        self.settings
+            .set_enable_connect_protocol(Some(1));
+        self
+    }
+
     // TODO
     // Sets the first stream ID to something other than 1.
     //pub fn initial_stream_id(&mut self, stream_id: u32) -> &mut Self {
