@@ -62,17 +62,15 @@ where
 {
     pub async fn accept(
         &mut self,
-    ) -> Option<Result<(Request, SendResponse), crate::frame::Error>> {
+    ) -> Option<Result<(Request, SendResponse), OpError>> {
         poll_fn(move |cx| self.poll_accept(cx)).await
     }
 
     pub fn poll_accept(
         &mut self,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<(Request, SendResponse), crate::frame::Error>>>
-    {
-        //TODO .map_err(Into::into);
-        if self.connection.poll(cx).is_ready() {
+    ) -> Poll<Option<Result<(Request, SendResponse), OpError>>> {
+        if self.connection.poll(cx)?.is_ready() {
             // If the socket is closed, don't return anything
             // TODO: drop any pending streams
             return Poll::Ready(None);
@@ -108,7 +106,7 @@ impl<T> futures_core::Stream for ServerConnection<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
-    type Item = Result<(Request, SendResponse), crate::frame::Error>;
+    type Item = Result<(Request, SendResponse), OpError>;
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
