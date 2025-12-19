@@ -87,6 +87,19 @@ where
         Poll::Pending
     }
 
+    /// Returns `Ready` when the underlying connection has closed.
+    ///
+    /// If any new inbound streams are received during a call to `poll_closed`,
+    /// they will be queued and returned on the next call to [`poll_accept`].
+    ///
+    /// This function will advance the internal connection state, driving
+    /// progress on all the other handles (e.g. [`RecvStream`] and [`SendStream`]).
+    ///
+    /// See [here](index.html#managing-the-connection) for more details.
+    ///
+    /// [`poll_accept`]: struct.Connection.html#method.poll_accept
+    /// [`RecvStream`]: ../struct.RecvStream.html
+    /// [`SendStream`]: ../struct.SendStream.html
     pub fn poll_closed(
         &mut self,
         cx: &mut Context,
@@ -98,6 +111,37 @@ where
 
     pub fn num_wired_streams(&self) -> usize {
         self.connection.num_wired_streams()
+    }
+
+    /// Sets the connection to a GOAWAY state.
+    ///
+    /// Does not terminate the connection. Must continue being polled to close
+    /// connection.
+    ///
+    /// After flushing the GOAWAY frame, the connection is closed. Any
+    /// outstanding streams do not prevent the connection from closing. This
+    /// should usually be reserved for shutting down when something bad
+    /// external to `h2` has happened, and open streams cannot be properly
+    /// handled.
+    ///
+    /// For graceful shutdowns, see [`graceful_shutdown`](Connection::graceful_shutdown).
+    pub fn abrupt_shutdown(&mut self, reason: Reason) {
+        self.connection
+            .go_away_from_user(reason);
+    }
+
+    /// Starts a [graceful shutdown][1] process.
+    ///
+    /// Must continue being polled to close connection.
+    ///
+    /// It's possible to receive more requests after calling this method, since
+    /// they might have been in-flight from the client already. After about
+    /// 1 RTT, no new requests should be accepted. Once all active streams
+    /// have completed, the connection is closed.
+    ///
+    /// [1]: http://httpwg.org/specs/rfc7540.html#GOAWAY
+    pub fn graceful_shutdown(&mut self) {
+        self.connection.go_away_gracefully();
     }
 }
 

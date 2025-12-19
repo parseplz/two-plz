@@ -186,7 +186,6 @@ where
 
     // ==== GOAWAY =====
     // send goaway - shutdown
-    // TODO: Expose Api
     fn go_away_graceful(&mut self, id: StreamId, e: Reason) {
         let frame = frame::GoAway::new(id, e);
         // sets recv.last_processed_id
@@ -209,8 +208,7 @@ where
         self.goaway_handler.go_away_now(frame);
     }
 
-    // TODO Expose Api
-    fn go_away_from_user(&mut self, e: Reason) {
+    pub(crate) fn go_away_from_user(&mut self, e: Reason) {
         let last_processed_id = self.streams.last_processed_id();
         let frame = frame::GoAway::new(last_processed_id, e);
         self.goaway_handler
@@ -493,6 +491,15 @@ where
             // important.
             (_, theirs) => Err(ProtoError::remote_go_away(debug_data, theirs)),
         }
+    }
+
+    pub(crate) fn go_away_gracefully(&mut self) {
+        if self.goaway_handler.is_going_away() {
+            // No reason to start a new one.
+            return;
+        }
+        self.go_away_graceful(StreamId::MAX, Reason::NO_ERROR);
+        self.ping_handler.ping_shutdown();
     }
 }
 
