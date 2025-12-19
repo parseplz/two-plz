@@ -312,7 +312,7 @@ impl Recv {
 
         // check extended protocol and response headers in request
         if !self.is_extended_protocol_usage_correct(&pseudo, is_server)
-            && !Self::are_response_headers_in_request(&pseudo, is_server)
+            || Self::are_response_headers_in_request(&pseudo, is_server)
         {
             return Err(ProtoError::library_reset(
                 stream.id,
@@ -432,7 +432,7 @@ impl Recv {
 
     #[inline(always)]
     fn is_extended_protocol_usage_correct(
-        &mut self,
+        &self,
         pseudo: &Pseudo,
         is_server: bool,
     ) -> bool {
@@ -457,9 +457,9 @@ impl Recv {
     ) -> bool {
         if pseudo.status.is_some() && is_server {
             error!("cannot use :status header for requests");
-            false
-        } else {
             true
+        } else {
+            false
         }
     }
 
