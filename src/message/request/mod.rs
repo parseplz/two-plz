@@ -71,6 +71,10 @@ impl Request {
         &self.info_line.method
     }
 
+    pub fn uri(&self) -> &Uri {
+        &self.info_line.uri
+    }
+
     pub fn from_http_two(
         pseudo: Pseudo,
         headers: HeaderMap,
@@ -117,7 +121,7 @@ impl Request {
 
         // authority
         if let Some(authority) = pseudo.authority {
-            uri = uri.authority(authority);
+            uri = uri.set_authority(authority);
         }
 
         // A :scheme is required, except CONNECT.
@@ -131,7 +135,7 @@ impl Request {
             // after validating is was a valid scheme, we just have to drop it
             // if there isn't an :authority.
             if uri.authority.is_some() {
-                uri = uri.scheme(scheme);
+                uri = uri.set_scheme(scheme);
             }
         } else if !is_connect || has_protocol {
             malformed!("malformed headers| missing scheme");
@@ -147,7 +151,7 @@ impl Request {
             if path.is_empty() {
                 malformed!("malformed headers| missing path");
             }
-            uri = uri.path(path);
+            uri = uri.set_path(path);
         } else if is_connect && has_protocol {
             malformed!("malformed headers| missing path in extended CONNECT");
         }

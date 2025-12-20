@@ -588,7 +588,6 @@ impl Pseudo {
         } else {
             let path = uri
                 .path_and_query
-                .map(|v| BytesStr::from(v.as_str()))
                 .unwrap_or(BytesStr::from_static(""));
 
             let path = if !path.is_empty() {
