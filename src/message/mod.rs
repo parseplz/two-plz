@@ -55,6 +55,10 @@ impl<T> TwoTwo<T> {
     pub fn trailers(&self) -> Option<&HeaderMap> {
         self.trailer.as_ref()
     }
+
+    pub fn take_body(&mut self) -> Option<BytesMut> {
+        self.body.take()
+    }
 }
 
 pub struct TwoTwoFrame {
