@@ -36,7 +36,5 @@ pub mod preface;
 pub mod proto;
 pub mod role;
 pub mod server;
-
-// tests
 pub use crate::proto::connection::Connection;
 pub use codec::Codec;

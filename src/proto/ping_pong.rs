@@ -15,9 +15,7 @@ use crate::{Codec, frame::Ping, proto::PingPayload};
 #[derive(Debug, Default)]
 pub struct PingHandler {
     pending_ping: Option<PendingPing>,
-    awaiting_pong: bool,
     pending_pong: Option<PingPayload>,
-    awaiting_shutdown: bool,
 }
 
 #[derive(Debug)]

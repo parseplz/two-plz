@@ -71,13 +71,6 @@ impl Counts {
         }
     }
 
-    /// Returns true when the next opened stream will reach capacity of
-    /// outbound streams
-    /// TODO: needed ?
-    pub fn next_send_stream_will_reach_capacity(&self) -> bool {
-        self.max_send_streams <= (self.num_send_streams + 1)
-    }
-
     pub fn has_streams(&self) -> bool {
         self.num_send_streams != 0 || self.num_recv_streams != 0
     }

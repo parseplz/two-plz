@@ -116,6 +116,9 @@ impl Inner {
                 let res = actions
                     .recv
                     .recv_data(frame, stream, &role);
+                if let Err(e) = res.as_ref() {
+                    error!("{:?}", e);
+                }
                 actions.reset_on_recv_stream_err(
                     send_buffer,
                     stream,
