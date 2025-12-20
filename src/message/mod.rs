@@ -36,8 +36,8 @@ impl<T> TwoTwo<T> {
         self.trailer = Some(trailer);
     }
 
-    pub fn set_body(&mut self, body: Option<BytesMut>) {
-        self.body = body;
+    pub fn set_body(&mut self, body: BytesMut) {
+        self.body = Some(body);
     }
 
     pub fn body_as_ref(&self) -> Option<&BytesMut> {

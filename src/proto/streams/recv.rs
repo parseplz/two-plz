@@ -937,7 +937,10 @@ fn process_remaining_frames<T>(
             }
         }
     }
-    message.set_body(body);
+
+    if let Some(body) = body {
+        message.set_body(body);
+    }
 }
 
 pub struct PartialResponse {
