@@ -49,7 +49,7 @@ async fn send_data_without_requesting_capacity() {
         .unwrap();
 
     let mut request = build_test_request_post("http2.akamai.com");
-    request.set_body(Some(BytesMut::zeroed(1024)));
+    request.set_body(BytesMut::zeroed(1024));
     let resp = client.send_request(request).unwrap();
 
     let resp = conn.run(resp).await.unwrap();
@@ -259,7 +259,7 @@ async fn recv_window_update_on_stream_closed_by_data_frame() {
             .unwrap();
 
         let mut request = build_test_request_post("http2.akamai.com");
-        request.set_body(Some(BytesMut::from("hello")));
+        request.set_body(BytesMut::from("hello"));
 
         let resp_fut = client.send_request(request).unwrap();
 
@@ -319,7 +319,7 @@ async fn capacity_assigned_in_multi_window_updates() {
         let mut body =
             BytesMut::zeroed(frame::DEFAULT_INITIAL_WINDOW_SIZE as usize);
         body.extend_from_slice(b"helloworld");
-        request.set_body(Some(body));
+        request.set_body(body);
 
         let resp_fut = client.send_request(request).unwrap();
 
@@ -478,7 +478,7 @@ async fn recv_settings_removes_available_capacity() {
             .unwrap();
 
         let mut request = build_test_request_post("http2.akamai.com");
-        request.set_body(Some(BytesMut::from("hello world")));
+        request.set_body(BytesMut::from("hello world"));
 
         let resp_fut = client.send_request(request).unwrap();
 
@@ -537,7 +537,7 @@ async fn recv_settings_keeps_assigned_capacity() {
             .unwrap();
 
         let mut request = build_test_request_post("http2.akamai.com");
-        request.set_body(Some(BytesMut::from("hello world")));
+        request.set_body(BytesMut::from("hello world"));
 
         let resp_fut = client.send_request(request).unwrap();
 
@@ -604,7 +604,7 @@ async fn recv_no_init_window_then_receive_some_init_window() {
 
         // Create request with 11 byte body
         let mut request = build_test_request_post("http2.akamai.com");
-        request.set_body(Some(BytesMut::from("hello world")));
+        request.set_body(BytesMut::from("hello world"));
 
         let resp_fut = client.send_request(request).unwrap();
 
@@ -683,7 +683,7 @@ async fn recv_settings_increase_window_size_after_using_some() {
             .unwrap();
 
         let mut request = build_test_request_post("http2.akamai.com");
-        request.set_body(Some(BytesMut::zeroed(size)));
+        request.set_body(BytesMut::zeroed(size));
         let resp_fut = client.send_request(request).unwrap();
         let response = conn.drive(resp_fut).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
@@ -747,15 +747,15 @@ async fn reset_stream_waiting_for_capacity() {
             .unwrap();
 
         let mut request1 = build_test_request_post("example.com");
-        request1.set_body(Some(BytesMut::zeroed(65_535)));
+        request1.set_body(BytesMut::zeroed(65_535));
         let resp_fut1 = client.send_request(request1).unwrap();
 
         let mut request2 = build_test_request_post("example.com");
-        request2.set_body(Some(BytesMut::zeroed(1)));
+        request2.set_body(BytesMut::zeroed(1));
         let resp_fut2 = client.send_request(request2).unwrap();
 
         let mut request3 = build_test_request_post("example.com");
-        request3.set_body(Some(BytesMut::zeroed(1)));
+        request3.set_body(BytesMut::zeroed(1));
         let resp_fut3 = client.send_request(request3).unwrap();
 
         // Drive connection and all requests

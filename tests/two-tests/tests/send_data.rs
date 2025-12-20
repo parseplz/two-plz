@@ -27,7 +27,7 @@ async fn single_stream_send_large_body() {
         .expect("handshake");
 
     let mut request = build_test_request_post("http2.akamai.com");
-    request.set_body(Some(BytesMut::from(&payload[..])));
+    request.set_body(BytesMut::from(&payload[..]));
     let resp_fut = client.send_request(request).unwrap();
     let resp = conn.drive(resp_fut).await.unwrap();
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
@@ -103,14 +103,14 @@ async fn multiple_streams_with_payload_greater_than_default_window() {
 
         // Create request 1 with large body
         let mut request1 = build_test_request_post("http2.akamai.com");
-        request1.set_body(Some(BytesMut::from(&vec![0u8; 16384 * 5 - 1][..])));
+        request1.set_body(BytesMut::from(&vec![0u8; 16384 * 5 - 1][..]));
 
         // Create requests 2 and 3 with no body
         let mut request2 = build_test_request_post("http2.akamai.com");
-        request2.set_body(None);
+        let _ = request2.take_body();
 
         let mut request3 = build_test_request_post("http2.akamai.com");
-        request3.set_body(None);
+        let _ = request3.take_body();
 
         let resp_fut1 = client.send_request(request1).unwrap();
         let resp_fut2 = client.send_request(request2).unwrap();
@@ -174,7 +174,7 @@ async fn single_stream_send_extra_large_body_multi_frames_one_buffer() {
         .expect("handshake");
 
     let mut request = build_test_request_post("http2.akamai.com");
-    request.set_body(Some(BytesMut::from(&vec![0u8; 32_768][..])));
+    request.set_body(BytesMut::from(&vec![0u8; 32_768][..]));
     let resp_fut = client.send_request(request).unwrap();
     let resp = conn.drive(resp_fut).await.unwrap();
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
@@ -234,7 +234,7 @@ async fn single_stream_send_body_greater_than_default_window() {
         .expect("handshake");
 
     let mut request = build_test_request_post("http2.akamai.com");
-    request.set_body(Some(BytesMut::from(&payload[..])));
+    request.set_body(BytesMut::from(&payload[..]));
 
     let resp_fut = client.send_request(request).unwrap();
     let resp = conn.drive(resp_fut).await.unwrap();
@@ -277,7 +277,7 @@ async fn single_stream_send_extra_large_body_multi_frames_multi_buffer() {
         .expect("handshake");
 
     let mut request = build_test_request_post("http2.akamai.com");
-    request.set_body(Some(BytesMut::from(&payload[..])));
+    request.set_body(BytesMut::from(&payload[..]));
 
     let resp_fut = client.send_request(request).unwrap();
     let resp = conn.drive(resp_fut).await.unwrap();
@@ -346,7 +346,7 @@ async fn send_data_receive_window_update() {
         let mut body = BytesMut::from(&b"hello"[..]);
         let payload = vec![0; frame::DEFAULT_INITIAL_WINDOW_SIZE as usize];
         body.extend_from_slice(&payload[..]);
-        request1.set_body(Some(body));
+        request1.set_body(body);
         let resp1 = client.send_request(request1).unwrap();
 
         std::mem::forget(resp1);
@@ -430,18 +430,18 @@ async fn stream_count_over_max_stream_limit_does_not_starve_capacity() {
 
         // Stream 1: Exhaust connection window
         let mut req1 = build_test_request_post("example.com");
-        req1.set_body(Some(BytesMut::from(&vec![0u8; 65535][..])));
+        req1.set_body(BytesMut::from(&vec![0u8; 65535][..]));
         let resp1_fut = client.send_request(req1).unwrap();
 
         // Stream 3: Queue up for connection window
         let mut req2 = build_test_request_post("example.com");
-        req2.set_body(Some(BytesMut::from(&vec![0u8; 65535][..])));
+        req2.set_body(BytesMut::from(&vec![0u8; 65535][..]));
         let resp2_fut = client.send_request(req2).unwrap();
 
         // Queue 5 more streams waiting to open
         for _ in 0..5 {
             let mut req = build_test_request_post("example.com");
-            req.set_body(Some(BytesMut::from(&vec![0u8; 65535][..])));
+            req.set_body(BytesMut::from(&vec![0u8; 65535][..]));
             client.send_request(req).unwrap();
         }
 

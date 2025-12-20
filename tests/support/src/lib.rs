@@ -42,19 +42,23 @@ macro_rules! trace_init {
 }
 
 pub fn build_test_request() -> Request {
-    let mut uri = Uri::default();
-    uri = uri.authority(BytesStr::from_static("http2.akamai.com"));
-    uri = uri.scheme(Scheme::HTTPS);
     RequestBuilder::new()
         .method(Method::GET)
-        .uri(uri)
+        .uri(build_test_uri())
         .build()
+}
+
+pub fn build_test_uri() -> Uri {
+    let mut uri = Uri::default();
+    uri = uri.set_authority(BytesStr::from_static("http2.akamai.com"));
+    uri = uri.set_scheme(Scheme::HTTPS);
+    uri
 }
 
 pub fn build_test_request_post(host: &str) -> Request {
     let mut uri = Uri::default();
-    uri = uri.authority(BytesStr::unchecked_from_slice(host.as_bytes()));
-    uri = uri.scheme(Scheme::HTTPS);
+    uri = uri.set_authority(BytesStr::unchecked_from_slice(host.as_bytes()));
+    uri = uri.set_scheme(Scheme::HTTPS);
     RequestBuilder::new()
         .method(Method::POST)
         .uri(uri)

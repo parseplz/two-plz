@@ -2,12 +2,17 @@
 pub use super::build_test_request;
 pub use super::build_test_request_post;
 pub use super::build_test_response;
+pub use super::build_test_uri;
+
+pub use hpack::BytesStr;
 
 // Re-export mock
 pub use super::mock::{self, idle_ms};
 
 // Re-export frames helpers
 pub use super::frames;
+pub use super::frames::NEW_SETTINGS;
+pub use frame::headers::Pseudo;
 
 // Re-export utility mod
 pub use super::util;

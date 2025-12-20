@@ -15,7 +15,7 @@ pub trait SendRequestExt {
 impl SendRequestExt for SendRequest {
     fn get(&mut self, path: &str) -> ResponseFuture {
         let mut uri = Uri::new(None, None, None);
-        uri = uri.path(BytesStr::from(path));
+        uri = uri.set_path(BytesStr::from(path));
         let request = RequestBuilder::new()
             .method(Method::GET)
             .uri(uri)

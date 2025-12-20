@@ -68,6 +68,12 @@ where
     Mock(frame::Reset::new(id.into(), frame::Reason::NO_ERROR))
 }
 
+pub fn new_settings() -> Mock<frame::Settings> {
+    let mut settings = frame::Settings::default();
+    settings.set_enable_push(false);
+    Mock(settings)
+}
+
 pub fn settings() -> Mock<frame::Settings> {
     Mock(frame::Settings::default())
 }
@@ -115,9 +121,11 @@ impl Mock<frame::Headers> {
     {
         let method = method.try_into().unwrap();
         let mut uri = Uri::default();
-        uri = uri.authority(authority.into());
-        uri = uri.path(path.into());
-        uri = uri.scheme(Scheme::from(scheme.as_bytes()));
+        if !authority.is_empty() {
+            uri = uri.set_authority(authority.into());
+        }
+        uri = uri.set_path(path.into());
+        uri = uri.set_scheme(Scheme::from(scheme.as_bytes()));
         let (id, _, fields) = self.into_parts();
         let extensions = Default::default();
         let pseudo = Pseudo::request(method, uri, extensions);

@@ -1,12 +1,5 @@
 #![allow(warnings)]
-use std::task::Poll;
-
-use futures::{
-    FutureExt, StreamExt,
-    future::{Either, lazy},
-};
-use support::{prelude::*, util::yield_once};
-use tokio::sync::oneshot;
+use support::prelude::*;
 
 #[tokio::test]
 async fn client_out_of_order_complete() {
@@ -21,11 +14,11 @@ async fn client_out_of_order_complete() {
 
         // req 1
         let mut request = build_test_request_post("http2.akamai.com");
-        request.set_body(Some(BytesMut::zeroed(10)));
+        request.set_body(BytesMut::zeroed(10));
         let resp1 = client.send_request(request).unwrap();
 
         // req 2
-        let mut request = build_test_request();
+        let request = build_test_request();
         let resp2 = client.send_request(request).unwrap();
         let result = conn
             .drive(async {
@@ -261,7 +254,7 @@ async fn client_reset_pending_send() {
 
         // req 1
         let mut request = build_test_request_post("http2.akamai.com");
-        request.set_body(Some(BytesMut::zeroed(10)));
+        request.set_body(BytesMut::zeroed(10));
         let resp1 = client.send_request(request).unwrap();
 
         // req 2
@@ -330,10 +323,10 @@ async fn server_reset_pending_send() {
         assert_eq!(req2.method(), Method::GET);
 
         let mut response1 = build_test_response();
-        response1.set_body(Some(BytesMut::zeroed(10)));
+        response1.set_body(BytesMut::zeroed(10));
 
         let mut response2 = build_test_response();
-        response2.set_body(Some(BytesMut::zeroed(10)));
+        response2.set_body(BytesMut::zeroed(10));
 
         let result = responder1.send_response(response1);
         assert!(result.is_err());
@@ -375,6 +368,96 @@ async fn server_reset_pending_send() {
             .await;
         client
             .recv_frame(frames::data(3, vec![0; 10]).eos())
+            .await;
+    };
+
+    join(client, srv).await;
+}
+
+#[tokio::test]
+async fn client_reset_pending_recv() {
+    support::trace_init!();
+    let (io, mut srv) = mock::new();
+
+    let client_fut = async move {
+        let (mut conn, mut client) = ClientBuilder::new()
+            .handshake(io)
+            .await
+            .unwrap();
+
+        // req 1
+        let mut request = build_test_request();
+        let resp = client.send_request(request).unwrap();
+        let result = conn.drive(resp).await;
+        assert!(result.is_err());
+        let resp = result
+            .unwrap_err()
+            .take_partial_response()
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        conn.await;
+    };
+
+    let srv_fut = async move {
+        let settings = srv
+            .assert_client_handshake_with_settings(frames::settings())
+            .await;
+        assert_default_settings!(settings);
+        srv.recv_frame(
+            frames::headers(1)
+                .request("GET", "https", "http2.akamai.com", "/")
+                .eos(),
+        )
+        .await;
+        srv.send_frame(frames::headers(1).response(200))
+            .await;
+        srv.send_frame(frames::reset(1).stream_closed())
+            .await;
+    };
+    join(srv_fut, client_fut).await;
+}
+
+#[tokio::test]
+async fn server_reset_pending_recv() {
+    support::trace_init!();
+    let (mock, mut client) = mock::new();
+
+    let srv = async move {
+        let mut s = ServerBuilder::new()
+            .handshake(mock)
+            .await
+            .unwrap();
+        let (req, mut responder) = s.accept().await.unwrap().unwrap();
+        dbg!("done");
+        assert_eq!(req.method(), Method::GET);
+        responder.send_response(build_test_response());
+        poll_fn(|cx| s.poll_closed(cx))
+            .await
+            .expect("server");
+    };
+
+    let client = async move {
+        let settings = client.assert_server_handshake().await;
+        assert_default_settings!(settings);
+        client
+            .send_frame(
+                frames::headers(1).request("POST", "https", "a.b", "/"),
+            )
+            .await;
+
+        client
+            .send_frame(
+                frames::headers(3)
+                    .request("GET", "https", "a.b", "/")
+                    .eos(),
+            )
+            .await;
+
+        client
+            .send_frame(frames::reset(1).stream_closed())
+            .await;
+        client
+            .recv_frame(frames::headers(3).response(200).eos())
             .await;
     };
 

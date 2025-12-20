@@ -1,11 +1,9 @@
 use support::prelude::{
-    frame::headers::Pseudo,
-    hpack::BytesStr,
     message::request::{
         RequestBuilder,
         uri::{Scheme, Uri},
     },
-    preface::PrefaceErrorKind,
+    preface::PrefaceError,
     proto::ProtoError,
     *,
 };
@@ -274,19 +272,19 @@ async fn request_over_max_concurrent_streams_errors() {
 
         // Stream 1: Will block after 1 byte due to window size
         let mut req1 = build_test_request_post("example.com");
-        req1.set_body(Some(BytesMut::from(&vec![0u8; 2][..])));
+        req1.set_body(BytesMut::from(&vec![0u8; 2][..]));
         let resp1_fut = client.send_request(req1).unwrap();
 
         // Stream 3: Queue up waiting for connection window
         let mut req2 = build_test_request_post("example.com");
-        req2.set_body(Some(BytesMut::from(&vec![0u8; 2][..])));
+        req2.set_body(BytesMut::from(&vec![0u8; 2][..]));
         let resp2_fut = client.send_request(req2).unwrap();
 
         // Queue 5 more streams that will be pending (waiting to open due to
         // MAX_CONCURRENT_STREAMS)
         for _ in 0..5 {
             let mut req = build_test_request_post("example.com");
-            req.set_body(Some(BytesMut::from(&vec![0u8; 2][..])));
+            req.set_body(BytesMut::from(&vec![0u8; 2][..]));
             client.send_request(req).unwrap();
         }
 
@@ -494,8 +492,8 @@ async fn http_11_request_without_scheme_or_authority() {
             .expect("handshake");
 
         let mut uri = Uri::default();
-        uri = uri.path(BytesStr::from_static("/"));
-        uri = uri.scheme(Scheme::HTTP);
+        uri = uri.set_path(BytesStr::from_static("/"));
+        uri = uri.set_scheme(Scheme::HTTP);
         let req = RequestBuilder::new()
             .method(Method::GET)
             .uri(uri)
@@ -545,9 +543,10 @@ async fn http_2_connect_request_omit_scheme_and_path_fields() {
         // In HTTP_2 CONNECT request the ":scheme" and ":path" pseudo-header
         // fields MUST be omitted.
         let mut uri = Uri::default();
-        uri = uri.scheme(Scheme::HTTPS);
-        uri = uri.authority(BytesStr::from_static("tunnel.example.com:8443"));
-        uri = uri.path(BytesStr::from_static("/"));
+        uri = uri.set_scheme(Scheme::HTTPS);
+        uri = uri
+            .set_authority(BytesStr::from_static("tunnel.example.com:8443"));
+        uri = uri.set_path(BytesStr::from_static("/"));
 
         let req = RequestBuilder::new()
             .method(Method::CONNECT)
@@ -599,8 +598,8 @@ async fn request_with_connection_headers() {
 
         for (name, val) in forbidden_headers {
             let mut uri = Uri::default();
-            uri = uri.authority(BytesStr::from_static("http2.akamai.com"));
-            uri = uri.scheme(Scheme::HTTPS);
+            uri = uri.set_authority(BytesStr::from_static("http2.akamai.com"));
+            uri = uri.set_scheme(Scheme::HTTPS);
 
             let mut builder = RequestBuilder::new()
                 .method(Method::GET)
@@ -859,9 +858,9 @@ async fn pending_send_request_gets_reset_by_peer_properly() {
             .expect("handshake");
 
         let mut req = build_test_request();
-        req.set_body(Some(BytesMut::zeroed(
+        req.set_body(BytesMut::zeroed(
             frame::DEFAULT_INITIAL_WINDOW_SIZE as usize * 2,
-        )));
+        ));
         let resp_fut = client.send_request(req).unwrap();
 
         let response_task = async move {
@@ -906,8 +905,8 @@ async fn request_without_path() {
 
         // URI without explicit path - should default to "/"
         let mut uri = Uri::default();
-        uri = uri.scheme(Scheme::HTTP);
-        uri = uri.authority(BytesStr::from_static("example.com"));
+        uri = uri.set_scheme(Scheme::HTTP);
+        uri = uri.set_authority(BytesStr::from_static("example.com"));
         // Note: No path set explicitly
 
         let req = RequestBuilder::new()
@@ -953,9 +952,9 @@ async fn request_options_with_star() {
 
         // OPTIONS request with asterisk path
         let mut uri = Uri::default();
-        uri = uri.scheme(Scheme::HTTP);
-        uri = uri.authority(BytesStr::from_static("example.com"));
-        uri = uri.path(BytesStr::from_static("*"));
+        uri = uri.set_scheme(Scheme::HTTP);
+        uri = uri.set_authority(BytesStr::from_static("example.com"));
+        uri = uri.set_path(BytesStr::from_static("*"));
 
         let req = RequestBuilder::new()
             .method(Method::OPTIONS)
@@ -1072,7 +1071,7 @@ async fn send_stream_poll_reset() {
             .expect("handshake");
 
         let mut req = build_test_request_post("example.com");
-        req.set_body(None); // Keep stream open for sending data
+        req.take_body(); // Keep stream open for sending data
         let resp_fut = client.send_request(req).unwrap();
 
         // Drive the response future - should receive reset error
@@ -1150,7 +1149,7 @@ async fn drop_pending_open() {
 
             // Fill up the concurrent stream limit.
             let mut req1 = build_test_request_post("http2.akamai.com");
-            req1.set_body(Some(BytesMut::zeroed(10)));
+            req1.set_body(BytesMut::zeroed(10));
             let resp1_fut = client.send_request(req1).unwrap();
 
             let req2 = build_test_request();
@@ -1241,17 +1240,17 @@ async fn malformed_response_headers_dont_unlink_stream() {
 
         let mut req1 = build_test_request_post("example.com");
         // Use up most of the connection window.
-        req1.set_body(Some(BytesMut::zeroed(65534)));
+        req1.set_body(BytesMut::zeroed(65534));
         let _resp1_fut = client.send_request(req1).unwrap();
 
         let mut req2 = build_test_request_post("example.com");
         // Use up the remainder of the connection window.
-        req2.set_body(Some(BytesMut::zeroed(2)));
+        req2.set_body(BytesMut::zeroed(2));
         let resp2_fut = client.send_request(req2).unwrap();
 
         let mut req3 = build_test_request_post("example.com");
         // Queue up for more connection window.
-        req3.set_body(Some(BytesMut::zeroed(1)));
+        req3.set_body(BytesMut::zeroed(1));
         let resp3_fut = client.send_request(req3).unwrap();
 
         let f = async move {
@@ -1302,8 +1301,8 @@ async fn allow_empty_data_for_head() {
             .expect("handshake");
 
         let mut uri = Uri::default();
-        uri = uri.authority(BytesStr::from_static("example.com"));
-        uri = uri.scheme(Scheme::HTTPS);
+        uri = uri.set_authority(BytesStr::from_static("example.com"));
+        uri = uri.set_scheme(Scheme::HTTPS);
         let req = RequestBuilder::new()
             .method(Method::HEAD)
             .uri(uri)
@@ -1463,7 +1462,7 @@ async fn informational_while_local_streaming() {
 
         // Send POST without body initially
         let mut req = build_test_request_post("example.com");
-        req.set_body(Some(BytesMut::from(&b"hello"[..])));
+        req.set_body(BytesMut::from(&b"hello"[..]));
         let resp_fut = client.send_request(req).unwrap();
 
         // Await response (should get 200, not 103)
@@ -1560,11 +1559,12 @@ async fn invalid_connect_protocol_enabled_setting() {
     };
 
     let client_fut = async move {
-        if let Err(e) = ClientBuilder::new().handshake(io).await
-            && let PrefaceErrorKind::Proto(ProtoError::GoAway(_, reason, _)) =
-                e.err()
+        if let Err(PrefaceError::Proto {
+            context: _,
+            source: ProtoError::GoAway(_, reason, _),
+        }) = ClientBuilder::new().handshake(io).await
         {
-            assert_eq!(*reason, Reason::PROTOCOL_ERROR);
+            assert_eq!(reason, Reason::PROTOCOL_ERROR);
         }
     };
 
@@ -1623,9 +1623,9 @@ async fn extended_connect_request() {
             .expect("handshake");
 
         let mut uri = Uri::default();
-        uri = uri.authority(BytesStr::from_static("bread"));
-        uri = uri.scheme(Scheme::HTTP);
-        uri = uri.path("/baguette".into());
+        uri = uri.set_authority(BytesStr::from_static("bread"));
+        uri = uri.set_scheme(Scheme::HTTP);
+        uri = uri.set_path("/baguette".into());
         let req = RequestBuilder::new()
             .method(Method::CONNECT)
             .extension(Protocol::from("the-bread-protocol"))

@@ -794,7 +794,7 @@ async fn rst_while_closing() {
             .unwrap();
 
         let mut request = build_test_request_post("example.com");
-        request.set_body(Some(BytesMut::zeroed(100_000)));
+        request.set_body(BytesMut::zeroed(100_000));
         request.set_trailer(HeaderMap::new());
         let resp = client
             .send_request(request)
@@ -866,7 +866,7 @@ async fn rst_with_buffered_data() {
         // A large body
         let body =
             BytesMut::zeroed(2 * frame::DEFAULT_INITIAL_WINDOW_SIZE as usize);
-        request.set_body(Some(body));
+        request.set_body(body);
         let resp = client
             .send_request(request)
             .expect("send_request");
@@ -922,7 +922,7 @@ async fn err_with_buffered_data() {
         // A large body
         let body =
             BytesMut::zeroed(2 * frame::DEFAULT_INITIAL_WINDOW_SIZE as usize);
-        request.set_body(Some(body));
+        request.set_body(body);
         let resp = client
             .send_request(request)
             .expect("send_request");
@@ -979,7 +979,7 @@ async fn send_err_with_buffered_data() {
         let mut request = build_test_request_post("example.com");
         // A large body
         let body = BytesMut::zeroed(10);
-        request.set_body(Some(body));
+        request.set_body(body);
         let resp = client
             .send_request(request)
             .expect("send_request");
@@ -1102,7 +1102,7 @@ async fn explicit_reset_with_max_concurrent_stream() {
         {
             // req 1
             let mut request = build_test_request_post("http2.akamai.com");
-            request.set_body(Some(BytesMut::zeroed(10)));
+            request.set_body(BytesMut::zeroed(10));
             let resp = client.send_request(request).unwrap();
             let resp = conn.drive(resp).await.unwrap();
             drop(resp);
@@ -1111,7 +1111,7 @@ async fn explicit_reset_with_max_concurrent_stream() {
 
         // req 2
         let mut request = build_test_request_post("http2.akamai.com");
-        request.set_body(Some(BytesMut::zeroed(1)));
+        request.set_body(BytesMut::zeroed(1));
         let resp = client.send_request(request).unwrap();
         let _resp = conn.drive(resp).await;
         conn.await.expect("client");
@@ -1179,19 +1179,18 @@ async fn implicit_cancel_with_max_concurrent_stream() {
             .unwrap();
 
         {
-            let mut request = build_test_request_post("http2.akamai.com");
-            request.set_body(None);
+            let request = build_test_request_post("http2.akamai.com");
+            //request.set_body(None);
 
             let resp = client.send_request(request).unwrap();
-            //let resp = conn.drive(resp_fut).await.unwrap();
             drop(resp);
 
             poll_once(&mut conn).await.unwrap();
         }
 
         {
-            let mut request = build_test_request_post("http2.akamai.com");
-            request.set_body(None);
+            let request = build_test_request_post("http2.akamai.com");
+            //request.set_body(None);
             let resp_fut = client.send_request(request).unwrap();
             let resp = conn.drive(resp_fut).await.unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
@@ -1217,11 +1216,12 @@ async fn implicit_cancel_with_max_concurrent_stream() {
             .await;
 
         // Now stream 3 can be received (slot freed by reset)
-        srv.recv_frame(
-            frames::headers(3)
-                .request("POST", "https", "http2.akamai.com", "/")
-                .eos(),
-        )
+        srv.recv_frame(frames::headers(3).request(
+            "POST",
+            "https",
+            "http2.akamai.com",
+            "/",
+        ))
         .await;
 
         // Send response to stream 3
