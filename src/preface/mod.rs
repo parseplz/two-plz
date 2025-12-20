@@ -1,13 +1,13 @@
-use crate::codec::{Codec, UserError};
+use crate::codec::Codec;
+use crate::error::Reason;
 use crate::frame::{self, Frame, Settings, StreamId};
 use crate::proto::ProtoError;
 use crate::role::Role;
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use futures::StreamExt;
-use futures::future::poll_fn;
 use tokio::io::AsyncWriteExt;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
-use tracing::info;
+use tracing::trace;
 mod error;
 pub use error::*;
 
@@ -37,225 +37,167 @@ server state
 
 const PREFACE: [u8; 24] = *b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
-pub struct PrefaceConn<T> {
-    pub stream: Codec<T, Bytes>,
-    pub role: Role,
-    local_settings: Settings,
-    remote_settings: Option<Settings>,
-}
+pub struct PrefaceConn<T>(T);
 
 impl<T> PrefaceConn<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
-    pub fn new(stream: T, role: Role, local_settings: Settings) -> Self {
-        PrefaceConn {
-            role,
-            stream: Codec::new(stream),
-            local_settings,
-            remote_settings: None,
+    pub async fn handshake(
+        io: T,
+        role: Role,
+        local_settings: Settings,
+    ) -> Result<(Codec<T, Bytes>, Settings), PrefaceError> {
+        match role {
+            Role::Client => Self::client_handshake(io, local_settings).await,
+            Role::Server => Self::server_handshake(io, local_settings).await,
         }
     }
 
-    pub fn prepend_to_inner_buf(&mut self, buf: BytesMut) {
-        let buf_mut = self.stream.read_buf_mut();
-        let to_append = buf_mut.split();
-        buf_mut.unsplit(buf);
-        buf_mut.unsplit(to_append);
-    }
+    async fn client_handshake(
+        mut io: T,
+        local_settings: Settings,
+    ) -> Result<(Codec<T, Bytes>, Settings), PrefaceError> {
+        // 1. Send preface
+        io.write_all(&PREFACE)
+            .await
+            .ctx("write preface")?;
 
-    pub fn poll_local_settings(&mut self) -> Result<(), UserError> {
-        self.stream
-            .buffer(self.local_settings.clone().into())
-    }
+        let mut codec = Codec::new(io);
 
-    pub fn poll_settings_ack(&mut self) -> Result<(), UserError> {
-        self.stream
+        // 2. Send local SETTINGS
+        codec
+            .buffer(local_settings.clone().into())
+            .ctx("buffer local settings")?;
+
+        Self::flush(&mut codec)
+            .await
+            .ctx("flush local settings")?;
+
+        // 3. Read peer SETTINGS
+        let remote_settings = Self::read_peer_settings(&mut codec).await?;
+
+        // 4. Apply peer settings
+        Self::apply_peer_settings(&mut codec, &remote_settings);
+
+        // 5. Send SETTINGS ACK
+        codec
             .buffer(Settings::ack().into())
+            .ctx("buffer settings ack")?;
+
+        Self::flush(&mut codec)
+            .await
+            .ctx("flush settings ack")?;
+
+        Ok((codec, remote_settings))
     }
 
-    pub async fn flush(&mut self) -> Result<(), std::io::Error> {
-        poll_fn(|cx| self.stream.flush(cx)).await
+    async fn server_handshake(
+        io: T,
+        local_settings: Settings,
+    ) -> Result<(Codec<T, Bytes>, Settings), PrefaceError> {
+        let mut codec = Codec::new(io);
+
+        // 1. Send local SETTINGS
+        codec
+            .buffer(local_settings.clone().into())
+            .ctx("buffer local settings")?;
+        Self::flush(&mut codec)
+            .await
+            .ctx("flush local settings")?;
+
+        // 2. Read preface (24 bytes)
+        Self::read_preface(codec.get_mut()).await?;
+
+        // 3. Read peer SETTINGS
+        let remote_settings = Self::read_peer_settings(&mut codec).await?;
+
+        // 4. Apply peer settings
+        Self::apply_peer_settings(&mut codec, &remote_settings);
+
+        // 5. Send SETTINGS ACK
+        codec
+            .buffer(Settings::ack().into())
+            .ctx("buffer settings ack")?;
+
+        Self::flush(&mut codec)
+            .await
+            .ctx("flush settings ack")?;
+
+        Ok((codec, remote_settings))
     }
 
-    pub async fn read_preface(&mut self) -> Result<(), PrefaceError> {
-        assert!(self.role.is_server());
-        let mut buf = BytesMut::new();
-        loop {
-            let _ = self
-                .stream
-                .get_mut()
-                .read_buf(&mut buf)
-                .await
-                .in_state(PrefaceErrorState::ReadPreface)?;
-            if buf.len() > 23 {
-                if buf.starts_with(&PREFACE) {
-                    let _ = buf.split_to(24);
-                    // add remaning buf to front of codec reader
-                    if !buf.is_empty() {
-                        self.prepend_to_inner_buf(buf);
-                    }
-                    break Ok(());
-                } else {
-                    Err(PrefaceErrorKind::InvalidPreface)?
-                }
-            }
+    async fn read_preface(io: &mut T) -> Result<(), PrefaceError> {
+        trace!("[+] read preface");
+        let mut buf = [0u8; 24];
+        io.read_exact(&mut buf)
+            .await
+            .ctx("read preface")?;
+
+        if buf != PREFACE {
+            return Err(PrefaceError::InvalidPreface);
         }
+        Ok(())
     }
 
-    pub async fn read_peer_settings(
-        &mut self,
-    ) -> Result<frame::Settings, PrefaceErrorKind> {
-        let frame = self
-            .stream
+    async fn read_peer_settings(
+        codec: &mut Codec<T, Bytes>,
+    ) -> Result<Settings, PrefaceError> {
+        trace!("[+] read peer settings");
+        let frame = codec
             .next()
             .await
-            .ok_or(PrefaceErrorKind::Eof)?;
+            .ok_or(PrefaceError::Eof)?;
+
         match frame {
-            Ok(frame) => {
-                if let Frame::Settings(settings) = frame {
-                    Ok(settings)
-                } else {
-                    Err(PrefaceErrorKind::WrongFrame(frame.kind()))
-                }
-            }
+            // Success case - received SETTINGS
+            Ok(Frame::Settings(settings)) => Ok(settings),
+
+            // Wrong frame type
+            Ok(other) => Err(PrefaceError::WrongFrame(other.kind())),
+
+            // GOAWAY from peer - send response before failing
             Err(ProtoError::GoAway(_, reason, _)) => {
-                let go_away = frame::GoAway::new(StreamId::ZERO, reason);
-                self.stream.buffer(go_away.into())?;
-                self.flush()
-                    .await
-                    .map_err(PrefaceErrorKind::Io)?;
-                Err(PrefaceErrorKind::Proto(ProtoError::library_go_away(
-                    reason,
-                )))
+                Self::send_goaway_response(codec, reason).await?;
+                Err(PrefaceError::Proto {
+                    context: "peer sent GOAWAY",
+                    source: ProtoError::library_go_away(reason),
+                })
             }
-            Err(e) => Err(PrefaceErrorKind::Proto(e)),
+
+            // Other protocol errors
+            Err(e) => Err(PrefaceError::Proto {
+                context: "decode settings frame",
+                source: e,
+            }),
         }
     }
 
-    pub fn take_remote_settings(&mut self) -> Settings {
-        // safe to unwrap
-        self.remote_settings.take().unwrap()
-    }
-}
-
-pub enum PrefaceState<T> {
-    SendPreface(T, Settings),    // client only
-    ReadPreface(PrefaceConn<T>), // server only
-    SendLocalSettings(PrefaceConn<T>),
-    ReadPeerSettings(PrefaceConn<T>),
-    SendPeerSettingsAck(PrefaceConn<T>),
-    Flush(PrefaceConn<T>),
-    End(PrefaceConn<T>),
-}
-
-impl<T> PrefaceState<T>
-where
-    T: AsyncRead + AsyncWrite + Unpin,
-{
-    pub fn new(stream: T, role: Role, local_settings: Settings) -> Self {
-        match role {
-            Role::Client => Self::SendPreface(stream, local_settings),
-            Role::Server => Self::SendLocalSettings(PrefaceConn::new(
-                stream,
-                role,
-                local_settings,
-            )),
+    fn apply_peer_settings(codec: &mut Codec<T, Bytes>, settings: &Settings) {
+        trace!("[+] applying peer settings| {:?}", settings);
+        if let Some(val) = settings.header_table_size() {
+            codec.set_send_header_table_size(val as usize);
+        }
+        if let Some(val) = settings.max_frame_size() {
+            codec.set_max_send_frame_size(val as usize);
         }
     }
 
-    pub async fn next(self) -> Result<PrefaceState<T>, PrefaceError> {
-        let next_state = match self {
-            PrefaceState::SendPreface(mut stream, local_settings) => {
-                info!("[+] send preface");
-                stream
-                    .write_all(&PREFACE)
-                    .await
-                    .in_state(PrefaceErrorState::WritePreface)?;
-                let conn =
-                    PrefaceConn::new(stream, Role::Client, local_settings);
-                Self::SendLocalSettings(conn)
-            }
-            PrefaceState::SendLocalSettings(mut conn) => {
-                info!("[+] send local settings to peer");
-                conn.poll_local_settings()
-                    .in_state(PrefaceErrorState::PollServerSettings)?;
-                // TODO: can remove in favor of final flush ?
-                conn.flush()
-                    .await
-                    .in_state(PrefaceErrorState::Flush)?;
-                if conn.role == Role::Server {
-                    Self::ReadPreface(conn)
-                } else {
-                    Self::ReadPeerSettings(conn)
-                }
-            }
-            PrefaceState::ReadPreface(mut conn) => {
-                info!("[+] read preface");
-                conn.read_preface().await?;
-                Self::ReadPeerSettings(conn)
-            }
-            Self::ReadPeerSettings(mut conn) => {
-                info!("[+] read peer settings");
-                match conn.read_peer_settings().await {
-                    Ok(settings) => {
-                        conn.remote_settings = Some(settings);
-                        Self::SendPeerSettingsAck(conn)
-                    }
-                    Err(e) => {
-                        return Err(PrefaceError::new(
-                            PrefaceErrorState::ReadClientSettings,
-                            e,
-                        ));
-                    }
-                }
-            }
-            Self::SendPeerSettingsAck(mut conn) => {
-                // apply peer settings
-                let settings = conn.remote_settings.as_ref().unwrap();
-                info!("[+] applying peer settings| {:?}", settings);
-                if let Some(val) = settings.header_table_size() {
-                    conn.stream
-                        .set_send_header_table_size(val as usize);
-                }
-
-                if let Some(val) = settings.max_frame_size() {
-                    conn.stream
-                        .set_max_send_frame_size(val as usize);
-                }
-                info!("[+] send peer settings ack");
-                conn.poll_settings_ack()
-                    .in_state(PrefaceErrorState::PollClientSettingsAck)?;
-                Self::Flush(conn)
-            }
-            Self::Flush(mut conn) => {
-                info!("[+] flush");
-                conn.flush()
-                    .await
-                    .in_state(PrefaceErrorState::Flush)?;
-                Self::End(conn)
-            }
-            Self::End(_) => self,
-        };
-        Ok(next_state)
+    async fn send_goaway_response(
+        codec: &mut Codec<T, Bytes>,
+        reason: Reason,
+    ) -> Result<(), PrefaceError> {
+        let goaway = frame::GoAway::new(StreamId::ZERO, reason);
+        codec
+            .buffer(goaway.into())
+            .ctx("buffer GOAWAY response")?;
+        Self::flush(codec)
+            .await
+            .ctx("flush GOAWAY response")
     }
 
-    pub fn is_ended(&self) -> bool {
-        matches!(self, Self::End(_))
-    }
-}
-
-impl<T> TryFrom<PrefaceState<T>> for PrefaceConn<T> {
-    type Error = PrefaceError;
-
-    fn try_from(value: PrefaceState<T>) -> Result<Self, Self::Error> {
-        if let PrefaceState::End(conn) = value {
-            Ok(conn)
-        } else {
-            Err(PrefaceError::new(
-                PrefaceErrorState::WrongState,
-                PrefaceErrorKind::WrongState,
-            ))
-        }
+    async fn flush(codec: &mut Codec<T, Bytes>) -> Result<(), std::io::Error> {
+        use futures::future::poll_fn;
+        poll_fn(|cx| codec.flush(cx)).await
     }
 }

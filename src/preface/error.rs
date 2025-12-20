@@ -1,111 +1,67 @@
 use thiserror::Error;
 
-use crate::{
-    codec::UserError,
-    frame,
-    proto::{self, ProtoError},
-};
+use crate::{codec::UserError, frame, proto::ProtoError};
 
 #[derive(Debug, Error)]
-#[error("preface error: {state}: {err}")]
-pub struct PrefaceError {
-    state: PrefaceErrorState,
-    err: PrefaceErrorKind,
-}
-
-impl PrefaceError {
-    pub fn new(state: PrefaceErrorState, err: PrefaceErrorKind) -> Self {
-        Self {
-            state,
-            err,
-        }
-    }
-
-    pub fn err(&self) -> &PrefaceErrorKind {
-        &self.err
-    }
-}
-
-impl From<PrefaceErrorKind> for PrefaceError {
-    fn from(err: PrefaceErrorKind) -> Self {
-        PrefaceError::new(PrefaceErrorState::ReadPreface, err)
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum PrefaceErrorKind {
-    // server
-    #[error("write preface received")]
+pub enum PrefaceError {
+    #[error("invalid HTTP/2 preface received")]
     InvalidPreface,
-    #[error("io: {0}")]
-    Io(#[from] std::io::Error),
 
-    // common
-    #[error("user: {0}")]
-    User(#[from] UserError),
-    #[error("proto")]
-    Proto(#[from] ProtoError),
-    #[error("eof")]
+    #[error("I/O error during {context}: {source}")]
+    Io {
+        context: &'static str,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("codec error during {context}: {source}")]
+    Codec {
+        context: &'static str,
+        #[source]
+        source: UserError,
+    },
+
+    #[error("protocol error during {context}: {source}")]
+    Proto {
+        context: &'static str,
+        #[source]
+        source: ProtoError,
+    },
+
+    #[error("unexpected EOF during read settings")]
     Eof,
-    #[error("wrong frame")]
+
+    #[error("unexpected| {0:?}")]
     WrongFrame(frame::Kind),
-
-    // TryFrom
-    #[error("wrong state")]
-    WrongState,
 }
 
-#[derive(Debug, Error)]
-pub enum PrefaceErrorState {
-    // server
-    #[error("read preface")]
-    ReadPreface,
-    #[error("poll server settings")]
-    PollServerSettings,
-    #[error("read client settings")]
-    ReadClientSettings,
-    #[error("send client settings ack")]
-    PollClientSettingsAck,
-
-    // common
-    #[error("flush")]
-    Flush,
-
-    // client
-    #[error("write preface")]
-    WritePreface,
-    #[error("read server settings")]
-    ReadServerSettings,
-    #[error("send client settings")]
-    SendClientSettings,
-
-    // TryFrom
-    #[error("wrong state")]
-    WrongState,
+pub trait ContextExt<T> {
+    fn ctx(self, context: &'static str) -> Result<T, PrefaceError>;
 }
 
-pub trait IoStateExt<T> {
-    fn in_state(self, state: PrefaceErrorState) -> Result<T, PrefaceError>;
-}
-
-impl<T> IoStateExt<T> for Result<T, std::io::Error> {
-    #[inline]
-    fn in_state(self, state: PrefaceErrorState) -> Result<T, PrefaceError> {
-        self.map_err(|e| PrefaceError::new(state, PrefaceErrorKind::from(e)))
+impl<T> ContextExt<T> for Result<T, std::io::Error> {
+    fn ctx(self, context: &'static str) -> Result<T, PrefaceError> {
+        self.map_err(|source| PrefaceError::Io {
+            context,
+            source,
+        })
     }
 }
 
-impl<T> IoStateExt<T> for Result<T, UserError> {
-    #[inline]
-    fn in_state(self, state: PrefaceErrorState) -> Result<T, PrefaceError> {
-        self.map_err(|e| PrefaceError::new(state, PrefaceErrorKind::from(e)))
+impl<T> ContextExt<T> for Result<T, UserError> {
+    fn ctx(self, context: &'static str) -> Result<T, PrefaceError> {
+        self.map_err(|source| PrefaceError::Codec {
+            context,
+            source,
+        })
     }
 }
 
-// TODO: Implement display for proto
-impl<T> IoStateExt<T> for Result<T, proto::ProtoError> {
-    #[inline]
-    fn in_state(self, state: PrefaceErrorState) -> Result<T, PrefaceError> {
-        self.map_err(|e| PrefaceError::new(state, PrefaceErrorKind::Proto(e)))
+impl<T> ContextExt<T> for Result<T, ProtoError> {
+    fn ctx(self, context: &'static str) -> Result<T, PrefaceError> {
+        self.map_err(|source| PrefaceError::Proto {
+            context,
+            source,
+        })
     }
 }
