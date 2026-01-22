@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use http_plz::Request;
 use tokio::io::AsyncWrite;
 use tracing::trace;
 
@@ -6,7 +7,7 @@ use crate::{
     Codec,
     codec::{SendError, UserError},
     frame::{self, Frame},
-    message::{TwoTwoFrame, request::Request},
+    message::TwoTwoFrame,
     proto::{
         config::ConnectionConfig,
         streams::{
@@ -62,7 +63,7 @@ impl Streams<Bytes> {
         request: Request,
     ) -> Result<OpaqueStreamRef, SendError> {
         use super::stream::ContentLength;
-        use http::Method;
+        use header_plz::Method;
         // TODO: why ?
         //let protocol = request
         //    .extensions_mut()

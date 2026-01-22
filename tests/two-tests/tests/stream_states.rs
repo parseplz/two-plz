@@ -30,7 +30,7 @@ async fn send_recv_headers_only() {
     tracing::info!("sending request");
     let response = client.send_request(request).unwrap();
     let resp = conn.run(response).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    assert_eq!(resp.status(), &StatusCode::NO_CONTENT);
     conn.await.unwrap();
 }
 
@@ -66,7 +66,7 @@ async fn send_recv_data() {
     let response = client.send_request(request).unwrap();
 
     let resp = conn.run(response).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(resp.status(), &StatusCode::OK);
     assert_eq!(resp.body_as_ref().unwrap(), "world");
     conn.await.unwrap();
 }
@@ -98,7 +98,7 @@ async fn send_headers_recv_data_single_frame() {
     let request = build_test_request();
     let response = client.send_request(request).unwrap();
     let resp = conn.run(response).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(resp.status(), &StatusCode::OK);
     assert_eq!(resp.body_as_ref().unwrap(), "helloworld");
     conn.await.unwrap();
 }
@@ -120,7 +120,7 @@ async fn closed_streams_are_released() {
         // there is one active stream
         assert_eq!(1, client.num_active_streams());
         let resp = conn.drive(response).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+        assert_eq!(resp.status(), &StatusCode::NO_CONTENT);
         // There are no active streams
         assert_eq!(0, client.num_active_streams());
     };
@@ -375,7 +375,7 @@ async fn configure_max_frame_size() {
                 .unwrap()
                 .await
                 .unwrap();
-            assert_eq!(resp.status(), StatusCode::OK);
+            assert_eq!(resp.status(), &StatusCode::OK);
             assert_eq!(resp.body_as_ref().map(|b| b.len()), Some(16385));
         };
 
@@ -422,7 +422,7 @@ async fn recv_goaway_finishes_processed_streams() {
                 .unwrap()
                 .await
                 .unwrap();
-            assert_eq!(resp.status(), StatusCode::OK);
+            assert_eq!(resp.status(), &StatusCode::OK);
             assert_eq!(resp.body_as_ref().map(|b| b.len()), Some(16384));
         };
 
@@ -527,7 +527,7 @@ async fn skipped_stream_ids_are_implicitly_closed() {
                 .unwrap()
                 .await
                 .expect("response");
-            assert_eq!(resp.status(), StatusCode::OK);
+            assert_eq!(resp.status(), &StatusCode::OK);
         };
         conn.drive(req).await;
     };
@@ -795,7 +795,7 @@ async fn rst_while_closing() {
 
         let mut request = build_test_request_post("example.com");
         request.set_body(BytesMut::zeroed(100_000));
-        request.set_trailer(HeaderMap::new());
+        request.set_trailers(HeaderMap::new());
         let resp = client
             .send_request(request)
             .expect("send_request");
@@ -1040,13 +1040,13 @@ async fn reset_new_stream_before_send() {
         let request = build_test_request();
         let resp = client.send_request(request).unwrap();
         let resp = conn.drive(resp).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), &StatusCode::OK);
 
         // req 2
         let request = build_test_request();
         let resp = client.send_request(request).unwrap();
         let resp = conn.drive(resp).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), &StatusCode::OK);
 
         conn.await.expect("client");
     };
@@ -1193,7 +1193,7 @@ async fn implicit_cancel_with_max_concurrent_stream() {
             //request.set_body(None);
             let resp_fut = client.send_request(request).unwrap();
             let resp = conn.drive(resp_fut).await.unwrap();
-            assert_eq!(resp.status(), StatusCode::OK);
+            assert_eq!(resp.status(), &StatusCode::OK);
         }
 
         conn.await.expect("client");

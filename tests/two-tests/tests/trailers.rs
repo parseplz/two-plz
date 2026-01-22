@@ -28,8 +28,10 @@ async fn recv_trailers_only() {
     let resp_fut = client.send_request(request).unwrap();
     let resp: Response = conn.run(resp_fut).await.unwrap();
     let trailers = resp.trailers().unwrap();
-    assert_eq!(trailers.len(), 1);
-    assert_eq!(trailers["status"], "ok");
+    assert_eq!(trailers.iter().len(), 1);
+    let mut map = HeaderMap::new();
+    map.insert("status", "ok");
+    assert_eq!(trailers, &map);
     conn.await.unwrap();
 }
 
@@ -48,14 +50,14 @@ async fn send_trailers_immediately() {
         let mut request = build_test_request();
 
         let mut trailers = HeaderMap::new();
-        trailers.insert("zomg", "hello".parse().unwrap());
-        request.set_trailer(trailers);
+        trailers.insert("zomg", "hello");
+        request.set_trailers(trailers);
 
         tracing::info!("sending request with trailers");
         let response_fut = client.send_request(request).unwrap();
 
         let response = conn.drive(response_fut).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), &StatusCode::OK);
         assert_eq!(response.body_as_ref(), Some(&"hello world"[..].into()));
         assert!(response.trailers().is_none());
         idle_ms(100).await;

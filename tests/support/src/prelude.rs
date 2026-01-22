@@ -31,19 +31,13 @@ pub use super::assert::assert_frame_eq;
 
 // Re-export useful crates
 pub use tokio_test::io as mock_io;
-pub use {
-    bytes, futures, http, tokio::io as tokio_io, tracing, tracing_subscriber,
-};
+pub use {bytes, futures, tokio::io as tokio_io, tracing, tracing_subscriber};
 
 // Re-export two-plz
 pub use two_plz;
 pub use two_plz::client::ClientBuilder;
 pub use two_plz::ext::Protocol;
 pub use two_plz::frame::StreamId;
-pub use two_plz::message::request::Request;
-pub use two_plz::message::response::Response;
-pub use two_plz::message::response::ResponseBuilder;
-pub use two_plz::message::response::ResponseLine;
 pub use two_plz::server;
 pub use two_plz::server::ServerBuilder;
 pub use two_plz::*;
@@ -66,7 +60,10 @@ pub use super::future_ext::{
 pub use super::client_ext::SendRequestExt;
 
 // Re-export HTTP types
-pub use http::{HeaderMap, Method, StatusCode, Version, uri};
+pub use header_plz::{
+    HeaderMap, Method, ResponseLine, StatusCode, Uri, uri::scheme::Scheme,
+};
+pub use http_plz::{Request, Response};
 
 pub use bytes::{Buf, BufMut, Bytes, BytesMut};
 

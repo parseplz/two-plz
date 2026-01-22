@@ -5,13 +5,14 @@ edition = "2024"
 publish = false
 
 [dependencies]
-two-plz = { path = "../..", features = ["stream", "unstable"] }
 atty = "0.2"
 bytes = "1"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
-tracing-tree = "0.2"
 futures = { version = "0.3", default-features = false }
-http = "1"
+header-plz = "0.0.36"
+http-plz = { git = "https://github.com/parseplz/http-plz.git" }
 tokio = { version = "1", features = ["time"] }
 tokio-test = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
+tracing-tree = "0.4.1"
+two-plz = { path = "../..", features = ["stream", "unstable"] }

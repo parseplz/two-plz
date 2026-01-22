@@ -33,11 +33,7 @@ async fn write_continuation_frames() {
 
         let mut headermap = HeaderMap::new();
         for &(name, ref value) in &large {
-            let name: http::HeaderName = name.try_into().unwrap();
-            let value = value.try_into().unwrap();
-            headermap
-                .try_append(name, value)
-                .unwrap();
+            headermap.insert(name, value);
         }
 
         request.set_headers(headermap);
@@ -48,7 +44,7 @@ async fn write_continuation_frames() {
                 .expect("send_request1")
                 .await;
             let response = res.unwrap();
-            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            assert_eq!(response.status(), &StatusCode::NO_CONTENT);
         };
 
         conn.drive(req).await;
@@ -148,12 +144,10 @@ async fn server_settings_header_table_size() {
 
     let (_req, mut stream) = srv.accept().await.unwrap().unwrap();
 
-    let scode = ResponseLine {
-        status: StatusCode::from_u16(200).unwrap(),
-    };
+    let scode = ResponseLine::new(StatusCode::from_u16(200).unwrap());
 
     let mut headers = HeaderMap::new();
-    headers.insert("a", "b".parse().unwrap());
+    headers.insert("a", "b");
     let res = Response::new(scode, headers, None, None);
     stream.send_response(res).unwrap();
     assert!(srv.accept().await.is_none());

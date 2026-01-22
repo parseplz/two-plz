@@ -32,7 +32,7 @@ async fn client_out_of_order_complete() {
             }
             Either::Right((resp2, _)) => {
                 let resp = resp2.unwrap();
-                assert_eq!(resp.status(), StatusCode::OK);
+                assert_eq!(resp.status(), &StatusCode::OK);
                 assert_eq!(
                     resp.body_as_ref(),
                     Some(&BytesMut::zeroed(16_200))
@@ -88,8 +88,8 @@ async fn server_out_of_order_complete() {
         let (req1, mut responder1) = s.accept().await.unwrap().unwrap();
         let (req2, mut responder2) = s.accept().await.unwrap().unwrap();
 
-        assert_eq!(req1.method(), Method::POST);
-        assert_eq!(req2.method(), Method::GET);
+        assert_eq!(req1.method(), &Method::POST);
+        assert_eq!(req2.method(), &Method::GET);
 
         responder2.send_response(build_test_response());
         responder1.send_response(build_test_response());
@@ -154,7 +154,7 @@ async fn client_reset_get() {
         assert!(resp1.is_err());
 
         let resp2 = resp2.unwrap();
-        assert_eq!(resp2.status(), StatusCode::NO_CONTENT);
+        assert_eq!(resp2.status(), &StatusCode::NO_CONTENT);
 
         // drive resp2
         conn.await.expect("client");
@@ -197,8 +197,8 @@ async fn server_reset_get() {
             .unwrap();
         let (req1, mut responder1) = s.accept().await.unwrap().unwrap();
         let (req2, mut responder2) = s.accept().await.unwrap().unwrap();
-        assert_eq!(req1.method(), Method::GET);
-        assert_eq!(req2.method(), Method::GET);
+        assert_eq!(req1.method(), &Method::GET);
+        assert_eq!(req2.method(), &Method::GET);
 
         let result = responder1.send_response(build_test_response());
         assert!(result.is_err());
@@ -267,7 +267,7 @@ async fn client_reset_pending_send() {
         assert!(resp1.is_err());
 
         let resp2 = resp2.unwrap();
-        assert_eq!(resp2.status(), StatusCode::NO_CONTENT);
+        assert_eq!(resp2.status(), &StatusCode::NO_CONTENT);
 
         // drive resp2
         conn.await.expect("client");
@@ -319,8 +319,8 @@ async fn server_reset_pending_send() {
             .unwrap();
         let (req1, mut responder1) = s.accept().await.unwrap().unwrap();
         let (req2, mut responder2) = s.accept().await.unwrap().unwrap();
-        assert_eq!(req1.method(), Method::GET);
-        assert_eq!(req2.method(), Method::GET);
+        assert_eq!(req1.method(), &Method::GET);
+        assert_eq!(req2.method(), &Method::GET);
 
         let mut response1 = build_test_response();
         response1.set_body(BytesMut::zeroed(10));
@@ -394,7 +394,7 @@ async fn client_reset_pending_recv() {
             .unwrap_err()
             .take_partial_response()
             .unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), &StatusCode::OK);
         conn.await;
     };
 
@@ -429,7 +429,7 @@ async fn server_reset_pending_recv() {
             .unwrap();
         let (req, mut responder) = s.accept().await.unwrap().unwrap();
         dbg!("done");
-        assert_eq!(req.method(), Method::GET);
+        assert_eq!(req.method(), &Method::GET);
         responder.send_response(build_test_response());
         poll_fn(|cx| s.poll_closed(cx))
             .await

@@ -51,8 +51,10 @@ mod window_update;
 pub use self::data::Data;
 pub use self::go_away::GoAway;
 pub use self::head::{Head, Kind};
-pub use self::headers::Continuation;
-pub use self::headers::{Headers, PushPromise};
+// TODO: remove
+// pub use self::headers::Continuation;
+// pub use self::headers::{Headers, PushPromise};
+pub use self::headers::{Continuation, Headers, PushPromise};
 pub use self::ping::Ping;
 pub use self::priority::{Priority, StreamDependency};
 pub use self::reason::Reason;

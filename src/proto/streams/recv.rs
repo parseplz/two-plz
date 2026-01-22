@@ -5,7 +5,8 @@ use std::{
 };
 
 use bytes::{Bytes, BytesMut};
-use http::HeaderMap;
+use header_plz::HeaderMap;
+use http_plz::{Message, Request, Response};
 use tracing::{Level, error, span, trace, warn};
 
 use crate::{
@@ -15,7 +16,6 @@ use crate::{
         self, DEFAULT_INITIAL_WINDOW_SIZE, Reason, StreamId, StreamIdOverflow,
         headers::Pseudo,
     },
-    message::{TwoTwo, request::Request, response::Response},
     proto::{
         MAX_WINDOW_SIZE, ProtoError, WindowSize,
         config::ConnectionConfig,
@@ -189,7 +189,7 @@ impl Recv {
 
         // check if stream in recv data state
         if !is_ignoring_frame && !stream.state.is_recv_streaming() {
-            // TODO: There are cases where this can be a stream error of
+            // TODO(hyper): There are cases where this can be a stream error of
             // STREAM_CLOSED instead...
             // Receiving a DATA frame when not expecting one is a protocol
             // error.
@@ -359,19 +359,20 @@ impl Recv {
         frame: &frame::Headers,
     ) -> Result<(), ProtoError> {
         use super::stream::ContentLength;
-        use http::header;
+        use header_plz::const_headers::CONTENT_LENGTH;
 
         if let Some(content_length) = frame
             .fields()
-            .get(header::CONTENT_LENGTH)
+            .value_of_key(CONTENT_LENGTH)
         {
-            let content_length = frame::headers::parse_u64(
-                content_length.as_bytes(),
-            )
-            .map_err(|e| {
-                error!("content-length parse| {:?}", e);
-                ProtoError::library_reset(stream.id, Reason::PROTOCOL_ERROR)
-            })?;
+            let content_length = frame::headers::parse_u64(content_length)
+                .map_err(|e| {
+                    error!("content-length parse| {:?}", e);
+                    ProtoError::library_reset(
+                        stream.id,
+                        Reason::PROTOCOL_ERROR,
+                    )
+                })?;
 
             stream.content_length =
                 ContentLength::Remaining(content_length, content_length);
@@ -418,7 +419,7 @@ impl Recv {
             let mut response = frame::Headers::new(
                 stream.id,
                 Pseudo::response(
-                    ::http::StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
+                    header_plz::status::StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
                 ),
                 HeaderMap::new(),
             );
@@ -907,7 +908,7 @@ fn take_response(
 }
 
 fn process_remaining_frames<T>(
-    message: &mut TwoTwo<T>,
+    message: &mut Message<T>,
     stream: &mut Ptr,
     buffer: &mut Buffer<Event>,
 ) {
@@ -933,7 +934,7 @@ fn process_remaining_frames<T>(
                 buf.extend_from_slice(&data);
             }
             Event::Trailers(header_map) => {
-                message.set_trailer(header_map);
+                message.set_trailers(header_map);
             }
         }
     }

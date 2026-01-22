@@ -1,7 +1,7 @@
+use http_plz::Response;
 use tracing::trace;
 
 use crate::frame::StreamId;
-use crate::message::response::Response;
 use crate::proto::streams::action::Actions;
 use crate::proto::streams::counts::Counts;
 use crate::proto::streams::recv::PartialResponse;
@@ -118,7 +118,7 @@ impl Drop for OpaqueStreamRef {
 }
 
 fn maybe_cancel(stream: &mut Ptr, actions: &mut Actions, counts: &mut Counts) {
-    if stream.is_canceled_interest() {
+    if stream.is_canceled_interest() && !stream.is_pending_send {
         // Server is allowed to early respond without fully consuming the
         // client input stream But per the RFC, must send a
         // RST_STREAM(NO_ERROR) in such cases.

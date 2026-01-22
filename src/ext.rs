@@ -32,6 +32,10 @@ impl Protocol {
             value: BytesStr::try_from(bytes)?,
         })
     }
+
+    pub(crate) fn into_bytes(self) -> Bytes {
+        self.value.into_inner()
+    }
 }
 
 impl<'a> From<&'a str> for Protocol {

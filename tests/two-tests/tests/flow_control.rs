@@ -54,7 +54,7 @@ async fn send_data_without_requesting_capacity() {
 
     let resp = conn.run(resp).await.unwrap();
 
-    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    assert_eq!(resp.status(), &StatusCode::NO_CONTENT);
     conn.await.unwrap();
 }
 
@@ -265,7 +265,7 @@ async fn recv_window_update_on_stream_closed_by_data_frame() {
 
         // Wait for response
         let response = conn.drive(resp_fut).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), &StatusCode::OK);
 
         // Keep response alive until after WINDOW_UPDATE is received
         // Poll connection to receive the WINDOW_UPDATE frame
@@ -325,7 +325,7 @@ async fn capacity_assigned_in_multi_window_updates() {
 
         // Wait for response
         let response = conn.drive(resp_fut).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), &StatusCode::OK);
 
         // Keep response alive until after WINDOW_UPDATE is received
         // Poll connection to receive the WINDOW_UPDATE frame
@@ -402,10 +402,10 @@ async fn connection_notified_on_released_capacity() {
         let resp_fut2 = client.send_request(request).unwrap();
 
         let resp1 = conn.drive(resp_fut1).await.unwrap();
-        assert_eq!(resp1.status(), StatusCode::OK);
+        assert_eq!(resp1.status(), &StatusCode::OK);
 
         let resp2 = conn.drive(resp_fut2).await.unwrap();
-        assert_eq!(resp2.status(), StatusCode::OK);
+        assert_eq!(resp2.status(), &StatusCode::OK);
 
         assert_eq!(
             resp1.body_as_ref(),
@@ -483,7 +483,7 @@ async fn recv_settings_removes_available_capacity() {
         let resp_fut = client.send_request(request).unwrap();
 
         let response = conn.drive(resp_fut).await.unwrap();
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(response.status(), &StatusCode::NO_CONTENT);
 
         conn.await.unwrap();
     };
@@ -551,7 +551,7 @@ async fn recv_settings_keeps_assigned_capacity() {
         poll_once(&mut conn).await.unwrap();
 
         let response = conn.drive(resp_fut).await.unwrap();
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(response.status(), &StatusCode::NO_CONTENT);
         conn.await.unwrap();
     };
 
@@ -618,7 +618,7 @@ async fn recv_no_init_window_then_receive_some_init_window() {
 
         // Drive to completion
         let response = conn.drive(resp_fut).await.unwrap();
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(response.status(), &StatusCode::NO_CONTENT);
 
         conn.await.unwrap();
     };
@@ -686,7 +686,7 @@ async fn recv_settings_increase_window_size_after_using_some() {
         request.set_body(BytesMut::zeroed(size));
         let resp_fut = client.send_request(request).unwrap();
         let response = conn.drive(resp_fut).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), &StatusCode::OK);
         conn.await.unwrap();
     };
 
@@ -767,8 +767,8 @@ async fn reset_stream_waiting_for_capacity() {
         )
         .await;
 
-        assert_eq!(r1.status(), StatusCode::OK);
-        assert_eq!(r3.status(), StatusCode::OK);
+        assert_eq!(r1.status(), &StatusCode::OK);
+        assert_eq!(r3.status(), &StatusCode::OK);
         assert!(r2.is_err());
     };
 
@@ -876,7 +876,7 @@ async fn data_padding() {
 
         join(async move { conn.await.expect("client") }, async move {
             let resp = resp_fut.await.expect("response");
-            assert_eq!(resp.status(), StatusCode::OK);
+            assert_eq!(resp.status(), &StatusCode::OK);
 
             let body = resp.body_as_ref().unwrap();
 

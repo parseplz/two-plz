@@ -73,9 +73,7 @@ async fn handle_request(
         let (_req, mut respond) = result.unwrap();
         reqs.fetch_add(1, Ordering::Release);
 
-        let scode = ResponseLine {
-            status: StatusCode::from_u16(200).unwrap(),
-        };
+        let scode = ResponseLine::new(StatusCode::from_u16(200).unwrap());
         let body = BytesMut::from("hello world");
         let resp = Response::new(scode, HeaderMap::new(), Some(body), None);
         respond.send_response(resp)?;
@@ -114,7 +112,7 @@ fn hammer_client_concurrency() {
                 });
 
                 response
-                    .map(|r| assert_eq!(r.unwrap().status(), StatusCode::OK))
+                    .map(|r| assert_eq!(r.unwrap().status(), &StatusCode::OK))
                     .map(move |_| {
                         rsps.fetch_add(1, Ordering::Release);
                     })

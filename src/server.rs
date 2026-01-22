@@ -4,12 +4,12 @@ use crate::{
     Codec, Connection,
     builder::{BuildConnection, Builder},
     frame::StreamId,
-    message::{request::Request, response::Response},
     proto::{config::ConnectionConfig, streams::StreamRef},
     role::Role,
 };
 use bytes::Bytes;
 use futures::future::poll_fn;
+use http_plz::{Request, Response};
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite};
 

@@ -83,7 +83,7 @@ async fn server_builder_set_max_concurrent_streams() {
             .unwrap();
         let (req, mut resp) = s.accept().await.unwrap().unwrap();
 
-        assert_eq!(req.method(), &http::Method::GET);
+        assert_eq!(req.method(), &Method::GET);
         resp.send_response(build_test_response())
             .unwrap();
         assert!(s.accept().await.is_none());
@@ -118,7 +118,7 @@ async fn serve_request() {
             .await
             .unwrap();
         let (req, mut resp) = s.accept().await.unwrap().unwrap();
-        assert_eq!(req.method(), &http::Method::GET);
+        assert_eq!(req.method(), &Method::GET);
         resp.send_response(build_test_response())
             .unwrap();
         assert!(s.accept().await.is_none());
@@ -153,7 +153,7 @@ async fn serve_connect() {
             .await
             .unwrap();
         let (req, mut resp) = s.accept().await.unwrap().unwrap();
-        assert_eq!(req.method(), &http::Method::CONNECT);
+        assert_eq!(req.method(), &Method::CONNECT);
         resp.send_response(build_test_response())
             .unwrap();
         assert!(s.accept().await.is_none());
@@ -189,10 +189,9 @@ async fn recv_invalid_authority() {
             .await
             .unwrap();
         let (req, mut resp) = s.accept().await.unwrap().unwrap();
-        assert_eq!(req.method(), &http::Method::CONNECT);
+        assert_eq!(req.method(), &Method::CONNECT);
         assert_eq!(
-            req.uri()
-                .authority
+            req.authority()
                 .as_ref()
                 .unwrap()
                 .as_bytes(),
@@ -380,7 +379,7 @@ async fn graceful_shutdown() {
 
         // req 1
         let (req, mut resp) = s.next().await.unwrap().unwrap();
-        assert_eq!(req.method(), &http::Method::GET);
+        assert_eq!(req.method(), &Method::GET);
 
         s.graceful_shutdown();
 
@@ -390,7 +389,7 @@ async fn graceful_shutdown() {
 
         // req 3
         let (req, mut resp) = s.next().await.unwrap().unwrap();
-        assert_eq!(req.method(), &http::Method::POST);
+        assert_eq!(req.method(), &Method::POST);
         resp.send_response(build_test_response())
             .unwrap();
 
@@ -449,7 +448,7 @@ async fn goaway_even_if_client_sent_goaway() {
 
         // req 1
         let (req, mut resp) = s.next().await.unwrap().unwrap();
-        assert_eq!(req.method(), &http::Method::GET);
+        assert_eq!(req.method(), &Method::GET);
 
         s.graceful_shutdown();
 
@@ -490,7 +489,7 @@ async fn sends_reset_cancel_when_res_is_dropped() {
             .unwrap();
 
         let (req, resp) = s.next().await.unwrap().unwrap();
-        assert_eq!(req.method(), &http::Method::GET);
+        assert_eq!(req.method(), &Method::GET);
 
         drop(resp);
 
@@ -756,14 +755,7 @@ async fn request_without_authority() {
             .unwrap();
 
         let (req, mut resp) = s.next().await.unwrap().unwrap();
-        assert_eq!(
-            req.uri()
-                .path_and_query
-                .as_ref()
-                .unwrap()
-                .as_ref(),
-            b"/just-a-path"
-        );
+        assert_eq!(req.path_and_query().as_str(), "/just-a-path");
         resp.send_response(build_test_response())
             .unwrap();
         assert!(s.next().await.is_none());
@@ -1128,7 +1120,7 @@ async fn client_drop_connection_without_close_notify() {
             .unwrap();
 
         let (req, mut resp) = s.next().await.unwrap().unwrap();
-        assert_eq!(req.method(), Method::GET);
+        assert_eq!(req.method(), &Method::GET);
         resp.send_response(build_test_response())
             .unwrap();
 
@@ -1193,7 +1185,7 @@ async fn init_window_size_smaller_than_default_should_use_default_before_ack()
             .unwrap();
 
         let (req, mut resp) = s.next().await.unwrap().unwrap();
-        assert_eq!(req.method(), Method::GET);
+        assert_eq!(req.method(), &Method::GET);
         resp.send_response(build_test_response())
             .unwrap();
 

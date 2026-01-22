@@ -1,12 +1,9 @@
 use std::fmt;
 
+use super::prelude::*;
 use bytes::Bytes;
-use http::{HeaderMap, StatusCode};
 
-use two_plz::{
-    frame::{self, Frame, StreamId, headers::Pseudo},
-    message::request::uri::{Scheme, Uri},
-};
+use two_plz::frame::{self, Frame, StreamId, headers::Pseudo};
 
 pub const NEW_SETTINGS: &[u8] = &[0, 0, 6, 4, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0];
 pub const SETTINGS: &[u8] = &[0, 0, 0, 4, 0, 0, 0, 0, 0];
@@ -116,16 +113,17 @@ impl Mock<frame::Headers> {
         path: &str,
     ) -> Self
     where
-        M: TryInto<http::Method>,
+        M: TryInto<Method>,
         M::Error: fmt::Debug,
     {
         let method = method.try_into().unwrap();
-        let mut uri = Uri::default();
+        let mut b = Uri::builder();
         if !authority.is_empty() {
-            uri = uri.set_authority(authority.into());
+            b = b.authority(authority);
         }
-        uri = uri.set_path(path.into());
-        uri = uri.set_scheme(Scheme::from(scheme.as_bytes()));
+        b = b.path(path);
+        b = b.scheme(Scheme::try_from(scheme.as_bytes()).unwrap());
+        let uri = b.build().unwrap();
         let (id, _, fields) = self.into_parts();
         let extensions = Default::default();
         let pseudo = Pseudo::request(method, uri, extensions);
@@ -135,7 +133,7 @@ impl Mock<frame::Headers> {
 
     pub fn method<M>(self, method: M) -> Self
     where
-        M: TryInto<http::Method>,
+        M: TryInto<Method>,
         M::Error: fmt::Debug,
     {
         let method = method.try_into().unwrap();
@@ -159,7 +157,7 @@ impl Mock<frame::Headers> {
 
     pub fn response<S>(self, status: S) -> Self
     where
-        S: TryInto<http::StatusCode>,
+        S: TryInto<StatusCode>,
         S::Error: fmt::Debug,
     {
         let status = status.try_into().unwrap();
@@ -176,13 +174,11 @@ impl Mock<frame::Headers> {
 
     pub fn field<K, V>(self, key: K, value: V) -> Self
     where
-        K: TryInto<http::header::HeaderName>,
-        K::Error: fmt::Debug,
-        V: TryInto<http::header::HeaderValue>,
-        V::Error: fmt::Debug,
+        V: AsRef<[u8]>,
+        K: AsRef<[u8]>,
     {
         let (id, pseudo, mut fields) = self.into_parts();
-        fields.insert(key.try_into().unwrap(), value.try_into().unwrap());
+        fields.insert(key, value);
         let frame = frame::Headers::new(id, pseudo, fields);
         Mock(frame)
     }
@@ -195,7 +191,7 @@ impl Mock<frame::Headers> {
 
     pub fn scheme(self, value: &str) -> Self {
         let (id, mut pseudo, fields) = self.into_parts();
-        let value = Scheme::from(value.as_bytes());
+        let value = Scheme::try_from(value.as_bytes()).unwrap();
         pseudo.set_scheme(value);
         Mock(frame::Headers::new(id, pseudo, fields))
     }
@@ -240,6 +236,7 @@ impl Mock<frame::Data> {
 
 // PushPromise helpers
 
+/* TODO: Push promise
 impl Mock<frame::PushPromise> {
     pub fn request<M, U>(self, _method: M, _uri: U) -> Self
     where
@@ -278,6 +275,7 @@ impl Mock<frame::PushPromise> {
         (id, promised, parts.0, parts.1)
     }
 }
+*/
 
 // GoAway helpers
 

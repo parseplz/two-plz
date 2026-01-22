@@ -1,8 +1,8 @@
 use super::Header;
+use header_plz::const_headers as header;
 
 use fnv::FnvHasher;
-use http::header;
-use http::method::Method;
+use header_plz::Method;
 
 use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
@@ -701,10 +701,10 @@ fn index_static(header: &Header) -> Option<(usize, bool)> {
         Header::Field {
             ref name,
             ref value,
-        } => match *name {
+        } => match name.as_ref() {
             header::ACCEPT_CHARSET => Some((15, false)),
             header::ACCEPT_ENCODING => {
-                if value == "gzip, deflate" {
+                if *value == "gzip, deflate" {
                     Some((16, true))
                 } else {
                     Some((16, false))

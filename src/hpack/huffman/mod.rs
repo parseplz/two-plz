@@ -1,8 +1,6 @@
 mod table;
-
 use self::table::{DECODE_TABLE, ENCODE_TABLE};
-use crate::hpack::DecoderError;
-
+use crate::hpack::decoder::DecoderError;
 use bytes::{BufMut, BytesMut};
 
 // Constructed in the generated `table.rs` file

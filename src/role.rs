@@ -1,8 +1,9 @@
 use crate::frame::{Reason, StreamId, headers::Pseudo};
-use crate::message::{request::Request, response::Response};
+use crate::message::{frames_to_request, frames_to_response};
 use crate::proto::ProtoError;
 use crate::proto::streams::Open;
-use http::HeaderMap;
+use header_plz::HeaderMap;
+use http_plz::{Request, Response};
 use tracing::error;
 
 #[derive(Debug)]
@@ -67,9 +68,9 @@ impl Role {
         stream_id: StreamId,
     ) -> Result<PollMessage, ProtoError> {
         match self {
-            Role::Server => Request::from_http_two(pseudo, fields, stream_id)
+            Role::Server => frames_to_request(pseudo, fields, stream_id)
                 .map(PollMessage::Server),
-            Role::Client => Response::from_http_two(pseudo, fields, stream_id)
+            Role::Client => frames_to_response(pseudo, fields, stream_id)
                 .map(PollMessage::Client),
         }
     }

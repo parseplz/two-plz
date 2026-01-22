@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use header_plz::{HeaderMap, const_headers};
 use tokio::io::AsyncWrite;
 use tracing::error;
 use tracing::trace;
@@ -165,18 +166,18 @@ impl Send {
         Ok(())
     }
 
-    fn check_headers(fields: &http::HeaderMap) -> Result<(), UserError> {
+    fn check_headers(fields: &HeaderMap) -> Result<(), UserError> {
         // 8.1.2.2. Connection-Specific Header Fields
-        if fields.contains_key(http::header::CONNECTION)
-            || fields.contains_key(http::header::TRANSFER_ENCODING)
-            || fields.contains_key(http::header::UPGRADE)
-            || fields.contains_key("keep-alive")
-            || fields.contains_key("proxy-connection")
+        if fields.has_key(const_headers::CONNECTION)
+            || fields.has_key(const_headers::TRANSFER_ENCODING)
+            || fields.has_key(const_headers::UPGRADE)
+            || fields.has_key("keep-alive")
+            || fields.has_key("proxy-connection")
         {
             tracing::debug!("illegal connection-specific headers found");
             return Err(UserError::MalformedHeaders);
-        } else if let Some(te) = fields.get(http::header::TE)
-            && te != "trailers"
+        } else if let Some(te) = fields.value_of_key(const_headers::TE)
+            && te != "trailers".as_bytes()
         {
             tracing::debug!("illegal connection-specific headers found");
             return Err(UserError::MalformedHeaders);
@@ -652,10 +653,7 @@ impl Send {
                         || Some(Reason::CANCEL)
                             == stream.state.get_scheduled_reset()
                     {
-                        trace!(
-                            "remote reset| {}",
-                            stream.state.is_remote_reset()
-                        );
+                        trace!("reset| {}", stream.state.is_remote_reset());
                         self.clear_stream_queue(buffer, &mut stream);
                     }
 

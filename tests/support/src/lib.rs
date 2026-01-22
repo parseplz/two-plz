@@ -9,12 +9,7 @@ pub mod util;
 
 mod client_ext;
 mod future_ext;
-
-use http::{HeaderMap, Method, StatusCode};
-use two_plz::hpack::BytesStr;
-use two_plz::message::request::uri::{Scheme, Uri};
-use two_plz::message::request::{Request, RequestBuilder};
-use two_plz::message::response::{Response, ResponseLine};
+use prelude::*;
 
 pub use crate::client_ext::SendRequestExt;
 pub use crate::future_ext::TestFuture;
@@ -42,34 +37,32 @@ macro_rules! trace_init {
 }
 
 pub fn build_test_request() -> Request {
-    RequestBuilder::new()
+    Request::builder()
         .method(Method::GET)
         .uri(build_test_uri())
         .build()
 }
 
 pub fn build_test_uri() -> Uri {
-    let mut uri = Uri::default();
-    uri = uri.set_authority(BytesStr::from_static("http2.akamai.com"));
-    uri = uri.set_scheme(Scheme::HTTPS);
-    uri
+    let mut b = Uri::builder();
+    b = b.authority(BytesStr::from_static("http2.akamai.com"));
+    b = b.scheme(Scheme::HTTPS);
+    b.build().unwrap()
 }
 
 pub fn build_test_request_post(host: &str) -> Request {
-    let mut uri = Uri::default();
-    uri = uri.set_authority(BytesStr::unchecked_from_slice(host.as_bytes()));
-    uri = uri.set_scheme(Scheme::HTTPS);
-    RequestBuilder::new()
+    let mut b = Uri::builder();
+    b = b.authority(BytesStr::unchecked_from_slice(host.as_bytes()));
+    b = b.scheme(Scheme::HTTPS);
+    Request::builder()
         .method(Method::POST)
-        .uri(uri)
+        .uri(b.build().unwrap())
         .body("hello".into())
         .build()
 }
 
 pub fn build_test_response() -> Response {
-    let scode = ResponseLine {
-        status: StatusCode::from_u16(200).unwrap(),
-    };
+    let scode = ResponseLine::new(StatusCode::from_u16(200).unwrap());
     let headers = HeaderMap::new();
     let body = None;
     let trailers = None;

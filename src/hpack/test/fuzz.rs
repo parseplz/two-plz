@@ -1,8 +1,6 @@
-use crate::hpack::{Decoder, Encoder, Header};
+use crate::hpack::{BytesStr, Decoder, Encoder, Header};
 
-use http::header::{HeaderName, HeaderValue};
-
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
 use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
 use rand::distr::slice::Choose;
 use rand::rngs::StdRng;
@@ -45,7 +43,7 @@ struct FuzzHpack {
 #[derive(Debug, Clone)]
 struct HeaderFrame {
     resizes: Vec<usize>,
-    headers: Vec<Header<Option<HeaderName>>>,
+    headers: Vec<Header<Option<BytesStr>>>,
 }
 
 impl FuzzHpack {
@@ -54,7 +52,7 @@ impl FuzzHpack {
         let mut rng = StdRng::from_seed(seed);
 
         // Generates a bunch of source headers
-        let mut source: Vec<Header<Option<HeaderName>>> = vec![];
+        let mut source: Vec<Header<Option<BytesStr>>> = vec![];
 
         for _ in 0..2000 {
             source.push(gen_header(&mut rng));
@@ -200,8 +198,8 @@ impl Arbitrary for FuzzHpack {
     }
 }
 
-fn gen_header(g: &mut StdRng) -> Header<Option<HeaderName>> {
-    use http::{Method, StatusCode};
+fn gen_header(g: &mut StdRng) -> Header<Option<BytesStr>> {
+    use header_plz::{Method, status::StatusCode};
 
     if g.random_ratio(1, 10) {
         match g.random_range(0u32..5) {
@@ -227,7 +225,7 @@ fn gen_header(g: &mut StdRng) -> Header<Option<HeaderName>> {
                             })
                             .collect();
 
-                        Method::from_bytes(&bytes).unwrap()
+                        Method::from(&bytes[..])
                     }
                     _ => unreachable!(),
                 };
@@ -267,9 +265,9 @@ fn gen_header(g: &mut StdRng) -> Header<Option<HeaderName>> {
         };
         let mut value = gen_header_value(g);
 
-        if g.random_ratio(1, 30) {
-            value.set_sensitive(true);
-        }
+        //if g.random_ratio(1, 30) {
+        //    value.set_sensitive(true);
+        //}
 
         Header::Field {
             name,
@@ -278,99 +276,100 @@ fn gen_header(g: &mut StdRng) -> Header<Option<HeaderName>> {
     }
 }
 
-fn gen_header_name(g: &mut StdRng) -> HeaderName {
-    use http::header;
+fn gen_header_name(g: &mut StdRng) -> BytesStr {
+    use header_plz::const_headers as header;
+    let input: Vec<BytesStr> = [
+        header::ACCEPT,
+        header::ACCEPT_CHARSET,
+        header::ACCEPT_ENCODING,
+        header::ACCEPT_LANGUAGE,
+        header::ACCEPT_RANGES,
+        header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+        header::ACCESS_CONTROL_ALLOW_HEADERS,
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        header::ACCESS_CONTROL_EXPOSE_HEADERS,
+        header::ACCESS_CONTROL_MAX_AGE,
+        header::ACCESS_CONTROL_REQUEST_HEADERS,
+        header::ACCESS_CONTROL_REQUEST_METHOD,
+        header::AGE,
+        header::ALLOW,
+        header::ALT_SVC,
+        header::AUTHORIZATION,
+        header::CACHE_CONTROL,
+        header::CONNECTION,
+        header::CONTENT_DISPOSITION,
+        header::CONTENT_ENCODING,
+        header::CONTENT_LANGUAGE,
+        header::CONTENT_LENGTH,
+        header::CONTENT_LOCATION,
+        header::CONTENT_RANGE,
+        header::CONTENT_SECURITY_POLICY,
+        header::CONTENT_SECURITY_POLICY_REPORT_ONLY,
+        header::CONTENT_TYPE,
+        header::COOKIE,
+        header::DNT,
+        header::DATE,
+        header::ETAG,
+        header::EXPECT,
+        header::EXPIRES,
+        header::FORWARDED,
+        header::FROM,
+        header::HOST,
+        header::IF_MATCH,
+        header::IF_MODIFIED_SINCE,
+        header::IF_NONE_MATCH,
+        header::IF_RANGE,
+        header::IF_UNMODIFIED_SINCE,
+        header::LAST_MODIFIED,
+        header::LINK,
+        header::LOCATION,
+        header::MAX_FORWARDS,
+        header::ORIGIN,
+        header::PRAGMA,
+        header::PROXY_AUTHENTICATE,
+        header::PROXY_AUTHORIZATION,
+        header::PUBLIC_KEY_PINS,
+        header::PUBLIC_KEY_PINS_REPORT_ONLY,
+        header::RANGE,
+        header::REFERER,
+        header::REFERRER_POLICY,
+        header::REFRESH,
+        header::RETRY_AFTER,
+        header::SERVER,
+        header::SET_COOKIE,
+        header::STRICT_TRANSPORT_SECURITY,
+        header::TE,
+        header::TRAILER,
+        header::TRANSFER_ENCODING,
+        header::USER_AGENT,
+        header::UPGRADE,
+        header::UPGRADE_INSECURE_REQUESTS,
+        header::VARY,
+        header::VIA,
+        header::WARNING,
+        header::WWW_AUTHENTICATE,
+        header::X_CONTENT_TYPE_OPTIONS,
+        header::X_DNS_PREFETCH_CONTROL,
+        header::X_FRAME_OPTIONS,
+        header::X_XSS_PROTECTION,
+    ]
+    .into_iter()
+    .map(|h| BytesStr::try_from(h.into()).unwrap())
+    .collect();
 
     if g.random_ratio(1, 2) {
-        g.sample(
-            Choose::new(&[
-                header::ACCEPT,
-                header::ACCEPT_CHARSET,
-                header::ACCEPT_ENCODING,
-                header::ACCEPT_LANGUAGE,
-                header::ACCEPT_RANGES,
-                header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
-                header::ACCESS_CONTROL_ALLOW_HEADERS,
-                header::ACCESS_CONTROL_ALLOW_METHODS,
-                header::ACCESS_CONTROL_ALLOW_ORIGIN,
-                header::ACCESS_CONTROL_EXPOSE_HEADERS,
-                header::ACCESS_CONTROL_MAX_AGE,
-                header::ACCESS_CONTROL_REQUEST_HEADERS,
-                header::ACCESS_CONTROL_REQUEST_METHOD,
-                header::AGE,
-                header::ALLOW,
-                header::ALT_SVC,
-                header::AUTHORIZATION,
-                header::CACHE_CONTROL,
-                header::CONNECTION,
-                header::CONTENT_DISPOSITION,
-                header::CONTENT_ENCODING,
-                header::CONTENT_LANGUAGE,
-                header::CONTENT_LENGTH,
-                header::CONTENT_LOCATION,
-                header::CONTENT_RANGE,
-                header::CONTENT_SECURITY_POLICY,
-                header::CONTENT_SECURITY_POLICY_REPORT_ONLY,
-                header::CONTENT_TYPE,
-                header::COOKIE,
-                header::DNT,
-                header::DATE,
-                header::ETAG,
-                header::EXPECT,
-                header::EXPIRES,
-                header::FORWARDED,
-                header::FROM,
-                header::HOST,
-                header::IF_MATCH,
-                header::IF_MODIFIED_SINCE,
-                header::IF_NONE_MATCH,
-                header::IF_RANGE,
-                header::IF_UNMODIFIED_SINCE,
-                header::LAST_MODIFIED,
-                header::LINK,
-                header::LOCATION,
-                header::MAX_FORWARDS,
-                header::ORIGIN,
-                header::PRAGMA,
-                header::PROXY_AUTHENTICATE,
-                header::PROXY_AUTHORIZATION,
-                header::PUBLIC_KEY_PINS,
-                header::PUBLIC_KEY_PINS_REPORT_ONLY,
-                header::RANGE,
-                header::REFERER,
-                header::REFERRER_POLICY,
-                header::REFRESH,
-                header::RETRY_AFTER,
-                header::SERVER,
-                header::SET_COOKIE,
-                header::STRICT_TRANSPORT_SECURITY,
-                header::TE,
-                header::TRAILER,
-                header::TRANSFER_ENCODING,
-                header::USER_AGENT,
-                header::UPGRADE,
-                header::UPGRADE_INSECURE_REQUESTS,
-                header::VARY,
-                header::VIA,
-                header::WARNING,
-                header::WWW_AUTHENTICATE,
-                header::X_CONTENT_TYPE_OPTIONS,
-                header::X_DNS_PREFETCH_CONTROL,
-                header::X_FRAME_OPTIONS,
-                header::X_XSS_PROTECTION,
-            ])
-            .unwrap(),
-        )
-        .clone()
+        g.sample(Choose::new(&input[..]).unwrap())
+            .clone()
     } else {
         let value = gen_string(g, 1, 25);
-        HeaderName::from_bytes(value.as_bytes()).unwrap()
+        BytesStr::from(value.as_str())
     }
 }
 
-fn gen_header_value(g: &mut StdRng) -> HeaderValue {
+fn gen_header_value(g: &mut StdRng) -> BytesStr {
     let value = gen_string(g, 0, 70);
-    HeaderValue::from_bytes(value.as_bytes()).unwrap()
+    BytesStr::from(value.as_str())
 }
 
 fn gen_string(g: &mut StdRng, min: usize, max: usize) -> String {

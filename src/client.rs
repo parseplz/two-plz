@@ -11,7 +11,6 @@ use crate::{
     builder::{BuildConnection, Builder},
     error::OpError,
     frame::StreamId,
-    message::{request::Request, response::Response},
     proto::{
         config::ConnectionConfig,
         streams::{PartialResponse, Streams},
@@ -20,6 +19,7 @@ use crate::{
 };
 
 use crate::proto::streams::OpaqueStreamRef;
+use http_plz::{Request, Response};
 
 // ===== Builder =====
 pub struct Client;

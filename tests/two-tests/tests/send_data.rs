@@ -30,7 +30,7 @@ async fn single_stream_send_large_body() {
     request.set_body(BytesMut::from(&payload[..]));
     let resp_fut = client.send_request(request).unwrap();
     let resp = conn.drive(resp_fut).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    assert_eq!(resp.status(), &StatusCode::NO_CONTENT);
 
     conn.await.unwrap();
 }
@@ -120,17 +120,17 @@ async fn multiple_streams_with_payload_greater_than_default_window() {
             async move { conn.await.expect("client") },
             async move {
                 let resp = resp_fut1.await.expect("response1");
-                assert_eq!(resp.status(), StatusCode::OK);
+                assert_eq!(resp.status(), &StatusCode::OK);
                 resp
             },
             async move {
                 let resp = resp_fut2.await.expect("response2");
-                assert_eq!(resp.status(), StatusCode::OK);
+                assert_eq!(resp.status(), &StatusCode::OK);
                 resp
             },
             async move {
                 let resp = resp_fut3.await.expect("response3");
-                assert_eq!(resp.status(), StatusCode::OK);
+                assert_eq!(resp.status(), &StatusCode::OK);
                 resp
             },
         )
@@ -177,7 +177,7 @@ async fn single_stream_send_extra_large_body_multi_frames_one_buffer() {
     request.set_body(BytesMut::from(&vec![0u8; 32_768][..]));
     let resp_fut = client.send_request(request).unwrap();
     let resp = conn.drive(resp_fut).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    assert_eq!(resp.status(), &StatusCode::NO_CONTENT);
 
     conn.await.unwrap();
 }
@@ -239,7 +239,7 @@ async fn single_stream_send_body_greater_than_default_window() {
     let resp_fut = client.send_request(request).unwrap();
     let resp = conn.drive(resp_fut).await.unwrap();
 
-    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    assert_eq!(resp.status(), &StatusCode::NO_CONTENT);
 
     conn.await.unwrap();
 }
@@ -282,7 +282,7 @@ async fn single_stream_send_extra_large_body_multi_frames_multi_buffer() {
     let resp_fut = client.send_request(request).unwrap();
     let resp = conn.drive(resp_fut).await.unwrap();
 
-    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    assert_eq!(resp.status(), &StatusCode::NO_CONTENT);
 
     conn.await.unwrap();
 }
@@ -446,10 +446,10 @@ async fn stream_count_over_max_stream_limit_does_not_starve_capacity() {
         }
 
         let resp1 = conn.drive(resp1_fut).await.unwrap();
-        assert_eq!(resp1.status(), StatusCode::OK);
+        assert_eq!(resp1.status(), &StatusCode::OK);
 
         let resp2 = conn.drive(resp2_fut).await.unwrap();
-        assert_eq!(resp2.status(), StatusCode::OK);
+        assert_eq!(resp2.status(), &StatusCode::OK);
 
         rx.await.unwrap();
     };

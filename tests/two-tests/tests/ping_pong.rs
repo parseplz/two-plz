@@ -100,10 +100,10 @@ async fn pong_has_highest_priority() {
             .await
             .expect("handshake");
         let (req, mut stream) = s.next().await.unwrap().unwrap();
-        assert_eq!(req.method(), "POST");
+        assert_eq!(req.method().as_str(), "POST");
         assert_eq!(req.body_as_ref().unwrap().len(), data.len());
 
-        let res = ResponseBuilder::new()
+        let res = Response::builder()
             .status(200.try_into().unwrap())
             .build();
         stream

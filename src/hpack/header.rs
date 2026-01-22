@@ -1,17 +1,19 @@
-use super::{DecoderError, NeedMore};
 use crate::ext::Protocol;
+use crate::hpack::decoder::{DecoderError, NeedMore};
+
+use header_plz::const_headers as header;
 
 use bytes::Bytes;
-use http::header::{HeaderName, HeaderValue};
-use http::{Method, StatusCode};
+use header_plz::Method;
+use header_plz::status::StatusCode;
 use std::fmt;
 
 /// HTTP/2 Header
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Header<T = HeaderName> {
+pub enum Header<T = BytesStr> {
     Field {
         name: T,
-        value: HeaderValue,
+        value: BytesStr,
     },
     // TODO: Change these types to `http::uri` types.
     Authority(BytesStr),
@@ -25,7 +27,7 @@ pub enum Header<T = HeaderName> {
 /// The header field name
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Name<'a> {
-    Field(&'a HeaderName),
+    Field(&'a BytesStr),
     Authority,
     Method,
     Scheme,
@@ -35,16 +37,22 @@ pub enum Name<'a> {
 }
 
 #[doc(hidden)]
-#[derive(Clone, Eq, PartialEq, Default)]
+#[derive(Clone, Eq, PartialEq, Default, Hash)]
 pub struct BytesStr(Bytes);
 
-pub fn len(name: &HeaderName, value: &HeaderValue) -> usize {
-    let n: &str = name.as_ref();
-    32 + n.len() + value.len()
+impl<'a> PartialEq<&'a str> for BytesStr {
+    fn eq(&self, other: &&'a str) -> bool {
+        self.as_bytes()
+            .eq_ignore_ascii_case(other.as_bytes())
+    }
 }
 
-impl Header<Option<HeaderName>> {
-    pub fn reify(self) -> Result<Header, HeaderValue> {
+pub fn len(name: &BytesStr, value: &BytesStr) -> usize {
+    32 + name.len() + value.len()
+}
+
+impl Header<Option<BytesStr>> {
+    pub fn reify(self) -> Result<Header, BytesStr> {
         use self::Header::*;
 
         Ok(match self {
@@ -83,7 +91,7 @@ impl Header {
                     Ok(Header::Authority(value))
                 }
                 b"method" => {
-                    let method = Method::from_bytes(&value)?;
+                    let method = Method::from(value.as_ref());
                     Ok(Header::Method(method))
                 }
                 b"scheme" => {
@@ -106,8 +114,12 @@ impl Header {
             }
         } else {
             // HTTP/2 requires lower case header names
-            let name = HeaderName::from_lowercase(&name)?;
-            let value = HeaderValue::from_bytes(&value)?;
+            //let name = HeaderName::from_lowercase(&name)?;
+            //let value = HeaderValue::from_bytes(&value)?;
+
+            // TODO: lower case
+            let name = BytesStr(name);
+            let value = BytesStr(value);
 
             Ok(Header::Field {
                 name,
@@ -205,35 +217,39 @@ impl Header {
     }
 
     pub fn is_sensitive(&self) -> bool {
+        false
+        /* TODO
         match *self {
-            Header::Field {
+            NHeader::Field {
                 ref value,
                 ..
             } => value.is_sensitive(),
             // TODO: Technically these other header values can be sensitive too.
             _ => false,
-        }
+        } */
     }
 
     pub fn skip_value_index(&self) -> bool {
-        use http::header;
-
         match *self {
             Header::Field {
                 ref name,
                 ..
-            } => matches!(
-                *name,
-                header::AGE
-                    | header::AUTHORIZATION
-                    | header::CONTENT_LENGTH
-                    | header::ETAG
-                    | header::IF_MODIFIED_SINCE
-                    | header::IF_NONE_MATCH
-                    | header::LOCATION
-                    | header::COOKIE
-                    | header::SET_COOKIE
-            ),
+            } => {
+                let slice = name.as_ref();
+                matches!(
+                    slice,
+                    header::CONTENT_LENGTH
+                        | header::AGE
+                        | header::AUTHORIZATION
+                        | header::CONTENT_LENGTH
+                        | header::ETAG
+                        | header::IF_MODIFIED_SINCE
+                        | header::IF_NONE_MATCH
+                        | header::LOCATION
+                        | header::COOKIE
+                        | header::SET_COOKIE
+                )
+            }
             Header::Path(..) => true,
             _ => false,
         }
@@ -241,7 +257,7 @@ impl Header {
 }
 
 // Mostly for tests
-impl From<Header> for Header<Option<HeaderName>> {
+impl From<Header> for Header<Option<BytesStr>> {
     fn from(src: Header) -> Self {
         match src {
             Header::Field {
@@ -266,15 +282,19 @@ impl<'a> Name<'a> {
         match self {
             Name::Field(name) => Ok(Header::Field {
                 name: name.clone(),
-                value: HeaderValue::from_bytes(&value)?,
+                value: BytesStr(value),
             }),
             Name::Authority => {
                 Ok(Header::Authority(BytesStr::try_from(value)?))
             }
-            Name::Method => Ok(Header::Method(Method::from_bytes(&value)?)),
+            Name::Method => Ok(Header::Method(Method::from(value.as_ref()))),
             Name::Scheme => Ok(Header::Scheme(BytesStr::try_from(value)?)),
             Name::Path => Ok(Header::Path(BytesStr::try_from(value)?)),
-            Name::Protocol => Ok(Header::Protocol(Protocol::try_from(value)?)),
+            Name::Protocol => {
+                {}
+                {}
+                Ok(Header::Protocol(Protocol::try_from(value)?))
+            }
             Name::Status => {
                 match StatusCode::from_bytes(&value) {
                     Ok(status) => Ok(Header::Status(status)),
@@ -331,8 +351,15 @@ impl From<&str> for BytesStr {
     }
 }
 
+impl From<Bytes> for BytesStr {
+    fn from(value: Bytes) -> Self {
+        BytesStr(value)
+    }
+}
+
 impl std::ops::Deref for BytesStr {
     type Target = str;
+
     fn deref(&self) -> &str {
         self.as_str()
     }
@@ -347,5 +374,13 @@ impl AsRef<[u8]> for BytesStr {
 impl fmt::Debug for BytesStr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+impl TryFrom<&[u8]> for BytesStr {
+    type Error = std::str::Utf8Error;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        Ok(BytesStr::from(str::from_utf8(value)?))
     }
 }

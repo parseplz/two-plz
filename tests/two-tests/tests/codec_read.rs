@@ -165,11 +165,11 @@ async fn read_continuation_frames() {
                 .expect("send_request")
                 .await
                 .expect("response");
-            assert_eq!(res.status(), StatusCode::OK);
+            assert_eq!(*res.status(), StatusCode::OK);
             let expected = large.iter().fold(
                 HeaderMap::new(),
                 |mut map, &(name, ref value)| {
-                    map.append(name, value.parse().unwrap());
+                    map.insert(name, value);
                     map
                 },
             );

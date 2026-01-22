@@ -1,12 +1,5 @@
-use support::prelude::{
-    message::request::{
-        RequestBuilder,
-        uri::{Scheme, Uri},
-    },
-    preface::PrefaceError,
-    proto::ProtoError,
-    *,
-};
+use crate::preface::PrefaceError;
+use support::prelude::{proto::ProtoError, *};
 
 // skipped
 // send_reset_notifies_recv_stream
@@ -289,10 +282,10 @@ async fn request_over_max_concurrent_streams_errors() {
         }
 
         let resp1 = conn.drive(resp1_fut).await.unwrap();
-        assert_eq!(resp1.status(), StatusCode::OK);
+        assert_eq!(resp1.status(), &StatusCode::OK);
 
         let resp2 = conn.drive(resp2_fut).await.unwrap();
-        assert_eq!(resp2.status(), StatusCode::OK);
+        assert_eq!(resp2.status(), &StatusCode::OK);
     };
 
     join(srv_fut, client_fut).await;
@@ -357,7 +350,7 @@ async fn recv_decrement_max_concurrent_streams_when_requests_queued() {
         let req1 = build_test_request();
         let resp1_fut = client.send_request(req1).unwrap();
         let resp1 = conn.drive(resp1_fut).await.unwrap();
-        assert_eq!(resp1.status(), StatusCode::OK);
+        assert_eq!(resp1.status(), &StatusCode::OK);
 
         // Stream 3: After settings change (allowed)
         let req2 = build_test_request();
@@ -368,10 +361,10 @@ async fn recv_decrement_max_concurrent_streams_when_requests_queued() {
         let resp3_fut = client.send_request(req3).unwrap();
 
         let resp2 = conn.drive(resp2_fut).await.unwrap();
-        assert_eq!(resp2.status(), StatusCode::OK);
+        assert_eq!(resp2.status(), &StatusCode::OK);
 
         let resp3 = conn.drive(resp3_fut).await.unwrap();
-        assert_eq!(resp3.status(), StatusCode::OK);
+        assert_eq!(resp3.status(), &StatusCode::OK);
 
         conn.await.unwrap();
     };
@@ -427,7 +420,7 @@ async fn send_request_poll_ready_when_connection_error() {
         let resp1_fut = client.send_request(req1).unwrap();
         // as long as we let the connection internals tick
         let resp1 = conn.drive(resp1_fut).await.unwrap();
-        assert_eq!(resp1.status(), StatusCode::OK);
+        assert_eq!(resp1.status(), &StatusCode::OK);
 
         // second request is put into pending_open
         let req2 = build_test_request();
@@ -491,17 +484,19 @@ async fn http_11_request_without_scheme_or_authority() {
             .await
             .expect("handshake");
 
-        let mut uri = Uri::default();
-        uri = uri.set_path(BytesStr::from_static("/"));
-        uri = uri.set_scheme(Scheme::HTTP);
-        let req = RequestBuilder::new()
+        let uri = Uri::builder()
+            .path("/")
+            .scheme(Scheme::HTTP)
+            .build()
+            .unwrap();
+        let req = Request::builder()
             .method(Method::GET)
             .uri(uri)
             .build();
 
         let resp_fut = client.send_request(req).unwrap();
         let resp = conn.drive(resp_fut).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), &StatusCode::OK);
 
         conn.await.unwrap();
     };
@@ -542,20 +537,21 @@ async fn http_2_connect_request_omit_scheme_and_path_fields() {
 
         // In HTTP_2 CONNECT request the ":scheme" and ":path" pseudo-header
         // fields MUST be omitted.
-        let mut uri = Uri::default();
-        uri = uri.set_scheme(Scheme::HTTPS);
-        uri = uri
-            .set_authority(BytesStr::from_static("tunnel.example.com:8443"));
-        uri = uri.set_path(BytesStr::from_static("/"));
+        let uri = Uri::builder()
+            .scheme(Scheme::HTTPS)
+            .authority("tunnel.example.com:8443")
+            .path("/")
+            .build()
+            .unwrap();
 
-        let req = RequestBuilder::new()
+        let req = Request::builder()
             .method(Method::CONNECT)
             .uri(uri)
             .build();
 
         let resp_fut = client.send_request(req).unwrap();
         let resp = conn.drive(resp_fut).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), &StatusCode::OK);
 
         conn.await.unwrap();
     };
@@ -597,18 +593,20 @@ async fn request_with_connection_headers() {
             .expect("handshake");
 
         for (name, val) in forbidden_headers {
-            let mut uri = Uri::default();
-            uri = uri.set_authority(BytesStr::from_static("http2.akamai.com"));
-            uri = uri.set_scheme(Scheme::HTTPS);
+            let uri = Uri::builder()
+                .authority("http2.akamai.com")
+                .scheme(Scheme::HTTPS)
+                .build()
+                .unwrap();
 
-            let mut builder = RequestBuilder::new()
+            let mut builder = Request::builder()
                 .method(Method::GET)
                 .uri(uri);
 
             let mut header_map = HeaderMap::new();
             // Try to add forbidden header
-            header_map.insert(name, val.try_into().unwrap());
-            builder.headers = header_map;
+            header_map.insert(name, val);
+            builder = builder.headers(header_map);
 
             let err = client
                 .send_request(builder.build())
@@ -700,7 +698,7 @@ async fn sending_request_on_closed_connection() {
             .drive(resp1_fut)
             .await
             .expect("response1");
-        assert_eq!(resp1.status(), StatusCode::OK);
+        assert_eq!(resp1.status(), &StatusCode::OK);
 
         // Connection should error due to protocol violation
         let conn_err = conn
@@ -904,19 +902,21 @@ async fn request_without_path() {
             .expect("handshake");
 
         // URI without explicit path - should default to "/"
-        let mut uri = Uri::default();
-        uri = uri.set_scheme(Scheme::HTTP);
-        uri = uri.set_authority(BytesStr::from_static("example.com"));
+        let uri = Uri::builder()
+            .scheme(Scheme::HTTP)
+            .authority("example.com")
+            .build()
+            .unwrap();
         // Note: No path set explicitly
 
-        let req = RequestBuilder::new()
+        let req = Request::builder()
             .method(Method::GET)
             .uri(uri)
             .build();
 
         let resp_fut = client.send_request(req).unwrap();
         let resp = conn.drive(resp_fut).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), &StatusCode::OK);
 
         conn.await.unwrap();
     };
@@ -951,19 +951,21 @@ async fn request_options_with_star() {
             .expect("handshake");
 
         // OPTIONS request with asterisk path
-        let mut uri = Uri::default();
-        uri = uri.set_scheme(Scheme::HTTP);
-        uri = uri.set_authority(BytesStr::from_static("example.com"));
-        uri = uri.set_path(BytesStr::from_static("*"));
+        let uri = Uri::builder()
+            .scheme(Scheme::HTTP)
+            .authority("example.com")
+            .path("*")
+            .build()
+            .unwrap();
 
-        let req = RequestBuilder::new()
+        let req = Request::builder()
             .method(Method::OPTIONS)
             .uri(uri)
             .build();
 
         let resp_fut = client.send_request(req).unwrap();
         let resp = conn.drive(resp_fut).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), &StatusCode::OK);
 
         conn.await.unwrap();
     };
@@ -1031,7 +1033,7 @@ async fn notify_on_send_capacity() {
             // All responses should complete successfully
             for resp_fut in response_futs {
                 let resp = resp_fut.await.unwrap();
-                assert_eq!(resp.status(), StatusCode::OK);
+                assert_eq!(resp.status(), &StatusCode::OK);
             }
 
             done_tx.send(()).unwrap();
@@ -1300,10 +1302,12 @@ async fn allow_empty_data_for_head() {
             .await
             .expect("handshake");
 
-        let mut uri = Uri::default();
-        uri = uri.set_authority(BytesStr::from_static("example.com"));
-        uri = uri.set_scheme(Scheme::HTTPS);
-        let req = RequestBuilder::new()
+        let uri = Uri::builder()
+            .authority("example.com")
+            .scheme(Scheme::HTTPS)
+            .build()
+            .unwrap();
+        let req = Request::builder()
             .method(Method::HEAD)
             .uri(uri)
             .build();
@@ -1407,7 +1411,7 @@ async fn early_hints() {
         let resp_fut = client.send_request(req).unwrap();
         let resp = conn.drive(resp_fut).await.unwrap();
 
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), &StatusCode::OK);
         assert_eq!(resp.body_as_ref().unwrap().as_ref(), b"ok");
 
         conn.await.expect("connection");
@@ -1470,7 +1474,7 @@ async fn informational_while_local_streaming() {
             .drive(resp_fut)
             .await
             .expect("response");
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), &StatusCode::OK);
 
         assert_eq!(resp.body_as_ref().unwrap().as_ref(), b"ok");
         conn.await.expect("connection");
@@ -1622,13 +1626,15 @@ async fn extended_connect_request() {
             .await
             .expect("handshake");
 
-        let mut uri = Uri::default();
-        uri = uri.set_authority(BytesStr::from_static("bread"));
-        uri = uri.set_scheme(Scheme::HTTP);
-        uri = uri.set_path("/baguette".into());
-        let req = RequestBuilder::new()
+        let uri = Uri::builder()
+            .authority("bread")
+            .scheme(Scheme::HTTP)
+            .path("/baguette")
+            .build()
+            .unwrap();
+        let req = Request::builder()
             .method(Method::CONNECT)
-            .extension(Protocol::from("the-bread-protocol"))
+            .extension("the-bread-protocol".into())
             .uri(uri)
             .build();
         let resp = client.send_request(req).unwrap();

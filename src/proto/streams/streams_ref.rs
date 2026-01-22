@@ -1,3 +1,4 @@
+use http_plz::{Request, Response};
 use std::sync::{Arc, Mutex};
 use tracing::Level;
 
@@ -8,7 +9,7 @@ use crate::{
     codec::UserError,
     error::Reason,
     frame::StreamId,
-    message::{TwoTwoFrame, request::Request, response::Response},
+    message::TwoTwoFrame,
     proto::{
         error::Initiator,
         streams::{

@@ -10,7 +10,6 @@ use tokio_rustls::{
     LazyConfigAcceptor, StartHandshake, TlsConnector, client, server,
 };
 
-const ALPN_H1: &[u8] = b"http/1.1";
 const OWS: char = ' ';
 
 // 1

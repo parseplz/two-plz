@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, warnings)]
 #![allow(
     clippy::new_without_default,
     clippy::large_enum_variant,
@@ -30,7 +30,6 @@ pub mod codec;
 pub mod error;
 pub mod ext;
 pub mod frame;
-pub mod hpack;
 pub mod message;
 pub mod preface;
 pub mod proto;
@@ -38,3 +37,4 @@ pub mod role;
 pub mod server;
 pub use crate::proto::connection::Connection;
 pub use codec::Codec;
+pub mod hpack;

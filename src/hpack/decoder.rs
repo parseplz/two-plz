@@ -2,9 +2,9 @@ use super::{Header, header::BytesStr, huffman};
 use crate::frame;
 
 use bytes::{Buf, Bytes, BytesMut};
-use http::header;
-use http::method::{self, Method};
-use http::status::{self, StatusCode};
+use header_plz::Method;
+use header_plz::const_headers as header;
+use header_plz::status::{InvalidStatusCode, StatusCode};
 
 use std::cmp;
 use std::collections::VecDeque;
@@ -598,7 +598,7 @@ impl Table {
     }
 }
 
-// ===== impl DecoderError =====
+// ===== impl NDecoderError =====
 
 impl From<Utf8Error> for DecoderError {
     fn from(_: Utf8Error) -> DecoderError {
@@ -607,29 +607,31 @@ impl From<Utf8Error> for DecoderError {
     }
 }
 
-impl From<header::InvalidHeaderValue> for DecoderError {
-    fn from(_: header::InvalidHeaderValue) -> DecoderError {
+/* TODO
+impl From<header::InvalidHeaderValue> for NDecoderError {
+    fn from(_: header::InvalidHeaderValue) -> NDecoderError {
         // TODO: Better error?
-        DecoderError::InvalidUtf8
+        NDecoderError::InvalidUtf8
     }
 }
 
-impl From<header::InvalidHeaderName> for DecoderError {
-    fn from(_: header::InvalidHeaderName) -> DecoderError {
+impl From<header::InvalidHeaderName> for NDecoderError {
+    fn from(_: header::InvalidHeaderName) -> NDecoderError {
         // TODO: Better error
-        DecoderError::InvalidUtf8
+        NDecoderError::InvalidUtf8
     }
 }
 
-impl From<method::InvalidMethod> for DecoderError {
-    fn from(_: method::InvalidMethod) -> DecoderError {
+impl From<method::InvalidMethod> for NDecoderError {
+    fn from(_: method::InvalidMethod) -> NDecoderError {
         // TODO: Better error
-        DecoderError::InvalidUtf8
+        NDecoderError::InvalidUtf8
     }
 }
+*/
 
-impl From<status::InvalidStatusCode> for DecoderError {
-    fn from(_: status::InvalidStatusCode) -> DecoderError {
+impl From<InvalidStatusCode> for DecoderError {
+    fn from(_: InvalidStatusCode) -> DecoderError {
         // TODO: Better error
         DecoderError::InvalidUtf8
     }
@@ -643,8 +645,6 @@ impl From<DecoderError> for frame::Error {
 
 /// Get an entry from the static table
 pub fn get_static(idx: usize) -> Header {
-    use http::header::HeaderValue;
-
     match idx {
         1 => Header::Authority(BytesStr::from_static("")),
         2 => Header::Method(Method::GET),
@@ -660,201 +660,75 @@ pub fn get_static(idx: usize) -> Header {
         12 => Header::Status(StatusCode::BAD_REQUEST),
         13 => Header::Status(StatusCode::NOT_FOUND),
         14 => Header::Status(StatusCode::INTERNAL_SERVER_ERROR),
-        15 => Header::Field {
-            name: header::ACCEPT_CHARSET,
-            value: HeaderValue::from_static(""),
-        },
-        16 => Header::Field {
-            name: header::ACCEPT_ENCODING,
-            value: HeaderValue::from_static("gzip, deflate"),
-        },
-        17 => Header::Field {
-            name: header::ACCEPT_LANGUAGE,
-            value: HeaderValue::from_static(""),
-        },
-        18 => Header::Field {
-            name: header::ACCEPT_RANGES,
-            value: HeaderValue::from_static(""),
-        },
-        19 => Header::Field {
-            name: header::ACCEPT,
-            value: HeaderValue::from_static(""),
-        },
-        20 => Header::Field {
-            name: header::ACCESS_CONTROL_ALLOW_ORIGIN,
-            value: HeaderValue::from_static(""),
-        },
-        21 => Header::Field {
-            name: header::AGE,
-            value: HeaderValue::from_static(""),
-        },
-        22 => Header::Field {
-            name: header::ALLOW,
-            value: HeaderValue::from_static(""),
-        },
-        23 => Header::Field {
-            name: header::AUTHORIZATION,
-            value: HeaderValue::from_static(""),
-        },
-        24 => Header::Field {
-            name: header::CACHE_CONTROL,
-            value: HeaderValue::from_static(""),
-        },
-        25 => Header::Field {
-            name: header::CONTENT_DISPOSITION,
-            value: HeaderValue::from_static(""),
-        },
-        26 => Header::Field {
-            name: header::CONTENT_ENCODING,
-            value: HeaderValue::from_static(""),
-        },
-        27 => Header::Field {
-            name: header::CONTENT_LANGUAGE,
-            value: HeaderValue::from_static(""),
-        },
-        28 => Header::Field {
-            name: header::CONTENT_LENGTH,
-            value: HeaderValue::from_static(""),
-        },
-        29 => Header::Field {
-            name: header::CONTENT_LOCATION,
-            value: HeaderValue::from_static(""),
-        },
-        30 => Header::Field {
-            name: header::CONTENT_RANGE,
-            value: HeaderValue::from_static(""),
-        },
-        31 => Header::Field {
-            name: header::CONTENT_TYPE,
-            value: HeaderValue::from_static(""),
-        },
-        32 => Header::Field {
-            name: header::COOKIE,
-            value: HeaderValue::from_static(""),
-        },
-        33 => Header::Field {
-            name: header::DATE,
-            value: HeaderValue::from_static(""),
-        },
-        34 => Header::Field {
-            name: header::ETAG,
-            value: HeaderValue::from_static(""),
-        },
-        35 => Header::Field {
-            name: header::EXPECT,
-            value: HeaderValue::from_static(""),
-        },
-        36 => Header::Field {
-            name: header::EXPIRES,
-            value: HeaderValue::from_static(""),
-        },
-        37 => Header::Field {
-            name: header::FROM,
-            value: HeaderValue::from_static(""),
-        },
-        38 => Header::Field {
-            name: header::HOST,
-            value: HeaderValue::from_static(""),
-        },
-        39 => Header::Field {
-            name: header::IF_MATCH,
-            value: HeaderValue::from_static(""),
-        },
-        40 => Header::Field {
-            name: header::IF_MODIFIED_SINCE,
-            value: HeaderValue::from_static(""),
-        },
-        41 => Header::Field {
-            name: header::IF_NONE_MATCH,
-            value: HeaderValue::from_static(""),
-        },
-        42 => Header::Field {
-            name: header::IF_RANGE,
-            value: HeaderValue::from_static(""),
-        },
-        43 => Header::Field {
-            name: header::IF_UNMODIFIED_SINCE,
-            value: HeaderValue::from_static(""),
-        },
-        44 => Header::Field {
-            name: header::LAST_MODIFIED,
-            value: HeaderValue::from_static(""),
-        },
-        45 => Header::Field {
-            name: header::LINK,
-            value: HeaderValue::from_static(""),
-        },
-        46 => Header::Field {
-            name: header::LOCATION,
-            value: HeaderValue::from_static(""),
-        },
-        47 => Header::Field {
-            name: header::MAX_FORWARDS,
-            value: HeaderValue::from_static(""),
-        },
-        48 => Header::Field {
-            name: header::PROXY_AUTHENTICATE,
-            value: HeaderValue::from_static(""),
-        },
-        49 => Header::Field {
-            name: header::PROXY_AUTHORIZATION,
-            value: HeaderValue::from_static(""),
-        },
-        50 => Header::Field {
-            name: header::RANGE,
-            value: HeaderValue::from_static(""),
-        },
-        51 => Header::Field {
-            name: header::REFERER,
-            value: HeaderValue::from_static(""),
-        },
-        52 => Header::Field {
-            name: header::REFRESH,
-            value: HeaderValue::from_static(""),
-        },
-        53 => Header::Field {
-            name: header::RETRY_AFTER,
-            value: HeaderValue::from_static(""),
-        },
-        54 => Header::Field {
-            name: header::SERVER,
-            value: HeaderValue::from_static(""),
-        },
-        55 => Header::Field {
-            name: header::SET_COOKIE,
-            value: HeaderValue::from_static(""),
-        },
-        56 => Header::Field {
-            name: header::STRICT_TRANSPORT_SECURITY,
-            value: HeaderValue::from_static(""),
-        },
-        57 => Header::Field {
-            name: header::TRANSFER_ENCODING,
-            value: HeaderValue::from_static(""),
-        },
-        58 => Header::Field {
-            name: header::USER_AGENT,
-            value: HeaderValue::from_static(""),
-        },
-        59 => Header::Field {
-            name: header::VARY,
-            value: HeaderValue::from_static(""),
-        },
-        60 => Header::Field {
-            name: header::VIA,
-            value: HeaderValue::from_static(""),
-        },
-        61 => Header::Field {
-            name: header::WWW_AUTHENTICATE,
-            value: HeaderValue::from_static(""),
-        },
-        _ => unreachable!(),
+        _ => {
+            let (name, value) = match idx {
+                15 => (header::ACCEPT_CHARSET, ""),
+                16 => (header::ACCEPT_ENCODING, "gzip, deflate"),
+                17 => (header::ACCEPT_LANGUAGE, ""),
+                18 => (header::ACCEPT_RANGES, ""),
+                19 => (header::ACCEPT, ""),
+                20 => (header::ACCESS_CONTROL_ALLOW_ORIGIN, ""),
+                21 => (header::AGE, ""),
+                22 => (header::ALLOW, ""),
+                23 => (header::AUTHORIZATION, ""),
+                24 => (header::CACHE_CONTROL, ""),
+                25 => (header::CONTENT_DISPOSITION, ""),
+                26 => (header::CONTENT_ENCODING, ""),
+                27 => (header::CONTENT_LANGUAGE, ""),
+                28 => (header::CONTENT_LENGTH, ""),
+                29 => (header::CONTENT_LOCATION, ""),
+                30 => (header::CONTENT_RANGE, ""),
+                31 => (header::CONTENT_TYPE, ""),
+                32 => (header::COOKIE, ""),
+                33 => (header::DATE, ""),
+                34 => (header::ETAG, ""),
+                35 => (header::EXPECT, ""),
+                36 => (header::EXPIRES, ""),
+                37 => (header::FROM, ""),
+                38 => (header::HOST, ""),
+                39 => (header::IF_MATCH, ""),
+                40 => (header::IF_MODIFIED_SINCE, ""),
+                41 => (header::IF_NONE_MATCH, ""),
+                42 => (header::IF_RANGE, ""),
+                43 => (header::IF_UNMODIFIED_SINCE, ""),
+                44 => (header::LAST_MODIFIED, ""),
+                45 => (header::LINK, ""),
+                46 => (header::LOCATION, ""),
+                47 => (header::MAX_FORWARDS, ""),
+                48 => (header::PROXY_AUTHENTICATE, ""),
+                49 => (header::PROXY_AUTHORIZATION, ""),
+                50 => (header::RANGE, ""),
+                51 => (header::REFERER, ""),
+                52 => (header::REFRESH, ""),
+                53 => (header::RETRY_AFTER, ""),
+                54 => (header::SERVER, ""),
+                55 => (header::SET_COOKIE, ""),
+                56 => (header::STRICT_TRANSPORT_SECURITY, ""),
+                57 => (header::TRANSFER_ENCODING, ""),
+                58 => (header::USER_AGENT, ""),
+                59 => (header::VARY, ""),
+                60 => (header::VIA, ""),
+                61 => (header::WWW_AUTHENTICATE, ""),
+                _ => unreachable!(),
+            };
+
+            Header::Field {
+                name: BytesStr::unchecked_from_slice(name),
+                value: BytesStr::from_static(value),
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    fn huff_encode(src: &[u8]) -> BytesMut {
+        let mut buf = BytesMut::new();
+        huffman::encode(src, &mut buf);
+        buf
+    }
 
     #[test]
     fn test_peek_u8() {
@@ -911,17 +785,11 @@ mod test {
                 ref name,
                 ref value,
             } => {
-                assert_eq!(name, "foo");
-                assert_eq!(value, "bar");
+                assert_eq!(*name, "foo");
+                assert_eq!(*value, "bar");
             }
             _ => panic!(),
         }
-    }
-
-    fn huff_encode(src: &[u8]) -> BytesMut {
-        let mut buf = BytesMut::new();
-        huffman::encode(src, &mut buf);
-        buf
     }
 
     #[test]
@@ -960,8 +828,8 @@ mod test {
                 ref name,
                 ref value,
             } => {
-                assert_eq!(name, "foo");
-                assert_eq!(value, "bar");
+                assert_eq!(*name, "foo");
+                assert_eq!(*value, "bar");
             }
             _ => panic!(),
         }
