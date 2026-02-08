@@ -6,10 +6,10 @@ publish = false
 
 [dependencies]
 atty = "0.2"
-bytes = "1"
+bytes = "1.11.1"
 futures = { version = "0.3", default-features = false }
-header-plz = "0.0.36"
-http-plz = { git = "https://github.com/parseplz/http-plz.git" }
+header-plz = "0.0.44"
+http-plz = "0.0.4"
 tokio = { version = "1", features = ["time"] }
 tokio-test = "0.4"
 tracing = "0.1"

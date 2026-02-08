@@ -104,8 +104,9 @@ async fn pong_has_highest_priority() {
         assert_eq!(req.body_as_ref().unwrap().len(), data.len());
 
         let res = Response::builder()
-            .status(200.try_into().unwrap())
-            .build();
+            .status(200)
+            .build()
+            .unwrap();
         stream
             .send_response(res)
             .expect("response");

@@ -1,5 +1,5 @@
 // run client:
-// curl https://www.google.com/robots.txt -x http://localhost:8080 -ki/
+// curl https://www.google.com/robots.txt -x http://localhost:8080 -ki
 
 #![allow(warnings)]
 mod encrypt;
@@ -110,10 +110,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         body.extend_from_slice(b"dead body");
         let response = Response::builder()
-            .status(StatusCode::OK)
+            .status(200)
             .headers(headers)
             .body(BytesMut::from("hello world"))
-            .build();
+            .build()
+            .unwrap();
         responder
             .send_response(response)
             .unwrap();

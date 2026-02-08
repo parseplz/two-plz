@@ -900,7 +900,8 @@ async fn rst_with_buffered_data() {
 }
 
 // TODO: fix
-// #[tokio::test]
+#[ignore]
+#[tokio::test]
 async fn err_with_buffered_data() {
     // Data is buffered in `FramedWrite` and the stream is reset locally before
     // the data is fully flushed. Given that resetting a stream requires

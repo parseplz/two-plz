@@ -195,8 +195,9 @@ pub(crate) fn frames_to_response(
 ) -> Result<Response, ProtoError> {
     let mut b = Response::builder();
     if let Some(status) = pseudo.status {
-        b = b.status(status);
+        b = b.status(status.into());
     }
     b = b.headers(headers);
-    Ok(b.build())
+    // safe to unwrap, status code error already checked in previous step
+    Ok(b.build().expect("invalid scode"))
 }

@@ -1576,7 +1576,8 @@ async fn invalid_connect_protocol_enabled_setting() {
 }
 
 // TODO: fix
-// #[tokio::test]
+#[ignore]
+#[tokio::test]
 async fn extended_connect_request() {
     //support::trace_init!();
 
