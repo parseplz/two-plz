@@ -56,6 +56,9 @@ pub struct Builder<R> {
 
     /// Initial `Settings` frame to send as part of the handshake.
     pub settings: frame::Settings,
+
+    /// single packet attack mode
+    pub is_spa: bool,
 }
 
 impl<R> Default for Builder<R>
@@ -84,6 +87,7 @@ where
             ),
             settings,
             role: PhantomData,
+            is_spa: false,
         }
     }
 
@@ -278,6 +282,15 @@ where
         self
     }
 
+    pub fn enable_single_packet_attack(mut self) -> Self {
+        if <R as BuildConnection>::is_client() {
+            self.is_spa = true;
+        } else {
+            tracing::error!("not available for server");
+        }
+        self
+    }
+
     // TODO
     // Sets the first stream ID to something other than 1.
     //pub fn initial_stream_id(&mut self, stream_id: u32) -> &mut Self {
@@ -321,6 +334,7 @@ where
             remote_reset_stream_max: self.remote_reset_stream_max,
             local_settings: self.settings.clone(),
             peer_settings,
+            is_spa: self.is_spa,
         }
     }
 }

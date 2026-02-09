@@ -25,4 +25,7 @@ pub struct ConnectionConfig {
     /// settings
     pub local_settings: Settings,
     pub peer_settings: Settings,
+
+    /// spa
+    pub is_spa: bool,
 }

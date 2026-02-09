@@ -57,6 +57,7 @@ pub struct Connection<T> {
     /// This exists separately from State in order to support
     /// graceful shutdown.
     error: Option<frame::GoAway>,
+    is_spa: bool,
 }
 
 impl<T> Connection<T>
@@ -78,6 +79,7 @@ where
             codec,
             role: role.clone(),
             span: trace_span!("conn", "{}", role.as_str()),
+            is_spa: config.is_spa,
             streams: Streams::new(role, config),
             error: None,
         }

@@ -49,11 +49,13 @@ impl BuildConnection for Client {
     where
         T: AsyncRead + AsyncWrite + Unpin,
     {
+        let is_spa = config.is_spa;
         let conn = ClientConnection {
             inner: Connection::new(role, config, codec),
         };
         let send_request = SendRequest {
             inner: conn.inner.streams.clone(),
+            is_spa,
         };
         (conn, send_request)
     }
@@ -126,6 +128,7 @@ where
 #[derive(Clone)]
 pub struct SendRequest {
     inner: Streams<Bytes>,
+    is_spa: bool,
 }
 
 impl SendRequest {
