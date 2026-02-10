@@ -21,7 +21,7 @@ use crate::{
 use crate::proto::streams::OpaqueStreamRef;
 use http_plz::{Request, Response};
 
-// ===== Builder =====
+// ===== single packet attack =====
 #[derive(Default)]
 pub struct Client {
     spa_mode: Option<Mode>,
@@ -53,6 +53,49 @@ impl Mode {
     }
 }
 
+pub struct SpaTracker {
+    // pending streams with stream level window update
+    pending_streams: Option<Vec<StreamId>>,
+    mode: Mode,
+}
+
+impl From<Mode> for SpaTracker {
+    fn from(mode: Mode) -> Self {
+        Self {
+            pending_streams: None,
+            mode,
+        }
+    }
+}
+
+impl SpaTracker {
+    pub fn are_pending_stream_window_update(&self) -> bool {
+        self.pending_streams.is_none()
+    }
+
+    pub fn mode(&self) -> &Mode {
+        &self.mode
+    }
+
+    pub fn add_stream(&mut self, stream: StreamId) {
+        if let Some(queue) = self.pending_streams.as_mut() {
+            queue.push(stream)
+        }
+    }
+
+    pub fn remove_stream(&mut self, stream: StreamId) {
+        if let Some(queue) = self.pending_streams.as_mut() {
+            queue.remove(
+                queue
+                    .iter()
+                    .position(|x| *x == stream)
+                    .expect("stream not found"),
+            );
+        }
+    }
+}
+
+// ===== Builder =====
 pub type ClientBuilder = Builder<Client>;
 
 impl ClientBuilder {
@@ -185,7 +228,7 @@ impl SendRequest {
         request: Request,
     ) -> Result<ResponseFuture, OpError> {
         self.inner
-            .send_request(request)
+            .send_request(request, self.is_spa)
             .map_err(Into::into)
             .map(|s| ResponseFuture {
                 inner: s,
