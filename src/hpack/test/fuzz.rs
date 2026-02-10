@@ -1,6 +1,6 @@
 use crate::hpack::{BytesStr, Decoder, Encoder, Header};
 
-use bytes::{Bytes, BytesMut};
+use bytes::BytesMut;
 use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
 use rand::distr::slice::Choose;
 use rand::rngs::StdRng;
@@ -263,7 +263,7 @@ fn gen_header(g: &mut StdRng) -> Header<Option<BytesStr>> {
         } else {
             Some(gen_header_name(g))
         };
-        let mut value = gen_header_value(g);
+        let value = gen_header_value(g);
 
         //if g.random_ratio(1, 30) {
         //    value.set_sensitive(true);

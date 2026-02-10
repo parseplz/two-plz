@@ -51,7 +51,7 @@ impl BuildConnection for Server {
         }
     }
 
-    fn into_spa_mode(&mut self) -> Option<Mode> {
+    fn take_spa_mode(&mut self) -> Option<Mode> {
         None
     }
 

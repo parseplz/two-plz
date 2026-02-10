@@ -1238,7 +1238,7 @@ mod test {
         // these MUST include a ":path" pseudo-header field with a value of '*' (see Section 7.1 of [HTTP]).
         // See: https://datatracker.ietf.org/doc/html/rfc9113#section-8.3.1
 
-        let a = Uri::builder()
+        let _a = Uri::builder()
             .authority("example.com:8080")
             .build()
             .unwrap();

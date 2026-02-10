@@ -166,7 +166,7 @@ impl Header {
                 ..
             } => value.as_ref(),
             Header::Authority(ref v) => v.as_ref(),
-            Header::Method(ref v) => v.as_ref().as_ref(),
+            Header::Method(ref v) => v.as_ref(),
             Header::Scheme(ref v) => v.as_ref(),
             Header::Path(ref v) => v.as_ref(),
             Header::Protocol(ref v) => v.as_ref(),
@@ -241,7 +241,6 @@ impl Header {
                     header::CONTENT_LENGTH
                         | header::AGE
                         | header::AUTHORIZATION
-                        | header::CONTENT_LENGTH
                         | header::ETAG
                         | header::IF_MODIFIED_SINCE
                         | header::IF_NONE_MATCH

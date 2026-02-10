@@ -13,7 +13,6 @@ use crate::{
     frame::StreamId,
     preface::{PrefaceConn, PrefaceError},
 };
-use std::marker::PhantomData;
 use std::time::Duration;
 
 pub trait BuildConnection {
@@ -25,7 +24,7 @@ pub trait BuildConnection {
 
     fn is_client() -> bool;
 
-    fn into_spa_mode(&mut self) -> Option<Mode>;
+    fn take_spa_mode(&mut self) -> Option<Mode>;
 
     fn is_spa(&self) -> bool;
 
@@ -319,7 +318,7 @@ where
         &mut self,
         peer_settings: frame::Settings,
     ) -> ConnectionConfig {
-        let spa_mode = self.role.into_spa_mode();
+        let spa_mode = self.role.take_spa_mode();
         ConnectionConfig {
             initial_connection_window_size: self
                 .initial_connection_window_size,

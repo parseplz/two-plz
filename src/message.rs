@@ -4,7 +4,6 @@ use crate::{
     frame::{self, StreamId, headers::Pseudo},
     proto::ProtoError,
 };
-use bytes::BytesMut;
 use header_plz::uri::Uri;
 use header_plz::{
     HeaderMap, Method, RequestLine, ResponseLine, uri::scheme::Scheme,
@@ -26,7 +25,7 @@ impl From<header::BytesStr> for header_plz::bytes_str::BytesStr {
 impl IntoPseudo for RequestLine {
     fn into_pseudo(self) -> Pseudo {
         // TODO: extensions
-        let (method, uri, ext) = self.into_parts();
+        let (method, uri, _ext) = self.into_parts();
         let is_connect = method == Method::CONNECT;
         let mut pseudo = Pseudo::request(method, uri, None);
 

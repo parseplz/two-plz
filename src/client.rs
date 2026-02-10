@@ -36,7 +36,7 @@ pub enum Mode {
 }
 
 #[derive(Clone, Default, Debug)]
-enum PingSent {
+pub enum PingSent {
     #[default]
     Init,
     First,
@@ -44,11 +44,11 @@ enum PingSent {
 }
 
 impl Mode {
-    fn ping() -> Self {
+    pub fn ping() -> Self {
         Self::Ping(false)
     }
 
-    fn enhanced() -> Self {
+    pub fn enhanced() -> Self {
         Self::EnhanchedPing(PingSent::Init)
     }
 }
@@ -100,7 +100,7 @@ impl BuildConnection for Client {
         (conn, send_request)
     }
 
-    fn into_spa_mode(&mut self) -> Option<Mode> {
+    fn take_spa_mode(&mut self) -> Option<Mode> {
         self.spa_mode.take()
     }
 
@@ -194,6 +194,10 @@ impl SendRequest {
 
     pub fn num_active_streams(&self) -> usize {
         self.inner.num_active_streams()
+    }
+
+    pub fn is_spa(&self) -> bool {
+        self.is_spa
     }
 }
 
