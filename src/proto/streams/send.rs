@@ -65,6 +65,9 @@ pub struct Send {
     /// Queue of streams waiting for capacity due to max concurrency
     pending_open: Queue<stream::NextOpen>,
 
+    /// Queue of streams for Spa
+    pending_spa: Queue<stream::NextSpa>,
+
     is_push_enabled: bool,
     is_extended_connect_protocol_enabled: bool,
 }

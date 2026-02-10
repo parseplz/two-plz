@@ -32,6 +32,9 @@ pub(super) struct NextOpen;
 pub(super) struct NextResetExpire;
 
 #[derive(Debug)]
+pub(super) struct NextSpa;
+
+#[derive(Debug)]
 pub(crate) struct Stream {
     pub(crate) id: StreamId,
     pub state: State,
@@ -60,6 +63,10 @@ pub(crate) struct Stream {
     /// Next Open
     pub next_open: Option<Key>,
     pub is_pending_open: bool,
+
+    // Next Spa
+    pub next_spa: Option<Key>,
+    pub is_pending_spa: bool,
 
     // ===== Recv =====
     pub recv_flow: FlowControl,
@@ -136,6 +143,8 @@ impl Stream {
             pending_push_promises: Queue::new(),
             // trailers
             is_sending_trailer: false,
+            next_spa: None,
+            is_pending_spa: false,
         }
     }
 
@@ -392,6 +401,28 @@ impl Next for NextResetExpire {
         } else {
             stream.reset_at = None;
         }
+    }
+}
+
+impl Next for NextSpa {
+    fn next(stream: &Stream) -> Option<Key> {
+        todo!()
+    }
+
+    fn set_next(stream: &mut Stream, key: Option<Key>) {
+        todo!()
+    }
+
+    fn take_next(stream: &mut Stream) -> Option<Key> {
+        todo!()
+    }
+
+    fn is_queued(stream: &Stream) -> bool {
+        todo!()
+    }
+
+    fn set_queued(stream: &mut Stream, val: bool) {
+        todo!()
     }
 }
 
