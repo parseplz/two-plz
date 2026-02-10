@@ -32,9 +32,6 @@ pub(super) struct NextOpen;
 pub(super) struct NextResetExpire;
 
 #[derive(Debug)]
-pub(super) struct NextSpa;
-
-#[derive(Debug)]
 pub(crate) struct Stream {
     pub(crate) id: StreamId,
     pub state: State,
@@ -401,28 +398,6 @@ impl Next for NextResetExpire {
         } else {
             stream.reset_at = None;
         }
-    }
-}
-
-impl Next for NextSpa {
-    fn next(stream: &Stream) -> Option<Key> {
-        todo!()
-    }
-
-    fn set_next(stream: &mut Stream, key: Option<Key>) {
-        todo!()
-    }
-
-    fn take_next(stream: &mut Stream) -> Option<Key> {
-        todo!()
-    }
-
-    fn is_queued(stream: &Stream) -> bool {
-        todo!()
-    }
-
-    fn set_queued(stream: &mut Stream, val: bool) {
-        todo!()
     }
 }
 

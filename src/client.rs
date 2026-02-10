@@ -54,15 +54,17 @@ impl Mode {
 }
 
 pub struct SpaTracker {
+    pending_spa: Vec<StreamId>,
     // pending streams with stream level window update
-    pending_streams: Option<Vec<StreamId>>,
+    pending_stream_window_update: Option<Vec<StreamId>>,
     mode: Mode,
 }
 
 impl From<Mode> for SpaTracker {
     fn from(mode: Mode) -> Self {
         Self {
-            pending_streams: None,
+            pending_spa: Vec::new(),
+            pending_stream_window_update: None,
             mode,
         }
     }
@@ -70,7 +72,8 @@ impl From<Mode> for SpaTracker {
 
 impl SpaTracker {
     pub fn are_pending_stream_window_update(&self) -> bool {
-        self.pending_streams.is_none()
+        self.pending_stream_window_update
+            .is_none()
     }
 
     pub fn mode(&self) -> &Mode {
@@ -78,13 +81,19 @@ impl SpaTracker {
     }
 
     pub fn add_stream(&mut self, stream: StreamId) {
-        if let Some(queue) = self.pending_streams.as_mut() {
+        if let Some(queue) = self
+            .pending_stream_window_update
+            .as_mut()
+        {
             queue.push(stream)
         }
     }
 
     pub fn remove_stream(&mut self, stream: StreamId) {
-        if let Some(queue) = self.pending_streams.as_mut() {
+        if let Some(queue) = self
+            .pending_stream_window_update
+            .as_mut()
+        {
             queue.remove(
                 queue
                     .iter()
