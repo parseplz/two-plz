@@ -378,6 +378,16 @@ impl Streams<Bytes> {
             .counts
             .max_send_streams()
     }
+
+    // ===== SPA =====
+    pub(crate) fn can_perform_spa(&self) -> bool {
+        self.inner
+            .lock()
+            .unwrap()
+            .actions
+            .send
+            .can_perform_spa()
+    }
 }
 
 impl<B> Clone for Streams<B> {

@@ -892,4 +892,12 @@ impl Send {
             }
         }
     }
+
+    // ===== SPA =====
+    pub fn can_perform_spa(&self) -> bool {
+        self.pending_send.is_empty()
+            && self.pending_capacity.is_empty()
+            && self.pending_open.is_empty()
+    }
+
 }
