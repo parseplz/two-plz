@@ -70,7 +70,7 @@ impl Streams<Bytes> {
         //    .remove::<Protocol>();
         //request.extensions_mut().clear();
 
-        // TODO: There is a hazard with assigning a stream ID before the
+        // TODO(hyper): There is a hazard with assigning a stream ID before the
         // prioritize layer. If prioritization reorders new streams, this
         // implicitly closes the earlier stream IDs.
         //
@@ -104,12 +104,16 @@ impl Streams<Bytes> {
 
         let mut stream = me.store.insert(stream.id, stream);
 
-        let mut request_frames = TwoTwoFrame::from((stream.id, request));
-        let data_frame = request_frames.take_data();
-        let trailer_frame = request_frames.take_trailer();
+        let mut frames = TwoTwoFrame::from((stream.id, request));
+        let spa = false; // TODO: remove
+        let mut data_frame = frames.take_data();
+        if spa && data_frame.is_none() {
+            data_frame = Some(frame::Data::new(stream_id, Bytes::new()));
+        }
+        let trailer_frame = frames.take_trailer();
 
         if let Err(e) = me.actions.send.send_headers(
-            request_frames.header,
+            frames.header,
             send_buffer,
             &mut stream,
             &mut me.counts,
@@ -119,6 +123,7 @@ impl Streams<Bytes> {
             stream.remove();
             return Err(e.into());
         }
+
         queue_body_trailer(
             &mut stream,
             data_frame,

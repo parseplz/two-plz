@@ -1,3 +1,4 @@
+use crate::client::Mode;
 use crate::codec::UserError;
 use crate::error::{OpError, Reason};
 use crate::{
@@ -20,6 +21,10 @@ pub type ServerBuilder = Builder<Server>;
 
 impl BuildConnection for Server {
     type Connection<T> = ServerConnection<T>;
+
+    fn role_opts() -> Self {
+        Server
+    }
 
     fn is_server() -> bool {
         true
@@ -44,6 +49,14 @@ impl BuildConnection for Server {
         ServerConnection {
             connection: Connection::new(role, config, codec),
         }
+    }
+
+    fn into_spa_mode(&mut self) -> Option<Mode> {
+        None
+    }
+
+    fn is_spa(&self) -> bool {
+        false
     }
 }
 

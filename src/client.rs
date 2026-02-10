@@ -22,12 +22,52 @@ use crate::proto::streams::OpaqueStreamRef;
 use http_plz::{Request, Response};
 
 // ===== Builder =====
-pub struct Client;
+#[derive(Default)]
+pub struct Client {
+    spa_mode: Option<Mode>,
+}
+
+#[derive(Clone, Default, Debug)]
+pub enum Mode {
+    #[default]
+    Native,
+    Ping(bool),
+    EnhanchedPing(PingSent),
+}
+
+#[derive(Clone, Default, Debug)]
+enum PingSent {
+    #[default]
+    Init,
+    First,
+    Second,
+}
+
+impl Mode {
+    fn ping() -> Self {
+        Self::Ping(false)
+    }
+
+    fn enhanced() -> Self {
+        Self::EnhanchedPing(PingSent::Init)
+    }
+}
 
 pub type ClientBuilder = Builder<Client>;
 
+impl ClientBuilder {
+    pub fn single_packet_attack_mode(mut self, mode: Mode) -> Self {
+        self.role.spa_mode = Some(mode);
+        self
+    }
+}
+
 impl BuildConnection for Client {
     type Connection<T> = (ClientConnection<T>, SendRequest);
+
+    fn role_opts() -> Self {
+        Client::default()
+    }
 
     fn is_server() -> bool {
         false
@@ -49,7 +89,7 @@ impl BuildConnection for Client {
     where
         T: AsyncRead + AsyncWrite + Unpin,
     {
-        let is_spa = config.is_spa;
+        let is_spa = config.spa_mode.is_some();
         let conn = ClientConnection {
             inner: Connection::new(role, config, codec),
         };
@@ -58,6 +98,14 @@ impl BuildConnection for Client {
             is_spa,
         };
         (conn, send_request)
+    }
+
+    fn into_spa_mode(&mut self) -> Option<Mode> {
+        self.spa_mode.take()
+    }
+
+    fn is_spa(&self) -> bool {
+        self.spa_mode.is_some()
     }
 }
 

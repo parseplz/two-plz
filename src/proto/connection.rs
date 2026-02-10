@@ -2,6 +2,7 @@ use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
 
+use crate::client::Mode;
 use crate::frame;
 use crate::frame::Reason;
 use crate::proto::ProtoError;
@@ -57,7 +58,7 @@ pub struct Connection<T> {
     /// This exists separately from State in order to support
     /// graceful shutdown.
     error: Option<frame::GoAway>,
-    is_spa: bool,
+    spa_mode: Option<Mode>,
 }
 
 impl<T> Connection<T>
@@ -66,7 +67,7 @@ where
 {
     pub fn new(
         role: Role,
-        config: ConnectionConfig,
+        mut config: ConnectionConfig,
         codec: Codec<T, Bytes>,
     ) -> Self {
         Connection {
@@ -79,7 +80,7 @@ where
             codec,
             role: role.clone(),
             span: trace_span!("conn", "{}", role.as_str()),
-            is_spa: config.is_spa,
+            spa_mode: config.spa_mode.take(),
             streams: Streams::new(role, config),
             error: None,
         }

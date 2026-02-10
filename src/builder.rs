@@ -1,6 +1,7 @@
 use bytes::Bytes;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use crate::client::Mode;
 use crate::proto::config::ConnectionConfig;
 use crate::proto::{
     DEFAULT_LOCAL_RESET_COUNT_MAX, DEFAULT_REMOTE_RESET_COUNT_MAX,
@@ -18,9 +19,15 @@ use std::time::Duration;
 pub trait BuildConnection {
     type Connection<T>: Sized;
 
+    fn role_opts() -> Self;
+
     fn is_server() -> bool;
 
     fn is_client() -> bool;
+
+    fn into_spa_mode(&mut self) -> Option<Mode>;
+
+    fn is_spa(&self) -> bool;
 
     fn init_stream_id() -> StreamId;
 
@@ -52,13 +59,10 @@ pub struct Builder<R> {
     /// Maximum number of remote reset streams to keep at a time.
     pub remote_reset_stream_max: usize,
 
-    role: PhantomData<R>,
+    pub role: R,
 
     /// Initial `Settings` frame to send as part of the handshake.
     pub settings: frame::Settings,
-
-    /// single packet attack mode
-    pub is_spa: bool,
 }
 
 impl<R> Default for Builder<R>
@@ -86,8 +90,7 @@ where
                 DEFAULT_RESET_STREAM_SECS,
             ),
             settings,
-            role: PhantomData,
-            is_spa: false,
+            role: R::role_opts(),
         }
     }
 
@@ -282,15 +285,6 @@ where
         self
     }
 
-    pub fn enable_single_packet_attack(mut self) -> Self {
-        if <R as BuildConnection>::is_client() {
-            self.is_spa = true;
-        } else {
-            tracing::error!("not available for server");
-        }
-        self
-    }
-
     // TODO
     // Sets the first stream ID to something other than 1.
     //pub fn initial_stream_id(&mut self, stream_id: u32) -> &mut Self {
@@ -301,7 +295,7 @@ where
     //
 
     pub async fn handshake<T>(
-        self,
+        mut self,
         io: T,
     ) -> Result<R::Connection<T>, PrefaceError>
     where
@@ -322,9 +316,10 @@ where
     }
 
     fn build_config(
-        &self,
+        &mut self,
         peer_settings: frame::Settings,
     ) -> ConnectionConfig {
+        let spa_mode = self.role.into_spa_mode();
         ConnectionConfig {
             initial_connection_window_size: self
                 .initial_connection_window_size,
@@ -334,7 +329,7 @@ where
             remote_reset_stream_max: self.remote_reset_stream_max,
             local_settings: self.settings.clone(),
             peer_settings,
-            is_spa: self.is_spa,
+            spa_mode,
         }
     }
 }

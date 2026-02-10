@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::frame::Settings;
+use crate::{client::Mode, frame::Settings};
 
 #[derive(Clone, Debug)]
 pub struct ConnectionConfig {
@@ -26,6 +26,6 @@ pub struct ConnectionConfig {
     pub local_settings: Settings,
     pub peer_settings: Settings,
 
-    /// spa
-    pub is_spa: bool,
+    /// single packet attack
+    pub spa_mode: Option<Mode>,
 }
