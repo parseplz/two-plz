@@ -189,7 +189,7 @@ async fn update_max_frame_len_at_rest() {
     use tokio::io::AsyncReadExt;
 
     support::trace_init!();
-    // TODO: add test for updating max frame length in flight as well?
+    // TODO(hyper): add test for updating max frame length in flight as well?
     let mut codec = raw_codec! {
         read => [
             0, 0, 5, 0, 0, 0, 0, 0, 1,

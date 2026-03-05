@@ -61,10 +61,6 @@ pub(crate) struct Stream {
     pub next_open: Option<Key>,
     pub is_pending_open: bool,
 
-    // Next Spa
-    pub next_spa: Option<Key>,
-    pub is_pending_spa: bool,
-
     // ===== Recv =====
     pub recv_flow: FlowControl,
     pub content_length: ContentLength,
@@ -140,8 +136,6 @@ impl Stream {
             pending_push_promises: Queue::new(),
             // trailers
             is_sending_trailer: false,
-            next_spa: None,
-            is_pending_spa: false,
         }
     }
 

@@ -9,3 +9,6 @@ support = { path = "../support" }
 tracing = "0.1.43"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 tokio = { version = "1.48.0", features = ["macros", "net", "rt", "io-util", "rt-multi-thread"] }
+
+[dev-dependencies]
+rstest  = "0.26.1"

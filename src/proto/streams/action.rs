@@ -35,10 +35,10 @@ pub struct Actions {
 }
 
 impl Actions {
-    pub fn new(role: Role, config: ConnectionConfig) -> Self {
+    pub fn new(role: Role, mut config: ConnectionConfig) -> Self {
         Actions {
             recv: Recv::new(&config, &role),
-            send: Send::new(&config),
+            send: Send::new(&mut config),
             task: None,
             conn_error: None,
         }

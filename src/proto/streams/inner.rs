@@ -660,7 +660,7 @@ impl Inner {
             send_buffer,
             &mut self.store,
             &mut self.counts,
-            dst
+            dst,
         ))?;
 
         // Nothing else to do, track the task

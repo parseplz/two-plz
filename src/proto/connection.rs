@@ -2,12 +2,12 @@ use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
 
-use crate::client::Mode;
 use crate::frame;
 use crate::frame::Reason;
 use crate::proto::ProtoError;
 use crate::proto::error::Initiator;
 use crate::proto::go_away::GoAway;
+use crate::proto::ping_pong::PingAction;
 use crate::proto::settings::SettingsAction;
 use crate::proto::settings::SettingsHandler;
 use crate::proto::streams::StreamRef;
@@ -26,11 +26,6 @@ use crate::{
     frame::{Frame, StreamId},
     proto::{config::ConnectionConfig, ping_pong::PingHandler},
 };
-
-pub enum ReadAction {
-    Continue,
-    NeedsFlush,
-}
 
 #[derive(Debug)]
 enum ConnectionState {
@@ -58,7 +53,7 @@ pub struct Connection<T> {
     /// This exists separately from State in order to support
     /// graceful shutdown.
     error: Option<frame::GoAway>,
-    spa_mode: Option<Mode>,
+    is_spa: bool,
 }
 
 impl<T> Connection<T>
@@ -70,18 +65,28 @@ where
         mut config: ConnectionConfig,
         codec: Codec<T, Bytes>,
     ) -> Self {
+        let settings_handler =
+            SettingsHandler::new(config.local_settings.clone());
+        let is_spa = config.spa_tracker.is_some();
+        let mut ping_handler = PingHandler::new();
+        if let Some(spa_tracker) = config
+            .spa_tracker
+            .as_mut()
+            .filter(|m| m.is_enhanced_ping())
+        {
+            spa_tracker.add_enhanced_ping_first_ping(&mut ping_handler);
+        }
+
         Connection {
             state: ConnectionState::Open,
-            settings_handler: SettingsHandler::new(
-                config.local_settings.clone(),
-            ),
-            ping_handler: PingHandler::new(),
+            settings_handler,
+            ping_handler,
             goaway_handler: GoAway::new(),
             codec,
             role: role.clone(),
             span: trace_span!("conn", "{}", role.as_str()),
-            spa_mode: config.spa_mode.take(),
-            streams: Streams::new(role, config),
+            is_spa,
+            streams: Streams::new(role.clone(), config),
             error: None,
         }
     }
@@ -119,7 +124,11 @@ where
     }
 
     // ======== FRAMES ============
-    pub fn recv_frame(&mut self, frame: Frame) -> Result<(), ProtoError> {
+    pub fn recv_frame(
+        &mut self,
+        frame: Frame,
+        cx: &mut Context,
+    ) -> Result<(), ProtoError> {
         match frame {
             Frame::Data(data) => self.streams.recv_data(data),
             Frame::Headers(headers) => self.streams.recv_header(headers),
@@ -128,10 +137,25 @@ where
             Frame::Settings(settings) => self.recv_settings(settings),
             Frame::PushPromise(_push_promise) => todo!(),
             Frame::Ping(ping) => {
-                let action = self.ping_handler.handle(ping);
-                if action.is_shutdown() {
-                    let last_processed_id = self.streams.last_processed_id();
-                    self.go_away_graceful(last_processed_id, Reason::NO_ERROR);
+                use PingAction::*;
+                match self.ping_handler.handle(ping) {
+                    MustAck => (),
+                    Unknown => {
+                        if self.is_spa
+                            && let Some(payload) =
+                                self.ping_handler.pending_ping_payload()
+                        {
+                            self.streams.recvd_ping(&payload, cx);
+                        }
+                    }
+                    Shutdown => {
+                        let last_processed_id =
+                            self.streams.last_processed_id();
+                        self.go_away_graceful(
+                            last_processed_id,
+                            Reason::NO_ERROR,
+                        );
+                    }
                 }
                 Ok(())
             }
@@ -238,6 +262,7 @@ where
     pub fn poll(&mut self, cx: &mut Context) -> Poll<Result<(), ProtoError>> {
         let span = self.span.clone();
         let _e = span.enter();
+
         loop {
             trace!(connection.state = ?self.state);
             match self.state {
@@ -247,8 +272,10 @@ where
                         Poll::Pending => {
                             ready!(
                                 self.streams
-                                    .poll_complete(cx, &mut self.codec)
+                                    .poll_complete(cx, &mut self.codec,)
                             )?;
+                            //// check for spa
+                            ready!(self.poll_spa(cx))?;
                             if self.can_go_away() {
                                 self.go_away_now(Reason::NO_ERROR);
                                 continue;
@@ -315,7 +342,7 @@ where
             // read a frame
             match ready!(Pin::new(&mut self.codec).poll_next(cx)?) {
                 Some(frame) => {
-                    self.recv_frame(frame)?;
+                    self.recv_frame(frame, cx)?;
                 }
                 None => {
                     trace!("codec closed");
@@ -502,6 +529,17 @@ where
         }
         self.go_away_graceful(StreamId::MAX, Reason::NO_ERROR);
         self.ping_handler.ping_shutdown();
+    }
+
+    fn poll_spa(
+        &mut self,
+        cx: &mut Context,
+    ) -> Poll<Result<(), std::io::Error>> {
+        if !self.is_spa {
+            return Poll::Ready(Ok(()));
+        }
+        self.streams
+            .poll_spa(cx, &mut self.codec, &mut self.ping_handler)
     }
 }
 

@@ -33,10 +33,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_tls = connector
         .connect(sni, server_tcp)
         .await?;
+
     let (conn, mut handler) = ClientBuilder::new()
         .handshake(server_tls)
         .await?;
-
     task::spawn(async move {
         if let Err(e) = conn.await {
             eprintln!("{}", e);

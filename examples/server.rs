@@ -103,12 +103,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         headers.insert("response", "header"); // duplicate header
 
         // large body
-        let mut body = BytesMut::from(
-            "hello world"
-                .repeat(1_000_000)
-                .as_bytes(),
-        );
-        body.extend_from_slice(b"dead body");
+        //let mut body = BytesMut::from(
+        //    "hello world"
+        //        .repeat(1_000_000)
+        //        .as_bytes(),
+        //);
+        //body.extend_from_slice(b"dead body");
         let response = Response::builder()
             .status(200)
             .headers(headers)

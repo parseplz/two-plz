@@ -506,7 +506,7 @@ async fn recv_goaway_with_higher_last_processed_id() {
     join(srv_fut, client_fut).await;
 }
 
-// TODO: client - initial_stream_id
+// TODO: fix - client - initial_stream_id
 #[ignore]
 #[tokio::test]
 async fn skipped_stream_ids_are_implicitly_closed() {

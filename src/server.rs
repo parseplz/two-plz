@@ -1,6 +1,6 @@
-use crate::client::Mode;
 use crate::codec::UserError;
 use crate::error::{OpError, Reason};
+use crate::spa::Mode;
 use crate::{
     Codec, Connection,
     builder::{BuildConnection, Builder},

@@ -10,7 +10,7 @@ use self::framed_write::FramedWrite;
 use crate::frame::{self, Data, Frame};
 use crate::proto::ProtoError;
 
-use bytes::{Buf, BytesMut};
+use bytes::Buf;
 use futures_core::Stream;
 use futures_sink::Sink;
 use std::pin::Pin;
@@ -137,19 +137,10 @@ impl<T, B> Codec<T, B> {
         self.inner.get_mut()
     }
 
-    pub fn read_buf_mut(&mut self) -> &mut BytesMut {
-        self.inner.read_buffer_mut()
-    }
-
-    // for testing
-    #[cfg(feature = "test-util")]
-    pub fn write_buf_mut(&mut self) -> &mut BytesMut {
-        self.inner.get_mut().buf_mut()
-    }
-
-    #[cfg(feature = "test-util")]
-    pub fn read_frame(&mut self) -> Result<Frame, ProtoError> {
-        self.inner.read_frame()
+    pub(crate) fn inc_write_buffer(&mut self, size: usize) {
+        self.inner
+            .get_mut()
+            .inc_write_buffer(size)
     }
 }
 
@@ -181,6 +172,11 @@ where
     /// Shutdown the send half
     pub fn shutdown(&mut self, cx: &mut Context) -> Poll<io::Result<()>> {
         self.framed_write().shutdown(cx)
+    }
+
+    // spa
+    pub fn write_buf_empty(&mut self) -> bool {
+        self.inner.get_ref().buf_is_empty()
     }
 }
 

@@ -8,18 +8,18 @@ pub enum Entry<'a> {
 }
 
 pub struct OccupiedEntry<'a> {
-    pub ids: indexmap::map::OccupiedEntry<'a, StreamId, SlabIndex>,
+    pub(crate) ids: indexmap::map::OccupiedEntry<'a, StreamId, SlabIndex>,
 }
 
 pub struct VacantEntry<'a> {
-    pub ids: indexmap::map::VacantEntry<'a, StreamId, SlabIndex>,
-    pub slab: &'a mut slab::Slab<Stream>,
+    pub(crate) ids: indexmap::map::VacantEntry<'a, StreamId, SlabIndex>,
+    pub(crate) slab: &'a mut slab::Slab<Stream>,
 }
 
 // ===== impl OccupiedEntry =====
 
 impl<'a> OccupiedEntry<'a> {
-    pub fn key(&self) -> Key {
+    pub(crate) fn key(&self) -> Key {
         let stream_id = *self.ids.key();
         let index = *self.ids.get();
         Key {
@@ -32,7 +32,7 @@ impl<'a> OccupiedEntry<'a> {
 // ===== impl VacantEntry =====
 
 impl<'a> VacantEntry<'a> {
-    pub fn insert(self, value: Stream) -> Key {
+    pub(crate) fn insert(self, value: Stream) -> Key {
         // Insert the value in the slab
         let stream_id = value.id;
         let index = SlabIndex(self.slab.insert(value) as u32);

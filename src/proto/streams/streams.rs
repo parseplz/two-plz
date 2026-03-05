@@ -10,6 +10,7 @@ use crate::{
     message::TwoTwoFrame,
     proto::{
         config::ConnectionConfig,
+        ping_pong::PingHandler,
         streams::{
             buffer::Buffer,
             inner::Inner,
@@ -61,6 +62,7 @@ impl Streams<Bytes> {
     pub fn send_request(
         &mut self,
         request: Request,
+        is_spa: bool,
     ) -> Result<OpaqueStreamRef, SendError> {
         use super::stream::ContentLength;
         use header_plz::Method;
@@ -105,11 +107,12 @@ impl Streams<Bytes> {
         let mut stream = me.store.insert(stream.id, stream);
 
         let mut frames = TwoTwoFrame::from((stream.id, request));
-        let spa = false; // TODO: remove
-        let mut data_frame = frames.take_data();
-        if spa && data_frame.is_none() {
-            data_frame = Some(frame::Data::new(stream_id, Bytes::new()));
-        }
+        let data_frame = frames.take_data().or_else(|| {
+            is_spa.then(|| {
+                frames.header.unset_end_stream();
+                frame::Data::new(stream_id, Bytes::new())
+            })
+        });
         let trailer_frame = frames.take_trailer();
 
         if let Err(e) = me.actions.send.send_headers(
@@ -380,13 +383,32 @@ impl Streams<Bytes> {
     }
 
     // ===== SPA =====
-    pub(crate) fn can_perform_spa(&self) -> bool {
-        self.inner
-            .lock()
-            .unwrap()
-            .actions
-            .send
-            .can_perform_spa()
+    pub(crate) fn poll_spa<T>(
+        &self,
+        cx: &mut Context<'_>,
+        dst: &mut Codec<T, Bytes>,
+        ping_handler: &mut PingHandler,
+    ) -> Poll<std::io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+    {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        let mut send_buffer = self.send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+        me.actions.send.poll_spa(
+            cx,
+            send_buffer,
+            &mut me.store,
+            dst,
+            ping_handler,
+        )
+    }
+
+    pub(crate) fn recvd_ping(&self, payload: &[u8; 8], cx: &mut Context) {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        me.actions.send.recvd_ping(payload, cx)
     }
 }
 

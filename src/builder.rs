@@ -1,13 +1,13 @@
 use bytes::Bytes;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::client::Mode;
 use crate::proto::config::ConnectionConfig;
 use crate::proto::{
     DEFAULT_LOCAL_RESET_COUNT_MAX, DEFAULT_REMOTE_RESET_COUNT_MAX,
     DEFAULT_RESET_STREAM_MAX, DEFAULT_RESET_STREAM_SECS,
 };
 use crate::role::Role;
+use crate::spa::Mode;
 use crate::{Codec, frame};
 use crate::{
     frame::StreamId,
@@ -318,7 +318,6 @@ where
         &mut self,
         peer_settings: frame::Settings,
     ) -> ConnectionConfig {
-        let spa_mode = self.role.take_spa_mode();
         ConnectionConfig {
             initial_connection_window_size: self
                 .initial_connection_window_size,
@@ -328,7 +327,10 @@ where
             remote_reset_stream_max: self.remote_reset_stream_max,
             local_settings: self.settings.clone(),
             peer_settings,
-            spa_mode,
+            spa_tracker: self
+                .role
+                .take_spa_mode()
+                .map(Into::into),
         }
     }
 }

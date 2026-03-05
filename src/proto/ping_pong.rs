@@ -2,6 +2,7 @@ use std::task::{Context, Poll};
 
 use bytes::Buf;
 use tokio::io::AsyncWrite;
+use tracing::trace;
 
 use crate::{Codec, frame::Ping, proto::PingPayload};
 
@@ -14,12 +15,12 @@ use crate::{Codec, frame::Ping, proto::PingPayload};
 
 #[derive(Debug, Default)]
 pub struct PingHandler {
-    pending_ping: Option<PendingPing>,
+    pub(crate) pending_ping: Option<PendingPing>,
     pending_pong: Option<PingPayload>,
 }
 
-#[derive(Debug)]
-struct PendingPing {
+#[derive(Debug, Clone)]
+pub struct PendingPing {
     payload: PingPayload,
     sent: bool,
 }
@@ -29,12 +30,6 @@ pub enum PingAction {
     MustAck,
     Unknown,
     Shutdown,
-}
-
-impl PingAction {
-    pub(crate) fn is_shutdown(&self) -> bool {
-        matches!(*self, Self::Shutdown)
-    }
 }
 
 impl PingHandler {
@@ -50,13 +45,7 @@ impl PingHandler {
         }
 
         if let Some(pending) = self.pending_ping.take() {
-            if &pending.payload == ping.payload() {
-                assert_eq!(
-                    &pending.payload,
-                    &Ping::SHUTDOWN,
-                    "pending_ping should be for shutdown",
-                );
-                tracing::trace!("recv PING SHUTDOWN ack");
+            if pending.payload == Ping::SHUTDOWN {
                 return PingAction::Shutdown;
             }
 
@@ -67,7 +56,7 @@ impl PingHandler {
         // else we were acked a ping we didn't send?
         // The spec doesn't require us to do anything about this,
         // so for resiliency, just ignore it for now.
-        tracing::warn!("recv PING ack that we never sent| {:?}", ping);
+        //tracing::warn!("recv PING ack that we never sent| {:?}", ping);
         PingAction::Unknown
     }
 
@@ -88,6 +77,7 @@ impl PingHandler {
 
             dst.buffer(Ping::pong(pong).into())
                 .expect("invalid pong frame");
+            trace!("pong sent");
         }
         if let Some(ref mut ping) = self.pending_ping
             && !ping.sent
@@ -99,6 +89,7 @@ impl PingHandler {
             dst.buffer(Ping::new(ping.payload).into())
                 .expect("invalid ping frame");
             ping.sent = true;
+            trace!("ping sent");
         }
         Poll::Ready(Ok(()))
     }
@@ -110,5 +101,18 @@ impl PingHandler {
             payload: Ping::SHUTDOWN,
             sent: false,
         });
+    }
+
+    pub fn send_ping(&mut self, payload: PingPayload) {
+        self.pending_ping = Some(PendingPing {
+            payload,
+            sent: false,
+        });
+    }
+
+    pub fn pending_ping_payload(&mut self) -> Option<PingPayload> {
+        self.pending_ping
+            .take()
+            .map(|pending_ping| pending_ping.payload)
     }
 }

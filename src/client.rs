@@ -1,3 +1,4 @@
+pub use crate::proto::streams::PartialResponse;
 use std::{
     pin::Pin,
     task::{Context, Poll},
@@ -11,97 +12,17 @@ use crate::{
     builder::{BuildConnection, Builder},
     error::OpError,
     frame::StreamId,
-    proto::{
-        config::ConnectionConfig,
-        streams::{PartialResponse, Streams},
-    },
+    proto::{config::ConnectionConfig, streams::Streams},
     role::Role,
+    spa::Mode,
 };
 
 use crate::proto::streams::OpaqueStreamRef;
 use http_plz::{Request, Response};
 
-// ===== single packet attack =====
 #[derive(Default)]
 pub struct Client {
     spa_mode: Option<Mode>,
-}
-
-#[derive(Clone, Default, Debug)]
-pub enum Mode {
-    #[default]
-    Native,
-    Ping(bool),
-    EnhanchedPing(PingSent),
-}
-
-#[derive(Clone, Default, Debug)]
-pub enum PingSent {
-    #[default]
-    Init,
-    First,
-    Second,
-}
-
-impl Mode {
-    pub fn ping() -> Self {
-        Self::Ping(false)
-    }
-
-    pub fn enhanced() -> Self {
-        Self::EnhanchedPing(PingSent::Init)
-    }
-}
-
-pub struct SpaTracker {
-    pending_spa: Vec<StreamId>,
-    // pending streams with stream level window update
-    pending_stream_window_update: Option<Vec<StreamId>>,
-    mode: Mode,
-}
-
-impl From<Mode> for SpaTracker {
-    fn from(mode: Mode) -> Self {
-        Self {
-            pending_spa: Vec::new(),
-            pending_stream_window_update: None,
-            mode,
-        }
-    }
-}
-
-impl SpaTracker {
-    pub fn are_pending_stream_window_update(&self) -> bool {
-        self.pending_stream_window_update
-            .is_none()
-    }
-
-    pub fn mode(&self) -> &Mode {
-        &self.mode
-    }
-
-    pub fn add_stream(&mut self, stream: StreamId) {
-        if let Some(queue) = self
-            .pending_stream_window_update
-            .as_mut()
-        {
-            queue.push(stream)
-        }
-    }
-
-    pub fn remove_stream(&mut self, stream: StreamId) {
-        if let Some(queue) = self
-            .pending_stream_window_update
-            .as_mut()
-        {
-            queue.remove(
-                queue
-                    .iter()
-                    .position(|x| *x == stream)
-                    .expect("stream not found"),
-            );
-        }
-    }
 }
 
 // ===== Builder =====
@@ -141,7 +62,7 @@ impl BuildConnection for Client {
     where
         T: AsyncRead + AsyncWrite + Unpin,
     {
-        let is_spa = config.spa_mode.is_some();
+        let is_spa = config.spa_tracker.is_some();
         let conn = ClientConnection {
             inner: Connection::new(role, config, codec),
         };
@@ -251,6 +172,16 @@ impl SendRequest {
     pub fn is_spa(&self) -> bool {
         self.is_spa
     }
+
+    pub fn spa(
+        &mut self,
+        requests: Vec<Request>,
+    ) -> Vec<Result<ResponseFuture, OpError>> {
+        requests
+            .into_iter()
+            .map(|r| self.send_request(r))
+            .collect()
+    }
 }
 
 // ===== Response Future =====
@@ -276,4 +207,15 @@ impl Future for ResponseFuture {
             .poll_response(cx)
             .map_err(Into::into)
     }
+}
+
+pub async fn poll_once<T, E>(conn: &mut T) -> Result<(), E>
+where
+    T: Future<Output = Result<(), E>> + Unpin,
+{
+    futures::future::poll_fn(|cx| match Pin::new(&mut *conn).poll(cx) {
+        Poll::Pending => Poll::Ready(Ok(())),
+        Poll::Ready(r) => Poll::Ready(r),
+    })
+    .await
 }

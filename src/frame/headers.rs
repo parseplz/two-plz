@@ -255,6 +255,10 @@ impl Headers {
         self.flags.set_end_stream()
     }
 
+    pub fn unset_end_stream(&mut self) {
+        self.flags.unset_end_stream()
+    }
+
     pub fn is_over_size(&self) -> bool {
         self.header_block.is_over_size
     }
@@ -798,6 +802,10 @@ impl HeadersFlag {
 
     pub fn set_end_stream(&mut self) {
         self.0 |= END_STREAM;
+    }
+
+    pub fn unset_end_stream(&mut self) {
+        self.0 &= !END_STREAM;
     }
 
     pub fn is_end_headers(&self) -> bool {

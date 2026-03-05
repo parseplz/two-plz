@@ -3,7 +3,8 @@
     clippy::new_without_default,
     clippy::large_enum_variant,
     clippy::result_large_err,
-    clippy::len_without_is_empty
+    clippy::len_without_is_empty,
+    clippy::too_many_arguments
 )]
 
 macro_rules! proto_err {
@@ -38,3 +39,4 @@ pub mod server;
 pub use crate::proto::connection::Connection;
 pub use codec::Codec;
 pub mod hpack;
+pub mod spa;

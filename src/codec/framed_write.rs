@@ -8,6 +8,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::io::poll_write_buf;
+use tracing::trace;
 
 use std::io::{self, Cursor};
 
@@ -173,9 +174,18 @@ impl<T, B> FramedWrite<T, B> {
         &mut self.inner
     }
 
-    // for testing
-    pub fn buf_mut(&mut self) -> &mut BytesMut {
-        self.encoder.buf_mut()
+    pub fn inc_write_buffer(&mut self, size: usize) {
+        trace!("write buffer inc| {size}");
+        self.encoder.buf_mut().reserve(size);
+    }
+}
+
+impl<T, B> FramedWrite<T, B>
+where
+    B: Buf,
+{
+    pub fn buf_is_empty(&self) -> bool {
+        self.encoder.buf.get_ref().is_empty()
     }
 }
 
@@ -247,7 +257,7 @@ where
 
     fn buffer(&mut self, item: Frame<B>) -> Result<(), UserError> {
         // Ensure that we have enough capacity to accept the write.
-        assert!(self.has_capacity());
+        // assert!(self.has_capacity());
         let span = tracing::trace_span!("FramedWrite::buffer", frame = ?item);
         let _e = span.enter();
         tracing::debug!(frame = ?item, "send");
@@ -351,7 +361,7 @@ where
                 >= self.min_buffer_capacity)
     }
 
-    fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         match self.next {
             Some(Next::Data(ref frame)) => !frame.payload().has_remaining(),
             _ => !self.buf.has_remaining(),
@@ -364,7 +374,6 @@ impl<B> Encoder<B> {
         self.max_frame_size as usize
     }
 
-    // for testing
     fn buf_mut(&mut self) -> &mut BytesMut {
         self.buf.get_mut()
     }

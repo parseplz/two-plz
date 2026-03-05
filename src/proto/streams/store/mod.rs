@@ -1,12 +1,10 @@
+use crate::frame::StreamId;
+use crate::proto::streams::stream::Stream;
+use indexmap::{self, IndexMap};
 use std::{
     convert::Infallible,
     ops::{Index, IndexMut},
 };
-
-use indexmap::{self, IndexMap};
-
-use crate::frame::StreamId;
-use crate::proto::streams::stream::Stream;
 mod entry;
 mod ptr;
 mod queue;
@@ -37,7 +35,7 @@ impl Store {
         }
     }
 
-    pub fn insert(&mut self, id: StreamId, val: Stream) -> Ptr<'_> {
+    pub(crate) fn insert(&mut self, id: StreamId, val: Stream) -> Ptr<'_> {
         let index = SlabIndex(self.slab.insert(val) as u32);
         assert!(self.ids.insert(id, index).is_none());
 
@@ -64,7 +62,7 @@ impl Store {
         }
     }
 
-    pub fn find_mut(&mut self, id: &StreamId) -> Option<Ptr<'_>> {
+    pub(crate) fn find_mut(&mut self, id: &StreamId) -> Option<Ptr<'_>> {
         let index = match self.ids.get(id) {
             Some(key) => *key,
             None => return None,
@@ -94,7 +92,7 @@ impl Store {
         }
     }
 
-    pub fn try_for_each<F, E>(&mut self, mut f: F) -> Result<(), E>
+    pub(crate) fn try_for_each<F, E>(&mut self, mut f: F) -> Result<(), E>
     where
         F: FnMut(Ptr) -> Result<(), E>,
     {

@@ -61,7 +61,7 @@ async fn client_other_thread() {
             .unwrap();
         tokio::spawn(async move {
             let request = build_test_request();
-            client
+            let _ = client
                 .send_request(request)
                 .unwrap()
                 .await
@@ -1270,7 +1270,7 @@ async fn malformed_response_headers_dont_unlink_stream() {
 
 #[tokio::test]
 async fn allow_empty_data_for_head() {
-    //support::trace_init!();
+    support::trace_init!();
     let (io, mut srv) = mock::new();
 
     let srv_fut = async move {
@@ -1989,9 +1989,57 @@ async fn server_drop_connection_after_go_away() {
 
         let request = build_test_request();
         let _resp = client.send_request(request).unwrap();
-
         conn.await.unwrap();
     };
 
     join(srv, client_fut).await;
+}
+
+#[tokio::test]
+async fn client_request_empty_body_new() {
+    support::trace_init!();
+    let (io, mut srv) = mock::new();
+
+    let srv_fut = async move {
+        let settings = srv.assert_client_handshake().await;
+        assert_default_settings!(settings);
+        srv.recv_frame(frames::headers(1).request(
+            "POST",
+            "https",
+            "http2.akamai.com",
+            "/",
+        ))
+        .await;
+        srv.recv_frame(frames::data(1, vec![]).eos())
+            .await;
+        srv.send_frame(frames::headers(1).response(200).eos())
+            .await;
+    };
+
+    let client_fut = async move {
+        let (conn, mut client) = ClientBuilder::new()
+            .handshake(io)
+            .await
+            .unwrap();
+
+        let conn_handle = tokio::spawn(async move {
+            conn.await.expect("h2 driver crashed");
+        });
+
+        let mut request = build_test_request_post("http2.akamai.com");
+        request.set_body(BytesMut::new());
+
+        let response = client
+            .send_request(request)
+            .unwrap()
+            .await
+            .expect("request failed");
+
+        assert_eq!(*response.status(), 200);
+
+        drop(client);
+        let _ = conn_handle.await;
+    };
+
+    join(srv_fut, client_fut).await;
 }

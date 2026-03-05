@@ -1200,3 +1200,42 @@ async fn init_window_size_smaller_than_default_should_use_default_before_ack()
 
     join(client, srv).await;
 }
+
+#[tokio::test]
+async fn serve_response_empty_body() {
+    support::trace_init!();
+    let (mock, mut client) = mock::new();
+
+    let client = async move {
+        let settings = client.assert_server_handshake().await;
+        assert_default_settings!(settings);
+        client
+            .send_frame(
+                frames::headers(1)
+                    .request("GET", "https", "example.com", "/")
+                    .eos(),
+            )
+            .await;
+        client
+            .recv_frame(frames::headers(1).response(200))
+            .await;
+        client
+            .recv_frame(frames::data(1, vec![]).eos())
+            .await;
+    };
+
+    let srv = async move {
+        let mut s = ServerBuilder::new()
+            .handshake(mock)
+            .await
+            .unwrap();
+        let (req, mut sender) = s.accept().await.unwrap().unwrap();
+        assert_eq!(req.method(), &Method::GET);
+        let mut resp = build_test_response();
+        resp.set_body(BytesMut::new());
+        sender.send_response(resp).unwrap();
+        assert!(s.accept().await.is_none());
+    };
+
+    join(client, srv).await;
+}

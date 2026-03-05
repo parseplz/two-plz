@@ -237,6 +237,10 @@ impl Handle {
         assert_frame_eq(frame, expected);
     }
 
+    pub async fn recv_frame_raw(&mut self) -> Frame {
+        self.next().await.unwrap().unwrap()
+    }
+
     pub async fn send_frame<F: Into<SendFrame>>(&mut self, frame: F) {
         self.send(frame.into()).await.unwrap();
     }
