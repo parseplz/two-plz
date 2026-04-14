@@ -114,7 +114,7 @@ impl Store {
                 store: self,
             })?;
 
-            // TODO: This logic probably could be better...
+            // TODO(hyper): This logic probably could be better...
             let new_len = self.ids.len();
 
             if new_len < len {

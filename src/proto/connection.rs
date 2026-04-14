@@ -132,10 +132,10 @@ where
         match frame {
             Frame::Data(data) => self.streams.recv_data(data),
             Frame::Headers(headers) => self.streams.recv_header(headers),
-            Frame::Priority(_priority) => todo!(),
+            Frame::Priority(_priority) => todo!(), // hyper
             Frame::Reset(reset) => self.streams.recv_reset(reset),
             Frame::Settings(settings) => self.recv_settings(settings),
-            Frame::PushPromise(_push_promise) => todo!(),
+            Frame::PushPromise(_push_promise) => todo!(), // hyper
             Frame::Ping(ping) => {
                 use PingAction::*;
                 match self.ping_handler.handle(ping) {
@@ -412,7 +412,7 @@ where
             // Attempting to read a frame resulted in an I/O error. All
             // active streams must be reset.
             //
-            // TODO: Are I/O errors recoverable?
+            // TODO(hyper): Are I/O errors recoverable?
             Err(ProtoError::Io(kind, inner)) => {
                 let e = ProtoError::Io(kind, inner);
                 // Reset and Notify all active streams

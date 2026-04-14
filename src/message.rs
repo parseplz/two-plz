@@ -1,3 +1,4 @@
+use crate::ext::Protocol;
 use crate::frame::Reason;
 use crate::hpack::header;
 use crate::{
@@ -16,25 +17,21 @@ pub trait IntoPseudo {
 
 impl From<header::BytesStr> for header_plz::bytes_str::BytesStr {
     fn from(value: header::BytesStr) -> Self {
-        // TODO:
-        // header_plz::bytes_str::BytesStr::from(value.into_inner())
-        header_plz::bytes_str::BytesStr::from(value.as_str())
+        header_plz::bytes_str::BytesStr::from(value.into_inner())
     }
 }
 
 impl IntoPseudo for RequestLine {
     fn into_pseudo(self) -> Pseudo {
-        // TODO: extensions
-        let (method, uri, _ext) = self.into_parts();
+        let (method, uri, ext) = self.into_parts();
         let is_connect = method == Method::CONNECT;
-        let mut pseudo = Pseudo::request(method, uri, None);
+        let protocol = ext
+            .map(|e| Protocol::try_from(*e).ok())
+            .flatten();
+        let mut pseudo = Pseudo::request(method, uri, protocol);
 
         if pseudo.scheme.is_none() && !is_connect {
             pseudo.set_scheme(Scheme::HTTP)
-        }
-
-        if is_connect {
-            pseudo.path = None;
         }
 
         pseudo

@@ -150,7 +150,7 @@ impl Send {
         if counts
             .role()
             .is_local_init(frame.stream_id())
-        // TODO: pp
+        // TODO(pp)
         //&& !stream.is_pending_push
         {
             pending_open = true;
@@ -293,7 +293,7 @@ impl Send {
                     store.try_for_each(|mut stream| {
                         let stream = &mut *stream;
                         if stream.state.is_send_closed()
-                        // TODO: ws
+                        // TODO(ws)
                         // && stream.buffered_send_data == 0 {
                         {
                             return Ok(());
@@ -632,7 +632,7 @@ impl Send {
         {
             trace!("pop pending open| {:?}", stream.id);
             counts.inc_num_send_streams(&mut stream);
-            // TODO: ws
+            // TODO(ws)
             //stream.notify_send();
             return Some(stream);
         }
@@ -655,11 +655,7 @@ impl Send {
         if allocated == 0 {
             return false;
         }
-
-        trace!("allocated| {allocated}");
-        // TODO: test
         stream.connection_window_allocated += allocated;
-        // TODO: error handling
         let _ = self.flow.dec_window(allocated);
         true
     }
@@ -725,11 +721,6 @@ impl Send {
                 trace!("spa| added to pending stream flow");
                 s.add_pending_stream_update(stream.id);
             }
-
-            // TODO: uncomment
-            // Ensure that the stream is waiting for
-            // connection level capacity
-            //debug_assert!(stream.is_pending_send_capacity);
 
             // The stream has no more capacity, this can happen if the remote
             // reduced the stream window. In this case, we need to buffer the
@@ -896,10 +887,10 @@ impl Send {
                     } else if !stream.pending_send.is_empty()
                         || stream.state.is_scheduled_reset()
                     {
-                        // TODO(hyper): Only requeue the sender if it is ready to send
-                        // the next frame. i.e. don't requeue it if the next
-                        // frame is a data frame and the stream does not have
-                        // any more capacity.
+                        // TODO(hyper): Only requeue the sender if it is ready
+                        // to send the next frame. i.e. don't requeue it if the
+                        // next frame is a data frame and the stream does not
+                        // have any more capacity.
                         self.pending_send.push(&mut stream);
                     }
                     counts.transition_after(stream, is_pending_reset);

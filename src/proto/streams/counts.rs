@@ -218,12 +218,12 @@ impl Counts {
     /// If the stream state transitions to closed, this function will perform
     /// all necessary cleanup.
     ///
-    /// TODO: Is this function still needed?
+    /// TODO(hyper): Is this function still needed?
     pub fn transition<F, U>(&mut self, mut stream: Ptr, f: F) -> U
     where
         F: FnOnce(&mut Self, &mut Ptr) -> U,
     {
-        // TODO: Does this need to be computed before performing the action?
+        // TODO(hyper): Does this need to be computed before performing the action?
         let is_pending_reset = stream.is_pending_reset_expiration();
 
         // Run the action
@@ -234,6 +234,7 @@ impl Counts {
         ret
     }
 
+    // TODO(hyper): move this to macro?
     pub fn transition_after(
         &mut self,
         mut stream: Ptr,

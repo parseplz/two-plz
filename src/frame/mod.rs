@@ -17,7 +17,7 @@ use std::fmt;
 /// assert_eq!(1u32, unpack_octets_4!(buf, 0, u32));
 /// ```
 macro_rules! unpack_octets_4 {
-    // TODO: Get rid of this macro
+    // TODO(hyper): Get rid of this macro
     ($buf:expr, $offset:expr, $tip:ty) => {
         (($buf[$offset + 0] as $tip) << 24)
             | (($buf[$offset + 1] as $tip) << 16)
@@ -51,9 +51,6 @@ mod window_update;
 pub use self::data::Data;
 pub use self::go_away::GoAway;
 pub use self::head::{Head, Kind};
-// TODO: remove
-// pub use self::headers::Continuation;
-// pub use self::headers::{Headers, PushPromise};
 pub use self::headers::{Continuation, Headers, PushPromise};
 pub use self::ping::Ping;
 pub use self::priority::{Priority, StreamDependency};

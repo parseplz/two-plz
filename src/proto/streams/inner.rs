@@ -318,7 +318,7 @@ impl Inner {
         let stream = match self.store.find_mut(&id) {
             Some(stream) => stream,
             None => {
-                // TODO: Are there other error cases?
+                // TODO(hyper): Are there other error cases?
                 self.actions
                     .ensure_not_idle(self.counts.role(), id)
                     .map_err(ProtoError::library_go_away)?;

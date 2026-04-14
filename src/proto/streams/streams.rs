@@ -66,12 +66,6 @@ impl Streams<Bytes> {
     ) -> Result<OpaqueStreamRef, SendError> {
         use super::stream::ContentLength;
         use header_plz::Method;
-        // TODO: why ?
-        //let protocol = request
-        //    .extensions_mut()
-        //    .remove::<Protocol>();
-        //request.extensions_mut().clear();
-
         // TODO(hyper): There is a hazard with assigning a stream ID before the
         // prioritize layer. If prioritization reorders new streams, this
         // implicitly closes the earlier stream IDs.
@@ -138,7 +132,7 @@ impl Streams<Bytes> {
         // closed state.
         debug_assert!(!stream.state.is_closed());
 
-        // TODO: ideally, OpaqueStreamRefs::new would do this, but we're
+        // TODO(hyper): ideally, OpaqueStreamRefs::new would do this, but we're
         // holding the lock, so it can't.
         me.refs += 1;
 
@@ -159,7 +153,7 @@ impl Streams<Bytes> {
                     stream.id,
                     stream.state
                 );
-                // TODO: ideally, OpaqueStreamRefs::new would do this, but
+                // TODO(hyper): ideally, OpaqueStreamRefs::new would do this, but
                 // we're holding the lock, so it can't.
                 me.refs += 1;
 

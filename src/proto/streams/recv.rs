@@ -529,7 +529,7 @@ impl Recv {
         self.move_from_pending_complete(stream, &counts.role());
         stream.notify_recv();
 
-        // TODO: ws
+        // TODO(ws)
         //stream.notify_push();
         //stream.notify_send();
         Ok(())
@@ -636,7 +636,7 @@ impl Recv {
         // If a receiver is waiting, notify it
         stream.notify_recv();
 
-        // TODO: ws
+        // TODO(ws)
         //stream.notify_send();
         //stream.notify_push();
     }
@@ -767,7 +767,7 @@ impl Recv {
     pub fn recv_eof(&mut self, stream: &mut Stream) {
         stream.state.recv_eof();
         stream.notify_recv();
-        // TODO: ws
+        // TODO(ws)
         //stream.notify_send();
         //stream.notify_push();
     }

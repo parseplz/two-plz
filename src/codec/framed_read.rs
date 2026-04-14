@@ -248,7 +248,7 @@ fn decode_frame(
             bytes.advance(frame::HEADER_LEN);
             let res = frame::Data::load(head, bytes.freeze());
 
-            // TODO: Should this always be connection level? Probably not...
+            // TODO(hyper): Should this always be connection level? Probably not...
             res.map_err(|e| {
                 proto_err!(conn: "failed to load DATA frame; err={:?}", e);
                 ProtoError::library_go_away(Reason::PROTOCOL_ERROR)
