@@ -230,7 +230,7 @@ impl Decoder {
                     let entry = self.decode_literal(src, false)?;
                     consume(src);
 
-                    // TODO: Track that this should never be indexed
+                    // TODO(hyper): Track that this should never be indexed
 
                     f(entry);
                 }
@@ -393,7 +393,7 @@ impl Representation {
         const SIZE_UPDATE_MASK: u8 = 0b1110_0000;
         const SIZE_UPDATE: u8 = 0b0010_0000;
 
-        // TODO: What did I even write here?
+        // TODO(hyper): What did I even write here?
 
         if byte & INDEXED == INDEXED {
             Ok(Representation::Indexed)
@@ -602,29 +602,29 @@ impl Table {
 
 impl From<Utf8Error> for DecoderError {
     fn from(_: Utf8Error) -> DecoderError {
-        // TODO: Better error?
+        // TODO(hyper): Better error?
         DecoderError::InvalidUtf8
     }
 }
 
-/* TODO
+/* TODO: needed ?
 impl From<header::InvalidHeaderValue> for NDecoderError {
     fn from(_: header::InvalidHeaderValue) -> NDecoderError {
-        // TODO: Better error?
+        // TODO(hyper): Better error?
         NDecoderError::InvalidUtf8
     }
 }
 
 impl From<header::InvalidHeaderName> for NDecoderError {
     fn from(_: header::InvalidHeaderName) -> NDecoderError {
-        // TODO: Better error
+        // TODO(hyper): Better error
         NDecoderError::InvalidUtf8
     }
 }
 
 impl From<method::InvalidMethod> for NDecoderError {
     fn from(_: method::InvalidMethod) -> NDecoderError {
-        // TODO: Better error
+        // TODO(hyper): Better error
         NDecoderError::InvalidUtf8
     }
 }
@@ -632,7 +632,7 @@ impl From<method::InvalidMethod> for NDecoderError {
 
 impl From<InvalidStatusCode> for DecoderError {
     fn from(_: InvalidStatusCode) -> DecoderError {
-        // TODO: Better error
+        // TODO(hyper): Better error
         DecoderError::InvalidUtf8
     }
 }

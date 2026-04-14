@@ -590,7 +590,6 @@ impl Pseudo {
         uri: Uri,
         protocol: Option<Protocol>,
     ) -> Self {
-        //let (scheme, authority, path) = uri.into_parts();
         let (scheme, path) = if method == Method::CONNECT && protocol.is_none()
         {
             (None, None)
@@ -1067,7 +1066,7 @@ mod test {
         huffman::decode(src, &mut buf).unwrap()
     }
 
-    // TODO: fix
+    // TODO: support
     #[test]
     #[ignore]
     fn test_nameless_header_at_resume() {

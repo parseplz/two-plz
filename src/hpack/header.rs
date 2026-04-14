@@ -15,7 +15,7 @@ pub enum Header<T = BytesStr> {
         name: T,
         value: BytesStr,
     },
-    // TODO: Change these types to `http::uri` types.
+    // TODO(hyper): Change these types to `http::uri` types.
     Authority(BytesStr),
     Method(Method),
     Scheme(BytesStr),
@@ -224,7 +224,7 @@ impl Header {
                 ref value,
                 ..
             } => value.is_sensitive(),
-            // TODO: Technically these other header values can be sensitive too.
+            // TODO(hyper): Technically these other header values can be sensitive too.
             _ => false,
         } */
     }
@@ -297,7 +297,7 @@ impl<'a> Name<'a> {
             Name::Status => {
                 match StatusCode::from_bytes(&value) {
                     Ok(status) => Ok(Header::Status(status)),
-                    // TODO: better error handling
+                    // TODO(hyper): better error handling
                     Err(_) => Err(DecoderError::InvalidStatusCode),
                 }
             }

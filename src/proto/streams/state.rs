@@ -57,14 +57,14 @@ pub struct State {
 #[derive(Debug, Clone)]
 enum Inner {
     Idle,
-    // TODO: these states shouldn't count against concurrency limits:
+    // TODO(hyper): these states shouldn't count against concurrency limits:
     ReservedLocal,
     ReservedRemote,
     Open {
         local: Peer,
         remote: Peer,
     },
-    HalfClosedLocal(Peer), // TODO: explicitly name this value
+    HalfClosedLocal(Peer), // TODO(hyper): explicitly name this value
     HalfClosedRemote(Peer),
     Closed(Cause),
 }
@@ -465,7 +465,7 @@ impl State {
     }
 
     pub fn ensure_recv_open(&self) -> Result<bool, proto::ProtoError> {
-        // TODO: Is this correct?
+        // TODO(hyper): Is this correct?
         match self.inner {
             Closed(Cause::Error(ref e)) => Err(e.clone()),
             Closed(Cause::ScheduledLibraryReset(reason)) => {
