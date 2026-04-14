@@ -79,7 +79,6 @@ impl Drop for OpaqueStreamRef {
         let me = &mut *me;
         me.refs -= 1;
         let mut stream = me.store.resolve(self.key);
-
         trace!("drop_stream_ref| {:?}", stream.id);
 
         // decrement the stream's ref count by 1.
@@ -87,10 +86,9 @@ impl Drop for OpaqueStreamRef {
 
         let actions = &mut me.actions;
 
-        // If the stream is not referenced and it is already
-        // closed (does not have to go through logic below
-        // of canceling the stream), we should notify the task
-        // (connection) so that it can close properly
+        // If the stream is not referenced and it is already closed (does not
+        // have to go through logic below of canceling the stream), we should
+        // notify the task (connection) so that it can close properly
         if stream.ref_count == 0
             && stream.is_closed()
             && let Some(task) = actions.task.take()
@@ -99,10 +97,24 @@ impl Drop for OpaqueStreamRef {
             task.wake();
         }
 
+        // release capacity
+        if stream.connection_window_allocated > 0 {
+            actions
+                .send
+                .recv_connection_window_update(
+                    10,
+                    stream.store_mut(),
+                    &mut me.counts,
+                );
+        }
+        // clear received buffer
+        actions
+            .recv
+            .clear_stream_queue(&mut stream);
+
         me.counts
             .transition(stream, |counts, stream| {
                 maybe_cancel(stream, actions, counts);
-                // TODO: release capacity and clear received and buffer
 
                 if stream.ref_count == 0 {
                     // We won't be able to reach our push promises anymore
