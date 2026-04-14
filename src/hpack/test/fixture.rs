@@ -156,7 +156,7 @@ fn value_str(e: &Header) -> &str {
         Header::Field {
             ref value,
             ..
-        } => value.to_str().unwrap(),
+        } => value.as_str(),
         Header::Authority(ref v) => v,
         Header::Method(ref m) => m.as_str(),
         Header::Scheme(ref v) => v,

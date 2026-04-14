@@ -637,7 +637,7 @@ impl Table {
             }
         */
 
-        // TODO: Ensure linked lists are correct: no cycles, etc...
+        // TODO(hyper): Ensure linked lists are correct: no cycles, etc...
 
         true
     }

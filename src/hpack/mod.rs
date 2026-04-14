@@ -4,7 +4,6 @@ pub(crate) mod header;
 pub(crate) mod huffman;
 mod table;
 
-// todo
 #[cfg(test)]
 mod test;
 
