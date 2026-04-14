@@ -1,4 +1,5 @@
 use support::prelude::*;
+use tokio::sync::oneshot;
 
 #[tokio::test]
 async fn recv_single_ping() {
@@ -116,28 +117,50 @@ async fn pong_has_highest_priority() {
     join(client, srv).await;
 }
 
-// TODO: Fix test
-//#[tokio::test]
-//async fn user_notifies_when_connection_closes() {
-//    support::trace_init!();
-//    let (io, mut srv) = mock::new();
-//    let srv = async move {
-//        let settings = srv.assert_client_handshake().await;
-//        assert_default_settings!(settings);
-//        srv
-//    };
-//
-//    #[allow(clippy::async_yields_async)]
-//    let client = async move {
-//        let mut conn = ClientBuilder::new()
-//            .handshake(io)
-//            .await
-//            .unwrap();
-//        let _client = conn.send_request_handle();
-//        // yield once so we can ack server settings
-//        conn.drive(util::yield_once()).await;
-//        conn
-//    };
-//
-//    let (srv, mut client) = join(srv, client).await;
-//}
+#[tokio::test]
+async fn user_notifies_when_connection_closes() {
+    support::trace_init!();
+    let (io, mut srv) = mock::new();
+
+    let srv_fut = async move {
+        let settings = srv.assert_client_handshake().await;
+        assert_default_settings!(settings);
+
+        srv.recv_frame(
+            frames::headers(1)
+                .request("GET", "https", "http2.akamai.com", "/")
+                .eos(),
+        )
+        .await;
+
+        srv
+    };
+
+    let client_fut = async move {
+        let (mut conn, mut client) = ClientBuilder::new()
+            .handshake(io)
+            .await
+            .unwrap();
+
+        let resp_fut = client
+            .send_request(build_test_request())
+            .unwrap();
+        poll_once(&mut conn).await.unwrap();
+        (conn, resp_fut)
+    };
+
+    let (srv_handle, (conn, resp_fut)) = join(srv_fut, client_fut).await;
+
+    let (tx, rx) = oneshot::channel();
+    tokio::spawn(async move {
+        let res = resp_fut.await;
+        tx.send(res).unwrap();
+    });
+
+    idle_ms(50).await;
+    drop(conn);
+    drop(srv_handle);
+
+    let result = rx.await.unwrap();
+    assert!(result.is_err());
+}

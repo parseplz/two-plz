@@ -506,7 +506,7 @@ async fn recv_goaway_with_higher_last_processed_id() {
     join(srv_fut, client_fut).await;
 }
 
-// TODO: fix - client - initial_stream_id
+// TODO(init): initial_stream_id
 #[ignore]
 #[tokio::test]
 async fn skipped_stream_ids_are_implicitly_closed() {
@@ -700,7 +700,7 @@ async fn rst_stream_expires() {
 }
 
 /*
-// TODO: support ?
+// TODO(support) - max_concurrent_reset_streams ?
 // #[tokio::test]
 async fn rst_stream_max() {
     support::trace_init!();
@@ -899,44 +899,41 @@ async fn rst_with_buffered_data() {
     join(srv_fut, client_fut).await;
 }
 
-// TODO: fix
-#[ignore]
 #[tokio::test]
 async fn err_with_buffered_data() {
-    // Data is buffered in `FramedWrite` and the stream is reset locally before
-    // the data is fully flushed. Given that resetting a stream requires
-    // clearing all associated state for that stream, this test ensures that the
-    // buffered up frame is correctly handled.
     support::trace_init!();
-    let (io, mut srv) = mock::new();
 
-    // Rendezvous when we've queued a trailers frame
+    let (io, mut srv) = mock::new_with_write_capacity(73);
     let (tx, rx) = oneshot::channel();
-
     let client_fut = async move {
-        let (mut conn, mut client) = ClientBuilder::new()
+        let (conn, mut client) = ClientBuilder::new()
             .handshake(io)
             .await
             .unwrap();
 
+        tokio::spawn(async move {
+            let _ = conn.await;
+        });
+
         let mut request = build_test_request_post("example.com");
-        // A large body
         let body =
             BytesMut::zeroed(2 * frame::DEFAULT_INITIAL_WINDOW_SIZE as usize);
         request.set_body(body);
+
         let resp = client
             .send_request(request)
             .expect("send_request");
         drop(client);
-        let res = conn.drive(resp).await;
+
+        let res = resp.await;
         assert!(res.is_err());
         tx.send(()).unwrap();
-        conn.await.unwrap();
     };
 
     let srv_fut = async move {
         let settings = srv.assert_client_handshake().await;
         assert_default_settings!(settings);
+
         srv.recv_frame(frames::headers(1).request(
             "POST",
             "https",
@@ -944,18 +941,18 @@ async fn err_with_buffered_data() {
             "/",
         ))
         .await;
-        srv.recv_frame(frames::data(1, vec![0; 16_384]))
-            .await;
+        srv.buffer_bytes(128).await;
         srv.send_frame(frames::headers(1).response(204).eos())
             .await;
-        // send invalid data
         srv.send_bytes(b"\x00\x00\x00\x00\x00\x00\x00\x00\x00")
             .await;
+
         rx.await.unwrap();
         srv.unbounded_bytes().await;
         srv.recv_frame(frames::data(1, vec![0; 16_384]))
             .await;
     };
+
     join(srv_fut, client_fut).await;
 }
 
@@ -1021,7 +1018,7 @@ async fn send_err_with_buffered_data() {
     join(srv_fut, client_fut).await;
 }
 
-// TODO: push promise
+// TODO(pp)
 #[ignore]
 #[tokio::test]
 async fn srv_window_update_on_lower_stream_id() {}

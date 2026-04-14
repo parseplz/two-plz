@@ -684,8 +684,6 @@ async fn pending_accept_recv_illegal_content_length_data() {
     join(client, srv).await;
 }
 
-// TODO: fix
-#[ignore]
 #[tokio::test]
 async fn server_error_on_unclean_shutdown() {
     support::trace_init!();

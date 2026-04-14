@@ -77,7 +77,7 @@ pub use frame::Reason;
 pub static MAGIC_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 // ===== Everything under here shouldn't be used =====
-// TODO: work on deleting this code
+// TODO(hyper): work on deleting this code
 
 pub trait MockH2 {
     fn handshake(&mut self) -> &mut Self;

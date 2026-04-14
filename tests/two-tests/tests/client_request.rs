@@ -105,7 +105,7 @@ async fn recv_invalid_server_stream_id() {
 }
 
 /*
-// TODO: fix - client - initial_stream_id
+// TODO(init): fix - client - initial_stream_id
 #[ignore]
 #[tokio::test]
 async fn request_stream_id_overflows() {
@@ -1575,12 +1575,9 @@ async fn invalid_connect_protocol_enabled_setting() {
     join(srv, client_fut).await;
 }
 
-// TODO: fix
-#[ignore]
 #[tokio::test]
 async fn extended_connect_request() {
-    //support::trace_init!();
-
+    support::trace_init!();
     let (io, mut srv) = mock::new();
 
     let srv = async move {
@@ -1608,18 +1605,6 @@ async fn extended_connect_request() {
         srv.send_frame(frames::headers(1).response(200).eos())
             .await;
     };
-
-    let expected_frame = Pseudo {
-        method: Method::CONNECT.into(),
-        scheme: util::byte_str("http").into(),
-        authority: util::byte_str("bread").into(),
-        path: util::byte_str("/baguette").into(),
-        protocol: Protocol::from_static("the-bread-protocol").into(),
-        ..Default::default()
-    };
-
-    // ADD THIS DEBUG
-    dbg!(&expected_frame);
 
     let client_fut = async move {
         let (mut conn, mut client) = ClientBuilder::new()

@@ -383,6 +383,9 @@ impl Handle {
                 .lock()
                 .unwrap();
             i.tx_rem = num;
+            if let Some(task) = i.tx_rem_task.take() {
+                task.wake();
+            }
         }
 
         poll_fn(move |cx| {
