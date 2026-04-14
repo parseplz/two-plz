@@ -609,9 +609,9 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "http-plz"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad44abaa5356f763128a88ab4d43ceed634673b27ff12ac6f526fc55a836dc67"
+checksum = "469056b3a08b8ff1a8995dfb271d77dc3082598cdd2900bc7ba0b7eea8c396ff"
 dependencies = [
  "body-plz",
  "bon",
