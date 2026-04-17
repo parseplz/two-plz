@@ -8,8 +8,8 @@ publish = false
 atty = "0.2"
 bytes = "1.11.1"
 futures = { version = "0.3", default-features = false }
-header-plz = "0.0.47"
-http-plz = "0.0.8"
+header-plz = "0.0.48"
+http-plz = "0.0.9"
 tokio = { version = "1", features = ["time"] }
 tokio-test = "0.4"
 tracing = "0.1"
