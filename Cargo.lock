@@ -152,9 +152,9 @@ checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
 name = "body-plz"
-version = "0.0.53"
+version = "0.0.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "722d0a05445fb6f060615222c00ac2ac4b34264620ebe95011ab8c529a3177c2"
+checksum = "8e897791fb3b1203a781acfb05d55037197984618dd1b3f25e8894f09f7ad791"
 dependencies = [
  "buffer-plz",
  "bytes",
@@ -302,9 +302,9 @@ checksum = "d7a1e2f27636f116493b8b860f5546edb47c8d8f8ea73e1d2a20be88e28d1fea"
 
 [[package]]
 name = "decompression-plz"
-version = "0.0.30"
+version = "0.0.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9525956c53a15ea7380479e85044d7381dfc7a64b87e68d865896b5df3377a35"
+checksum = "b0aee76675b24f7e80f617b38779a1b4acb05ed5a32a1e109719842122968069"
 dependencies = [
  "body-plz",
  "brotli",
@@ -580,9 +580,9 @@ checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 
 [[package]]
 name = "header-plz"
-version = "0.0.48"
+version = "0.0.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c77d904444a981b5f20fcace370d14c188c7f13775bc2296c677641dd8ad03ea"
+checksum = "c5c27476ee82b1e9e3065d0f2d13041d01cc8ef73f6f35078ef3dfa850ed0eb6"
 dependencies = [
  "buffer-plz",
  "bytes",
@@ -609,9 +609,9 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "http-plz"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29fab4056d34f6294769137261c16520b026fa468d36862d387bb273da73f06d"
+checksum = "d03faf9f8e572fc4e3296b33b75b8447fb0569dd457a607745831a26521cec65"
 dependencies = [
  "body-plz",
  "bon",

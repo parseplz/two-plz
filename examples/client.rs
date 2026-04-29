@@ -2,7 +2,7 @@
 extern crate two_plz;
 
 use header_plz::{
-    Method,
+    HeaderMap, Method,
     uri::{Uri, scheme::Scheme},
 };
 use http_plz::{OneResponse, Request};
@@ -27,8 +27,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(filter)
         .init();
     let captain_crypto = CaptainCrypto::new()?;
-    let server_tcp = TcpStream::connect("www.google.com:443").await?;
-    let sni = ServerName::try_from("www.google.com")?;
+    let server_tcp = TcpStream::connect("www.reddit.com:443").await?;
+    let sni = ServerName::try_from("www.reddit.com")?;
     let connector = captain_crypto.get_connector();
     let server_tls = connector
         .connect(sni, server_tcp)
@@ -45,15 +45,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let uri = Uri::builder()
         .scheme(Scheme::HTTPS)
-        .authority("www.google.com")
+        .authority("www.reddit.com")
         .path("/robots.txt")
         .build()
         .unwrap();
 
+    let mut headers = HeaderMap::new();
+    headers.insert("host", "www.reddit.com");
+    headers.insert("User-Agent", "curl/8.7.1");
+    headers.insert("Accept", "*/*");
+
     let request = Request::builder()
         .method(Method::GET)
         .uri(uri)
+        .headers(headers)
         .build();
+
+    dbg!(&request);
 
     let resp_fut = handler.send_request(request)?;
     let resp = resp_fut.await.unwrap();
