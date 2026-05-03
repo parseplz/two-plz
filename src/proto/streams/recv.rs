@@ -107,6 +107,9 @@ pub struct Recv {
 
     /// Stream to check for sending pending window update
     pub check_stream_window_update: Option<Key>,
+
+    /// Max recv buffer limit
+    pub max_recv_buf_limit: usize,
 }
 
 #[derive(Debug)]
@@ -143,6 +146,7 @@ impl Recv {
             refused: None,
             check_connection_window_update: false,
             check_stream_window_update: None,
+            max_recv_buf_limit: config.max_recv_buffer_size,
         }
     }
 
@@ -255,6 +259,15 @@ impl Recv {
             .recv_flow
             .dec_window(size)
             .map_err(ProtoError::library_go_away)?;
+
+       // check if frame is within the permitted buffer size
+        stream.curr_buf_len += size as usize;
+        if stream.curr_buf_len > self.max_recv_buf_limit {
+            return Err(ProtoError::library_reset(
+                stream.id,
+                Reason::INTERNAL_ERROR,
+            ));
+        }
 
         // Push the frame onto the recv buffer
         let event = Event::Data(frame.into_payload());

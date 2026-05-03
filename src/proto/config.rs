@@ -26,6 +26,9 @@ pub struct ConnectionConfig {
     pub local_settings: Settings,
     pub peer_settings: Settings,
 
+    /// Max recv body size limit
+    pub max_recv_buffer_size: usize,
+
     /// single packet attack
     pub spa_tracker: Option<SpaTracker>,
 }

@@ -62,6 +62,9 @@ pub struct Builder<R> {
 
     /// Initial `Settings` frame to send as part of the handshake.
     pub settings: frame::Settings,
+
+    /// Max recv body size limit
+    pub max_recv_buffer_size: usize,
 }
 
 impl<R> Default for Builder<R>
@@ -90,6 +93,7 @@ where
             ),
             settings,
             role: R::role_opts(),
+            max_recv_buffer_size: usize::MAX,
         }
     }
 
@@ -291,7 +295,11 @@ where
     //    assert!(self.stream_id.is_client_initiated(), "stream id must be odd");
     //    self
     //}
-    //
+
+    pub fn max_recv_buffer_size(mut self, size: usize) -> Self {
+        self.max_recv_buffer_size = size;
+        self
+    }
 
     pub async fn handshake<T>(
         mut self,
@@ -331,6 +339,7 @@ where
                 .role
                 .take_spa_mode()
                 .map(Into::into),
+            max_recv_buffer_size: self.max_recv_buffer_size,
         }
     }
 }
