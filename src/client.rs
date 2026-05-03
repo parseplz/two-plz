@@ -194,6 +194,10 @@ impl ResponseFuture {
     pub fn stream_id(&self) -> StreamId {
         self.inner.stream_id()
     }
+
+    pub fn take_partial_response(&mut self) -> Option<Response> {
+        self.inner.take_partial_response()
+    }
 }
 
 impl Future for ResponseFuture {

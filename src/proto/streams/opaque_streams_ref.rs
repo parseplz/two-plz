@@ -46,6 +46,15 @@ impl OpaqueStreamRef {
             .recv
             .poll_response(cx, &mut stream)
     }
+
+    pub fn take_partial_response(&mut self) -> Option<Response> {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        let mut stream = me.store.resolve(self.key);
+        me.actions
+            .recv
+            .take_partial_response(&mut stream)
+    }
 }
 
 impl Clone for OpaqueStreamRef {

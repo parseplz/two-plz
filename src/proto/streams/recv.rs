@@ -260,7 +260,7 @@ impl Recv {
             .dec_window(size)
             .map_err(ProtoError::library_go_away)?;
 
-       // check if frame is within the permitted buffer size
+        // check if frame is within the permitted buffer size
         stream.curr_buf_len += size as usize;
         if stream.curr_buf_len > self.max_recv_buf_limit {
             return Err(ProtoError::library_reset(
@@ -900,6 +900,13 @@ impl Recv {
             stream.recv_task = Some(cx.waker().clone());
             Poll::Pending
         }
+    }
+
+    pub(crate) fn take_partial_response(
+        &mut self,
+        stream: &mut Ptr<'_>,
+    ) -> Option<Response> {
+        take_response(stream, &mut self.buffer).ok()
     }
 }
 
