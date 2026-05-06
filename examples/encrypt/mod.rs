@@ -1,3 +1,4 @@
+#![allow(warnings)]
 pub mod captain_crypto;
 use std::sync::Arc;
 

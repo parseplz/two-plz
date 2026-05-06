@@ -87,20 +87,16 @@ impl SpaTracker {
                 }
             }
             Mode::EnhancedPing(state, mayb_payload) => match state {
-                PingState::FirstSent => {
-                    if *mayb_payload == Some(*payload) {
-                        trace!("first pong recvd");
-                        *state = PingState::SecondToSend;
-                        *mayb_payload = None;
-                    }
+                PingState::FirstSent if *mayb_payload == Some(*payload) => {
+                    trace!("first pong recvd");
+                    *state = PingState::SecondToSend;
+                    *mayb_payload = None;
                 }
-                PingState::SecondSent => {
-                    if *mayb_payload == Some(*payload) {
-                        trace!("second pong recvd");
-                        *state = PingState::Fin;
-                        *mayb_payload = None;
-                        cx.waker().wake_by_ref();
-                    }
+                PingState::SecondSent if *mayb_payload == Some(*payload) => {
+                    trace!("second pong recvd");
+                    *state = PingState::Fin;
+                    *mayb_payload = None;
+                    cx.waker().wake_by_ref();
                 }
                 _ => (),
             },

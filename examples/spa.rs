@@ -1,13 +1,9 @@
-#![allow(warnings)]
 extern crate two_plz;
 
 use bytes::BytesMut;
 use futures::{StreamExt, stream::FuturesUnordered};
-use header_plz::{
-    Method,
-    uri::{Uri, scheme::Scheme},
-};
-use http_plz::{OneResponse, Request};
+use header_plz::{Method, uri::Uri};
+use http_plz::Request;
 use rustls_pki_types::ServerName;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -18,11 +14,8 @@ use tracing::{Level, level_filters::LevelFilter};
 use tracing_subscriber::{
     filter, layer::SubscriberExt, util::SubscriberInitExt,
 };
+use two_plz::client::{ClientBuilder, poll_once};
 use two_plz::spa::Mode;
-use two_plz::{
-    client::{ClientBuilder, poll_once},
-    server::ServerBuilder,
-};
 
 mod encrypt;
 use encrypt::captain_crypto::CaptainCrypto;
@@ -74,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let captain_crypto = CaptainCrypto::new()?;
     let mut server_tcp = TcpStream::connect("127.0.0.1:8080").await?;
-    server_tcp.set_nodelay(true);
+    server_tcp.set_nodelay(true)?;
     server_tcp
         .write_all(
             b"CONNECT www.google.com:443 HTTP/1.1\r\n\
@@ -87,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // read connection established
     let mut buf = BytesMut::new();
-    server_tcp.read_buf(&mut buf).await;
+    server_tcp.read_buf(&mut buf).await?;
     let sni = ServerName::try_from("www.google.com")?;
     let connector = captain_crypto.get_connector();
     let server_tls = connector

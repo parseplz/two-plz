@@ -31,7 +31,7 @@ pub(crate) struct SettingsHandler {
 #[derive(Debug)]
 enum Local {
     /// We want to send these SETTINGS to the remote when the socket is ready.
-    ToSend(Settings),
+    _ToSend(Settings),
     /// We have sent these SETTINGS and are waiting for the remote to ACK
     /// before we apply them.
     WaitingAck(Settings),
@@ -60,7 +60,7 @@ impl SettingsHandler {
                     self.local = Local::Synced;
                     Ok(ret)
                 }
-                Local::ToSend(..) | Local::Synced => {
+                Local::_ToSend(..) | Local::Synced => {
                     // We haven't sent any SETTINGS frames to be ACKed, so
                     // this is very bizarre! Remote is either buggy or malicious.
                     error!("received unexpected settings ack");
@@ -119,7 +119,7 @@ impl SettingsHandler {
         B: Buf,
     {
         match &self.local {
-            Local::ToSend(settings) => {
+            Local::_ToSend(settings) => {
                 if !dst.poll_ready(cx)?.is_ready() {
                     return Poll::Pending;
                 }

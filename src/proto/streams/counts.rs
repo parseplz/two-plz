@@ -97,10 +97,6 @@ impl Counts {
     }
 
     // ===== recv =====
-    pub(crate) fn max_recv_streams(&self) -> usize {
-        self.max_recv_streams
-    }
-
     /// Returns true if the receive stream concurrency can be incremented
     pub fn can_inc_num_recv_streams(&self) -> bool {
         self.max_recv_streams > self.num_recv_streams

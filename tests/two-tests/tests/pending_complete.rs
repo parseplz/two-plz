@@ -1,4 +1,3 @@
-#![allow(warnings)]
 use support::prelude::*;
 
 #[tokio::test]
@@ -27,7 +26,7 @@ async fn client_out_of_order_complete() {
             .await;
 
         match result {
-            Either::Left((resp1, resp2_fut)) => {
+            Either::Left((_resp1, _resp2_futt)) => {
                 panic!("Stream 1 completed first");
             }
             Either::Right((resp2, _)) => {
@@ -91,8 +90,12 @@ async fn server_out_of_order_complete() {
         assert_eq!(req1.method(), &Method::POST);
         assert_eq!(req2.method(), &Method::GET);
 
-        responder2.send_response(build_test_response());
-        responder1.send_response(build_test_response());
+        responder2
+            .send_response(build_test_response())
+            .unwrap();
+        responder1
+            .send_response(build_test_response())
+            .unwrap();
         poll_fn(|cx| s.poll_closed(cx))
             .await
             .expect("server");
@@ -141,11 +144,11 @@ async fn client_reset_get() {
             .unwrap();
 
         // req 1
-        let mut request = build_test_request();
+        let request = build_test_request();
         let resp1 = client.send_request(request).unwrap();
 
         // req 2
-        let mut request = build_test_request();
+        let request = build_test_request();
         let resp2 = client.send_request(request).unwrap();
         let (resp1, resp2) = conn
             .drive(async { join(Box::pin(resp1), Box::pin(resp2)).await })
@@ -202,7 +205,7 @@ async fn server_reset_get() {
 
         let result = responder1.send_response(build_test_response());
         assert!(result.is_err());
-        let result = responder2.send_response(build_test_response());
+        let _ = responder2.send_response(build_test_response());
 
         poll_fn(|cx| s.poll_closed(cx))
             .await
@@ -258,7 +261,7 @@ async fn client_reset_pending_send() {
         let resp1 = client.send_request(request).unwrap();
 
         // req 2
-        let mut request = build_test_request();
+        let request = build_test_request();
         let resp2 = client.send_request(request).unwrap();
         let (resp1, resp2) = conn
             .drive(async { join(Box::pin(resp1), Box::pin(resp2)).await })
@@ -341,6 +344,7 @@ async fn server_reset_pending_send() {
 
     let client = async move {
         let settings = client.assert_server_handshake().await;
+        assert_default_settings!(settings);
         client
             .send_frame(
                 frames::headers(1)
@@ -386,7 +390,7 @@ async fn client_reset_pending_recv() {
             .unwrap();
 
         // req 1
-        let mut request = build_test_request();
+        let request = build_test_request();
         let resp = client.send_request(request).unwrap();
         let result = conn.drive(resp).await;
         assert!(result.is_err());
@@ -395,7 +399,7 @@ async fn client_reset_pending_recv() {
             .take_partial_response()
             .unwrap();
         assert_eq!(resp.status(), &StatusCode::OK);
-        conn.await;
+        conn.await.unwrap();
     };
 
     let srv_fut = async move {
@@ -430,7 +434,9 @@ async fn server_reset_pending_recv() {
         let (req, mut responder) = s.accept().await.unwrap().unwrap();
         dbg!("done");
         assert_eq!(req.method(), &Method::GET);
-        responder.send_response(build_test_response());
+        responder
+            .send_response(build_test_response())
+            .unwrap();
         poll_fn(|cx| s.poll_closed(cx))
             .await
             .expect("server");

@@ -108,7 +108,7 @@ impl Drop for OpaqueStreamRef {
 
         // release capacity
         if stream.connection_window_allocated > 0 {
-            actions
+            let _ = actions
                 .send
                 .recv_connection_window_update(
                     10,

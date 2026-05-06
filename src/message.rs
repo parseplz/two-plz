@@ -25,9 +25,7 @@ impl IntoPseudo for RequestLine {
     fn into_pseudo(self) -> Pseudo {
         let (method, uri, ext) = self.into_parts();
         let is_connect = method == Method::CONNECT;
-        let protocol = ext
-            .map(|e| Protocol::try_from(*e).ok())
-            .flatten();
+        let protocol = ext.and_then(|e| Protocol::try_from(*e).ok());
         let mut pseudo = Pseudo::request(method, uri, protocol);
 
         if pseudo.scheme.is_none() && !is_connect {

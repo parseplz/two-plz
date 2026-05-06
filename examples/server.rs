@@ -1,11 +1,10 @@
 // run client:
 // curl https://www.google.com/robots.txt -x http://localhost:8080 -ki
 
-#![allow(warnings)]
 mod encrypt;
 
 use bytes::BytesMut;
-use header_plz::{HeaderMap, status::StatusCode};
+use header_plz::HeaderMap;
 use http_plz::OneRequest;
 use http_plz::Response;
 use tokio::{

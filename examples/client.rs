@@ -1,4 +1,3 @@
-#![allow(warnings)]
 extern crate two_plz;
 
 use header_plz::{

@@ -1,4 +1,3 @@
-#![allow(warnings)]
 use support::prelude::*;
 
 use std::io;
@@ -18,7 +17,7 @@ struct Server {
 }
 
 impl Server {
-    fn serve<F>(mk_data: F) -> Self
+    fn serve<F>(_mk_data: F) -> Self
     where
         F: Fn() -> Bytes,
         F: Send + Sync + 'static,

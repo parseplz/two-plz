@@ -46,12 +46,12 @@ impl<T> From<ProtoError> for RecvHeaderBlockError<T> {
 #[derive(Debug)]
 pub(crate) enum Open {
     Headers,
-    PushPromise,
+    _PushPromise,
 }
 
 impl Open {
     pub fn is_push_promise(&self) -> bool {
-        matches!(*self, Self::PushPromise)
+        matches!(*self, Self::_PushPromise)
     }
 }
 
@@ -97,7 +97,7 @@ pub struct Recv {
     reset_duration: Duration,
 
     /// If push promises are allowed to be received.
-    is_push_enabled: bool,
+    _is_push_enabled: bool,
 
     /// If extended connect protocol is enabled.
     is_extended_connect_protocol_enabled: bool,
@@ -141,7 +141,7 @@ impl Recv {
             pending_complete: Queue::new(),
             pending_reset_expired: Queue::new(),
             reset_duration: config.reset_stream_duration,
-            is_push_enabled: false,
+            _is_push_enabled: false,
             is_extended_connect_protocol_enabled: false,
             refused: None,
             check_connection_window_update: false,

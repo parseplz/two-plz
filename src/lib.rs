@@ -1,4 +1,4 @@
-#![allow(dead_code, warnings)]
+#![allow(dead_code)]
 #![allow(
     clippy::new_without_default,
     clippy::large_enum_variant,
