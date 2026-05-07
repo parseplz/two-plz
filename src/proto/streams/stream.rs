@@ -63,6 +63,7 @@ pub(crate) struct Stream {
 
     // ===== Recv =====
     pub curr_buf_len: usize,
+    pub is_buf_limit_reached: bool,
     pub recv_flow: FlowControl,
     pub content_length: ContentLength,
     /// When the RecvStream drop occurs, no data should be received.
@@ -120,6 +121,7 @@ impl Stream {
             is_pending_open: false,
             // === recv ===
             curr_buf_len: 0,
+            is_buf_limit_reached: false,
             recv_flow: FlowControl::new(init_recv_window),
             content_length: ContentLength::Omitted,
             _is_recv: true,

@@ -15,19 +15,10 @@ async fn buffer_limit() {
             .unwrap();
         let request = build_test_request();
         let resp = client.send_request(request).unwrap();
-        let partial_response = conn
-            .drive(resp)
-            .await
-            .unwrap_err()
-            .take_partial_response()
-            .unwrap();
-        assert_eq!(
-            partial_response
-                .body_as_ref()
-                .unwrap()
-                .len(),
-            20
-        );
+        let mut err = conn.drive(resp).await.unwrap_err();
+        assert!(err.err().is_buffer_limit_error());
+        let partial = err.take_partial_response().unwrap();
+        assert_eq!(partial.body_as_ref().unwrap().len(), 30);
     };
 
     let srv_fut = async move {
@@ -39,7 +30,6 @@ async fn buffer_limit() {
                 .eos(),
         )
         .await;
-
         srv.send_frame(frames::headers(1).response(200))
             .await;
         srv.send_frame(frames::data(1, &payload[..]))

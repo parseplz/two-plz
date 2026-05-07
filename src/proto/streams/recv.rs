@@ -11,6 +11,7 @@ use tracing::{Level, error, span, trace, warn};
 
 use crate::{
     Codec,
+    codec::UserError,
     error::OpError,
     frame::{
         self, DEFAULT_INITIAL_WINDOW_SIZE, Reason, StreamId, StreamIdOverflow,
@@ -260,20 +261,23 @@ impl Recv {
             .dec_window(size)
             .map_err(ProtoError::library_go_away)?;
 
-        // check if frame is within the permitted buffer size
+        // increment current buffer length
         stream.curr_buf_len += size as usize;
-        if stream.curr_buf_len > self.max_recv_buf_limit {
-            return Err(ProtoError::library_reset(
-                stream.id,
-                Reason::INTERNAL_ERROR,
-            ));
-        }
 
         // Push the frame onto the recv buffer
         let event = Event::Data(frame.into_payload());
         stream
             .pending_recv
             .push_back(&mut self.buffer, event);
+
+        // Check if the buffer is too large
+        if stream.curr_buf_len > self.max_recv_buf_limit {
+            stream.is_buf_limit_reached = true;
+            return Err(ProtoError::library_reset(
+                stream.id,
+                Reason::INTERNAL_ERROR,
+            ));
+        }
 
         if is_eos {
             self.move_from_pending_complete(stream, role);
@@ -887,14 +891,19 @@ impl Recv {
             Poll::Ready(Ok(response))
         } else {
             if let Err(e) = stream.state.ensure_recv_open() {
-                let inner_result =
+                let mut inner_result =
                     match take_response(stream, &mut self.buffer) {
-                        Ok(partial) => PartialResponse::new(Some(partial), e),
-                        Err(mut partial_with_err) => {
-                            partial_with_err.err = e.into();
-                            partial_with_err
+                        Ok(response) => {
+                            PartialResponse::new(Some(response), e)
+                        }
+                        Err(mut partial) => {
+                            partial.err = e.into();
+                            partial
                         }
                     };
+                if stream.is_buf_limit_reached {
+                    inner_result.set_buffer_limit_exceeded();
+                }
                 return Poll::Ready(Err(inner_result));
             };
             stream.recv_task = Some(cx.waker().clone());
@@ -988,6 +997,10 @@ impl PartialResponse {
 
     pub fn take_partial_response(&mut self) -> Option<Response> {
         self.response.take()
+    }
+
+    pub fn set_buffer_limit_exceeded(&mut self) {
+        self.err = OpError::from(UserError::BufferLimitExceeded);
     }
 }
 

@@ -49,6 +49,9 @@ pub enum UserError {
 
     /// Tries to send push promise to peer who has disabled server push
     PeerDisabledServerPush,
+
+    /// Buffer limit is exceeded.
+    BufferLimitExceeded,
 }
 
 // ===== impl SendError =====
@@ -105,6 +108,7 @@ impl fmt::Display for UserError {
             PeerDisabledServerPush => {
                 "sending PUSH_PROMISE to peer who disabled server push"
             }
+            BufferLimitExceeded => "buffer limit exceeded",
         })
     }
 }

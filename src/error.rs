@@ -117,6 +117,10 @@ impl OpError {
                 | Kind::Reset(_, _, Initiator::Library)
         )
     }
+
+    pub fn is_buffer_limit_error(&self) -> bool {
+        matches!(self.kind, Kind::User(UserError::BufferLimitExceeded))
+    }
 }
 
 impl From<ProtoError> for OpError {
