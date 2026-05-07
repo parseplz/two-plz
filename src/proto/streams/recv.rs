@@ -1002,6 +1002,10 @@ impl PartialResponse {
     pub fn set_buffer_limit_exceeded(&mut self) {
         self.err = OpError::from(UserError::BufferLimitExceeded);
     }
+
+    pub fn into_parts(self) -> (Option<Response>, OpError) {
+        (self.response, self.err)
+    }
 }
 
 impl std::fmt::Debug for PartialResponse {
